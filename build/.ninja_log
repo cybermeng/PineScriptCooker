@@ -1,0 +1,9 @@
+# ninja log v7
+1251	10516	7726024419822187	CMakeFiles/PineCompilerVM.dir/Parser.cpp.obj	8d31ba9e35458a27
+39	1826	7726027243169799	CMakeFiles/PineCompilerVM.dir/main.cpp.obj	2b3166525dce5bbb
+64	4351	7726025535778699	CMakeFiles/PineCompilerVM.dir/Compiler.cpp.obj	10b29e73dc4d8ea4
+1157	11163	7726024418887117	CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj	fc638992e44879b
+1274	8578	7726024420061832	CMakeFiles/PineCompilerVM.dir/Lexer.cpp.obj	64923c826dc663ed
+1827	2578	7726027261051127	PineCompilerVM.exe	e242f8edc3147f25
+7	2911	7726041968971950	build.ninja	f0283001985efe39
+7	2911	7726041968876977	C:/coderepo/ct4/build/cmake_install.cmake	f0283001985efe39

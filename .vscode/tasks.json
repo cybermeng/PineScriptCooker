@@ -1,0 +1,34 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "cppbuild",
+            "label": "Build Pine Project",
+            "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
+            "args": [
+                "-fdiagnostics-color=always",
+                "-g",
+                // 编译项目中的所有源文件
+                "${workspaceFolder}/main.cpp",
+                "${workspaceFolder}/Compiler.cpp",
+                "${workspaceFolder}/Parser.cpp",
+                "${workspaceFolder}/Lexer.cpp",
+                "${workspaceFolder}/PineVM.cpp",
+                "-o",
+                // 输出到工作区根目录下的一个固定名称的可执行文件
+                "${workspaceFolder}/pine_runner.exe"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "detail": "Builds the entire Pine language interpreter/VM."
+        }
+    ]
+}
