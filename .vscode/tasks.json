@@ -10,10 +10,13 @@
                 "-g",
                 // 编译项目中的所有源文件
                 "${workspaceFolder}/main.cpp",
-                "${workspaceFolder}/Compiler.cpp",
-                "${workspaceFolder}/Parser.cpp",
-                "${workspaceFolder}/Lexer.cpp",
                 "${workspaceFolder}/PineVM.cpp",
+                "${workspaceFolder}/PineScript/PineCompiler.cpp",
+                "${workspaceFolder}/PineScript/PineParser.cpp",
+                "${workspaceFolder}/PineScript/PineLexer.cpp",
+                "${workspaceFolder}/EasyLanguage/EasyLanguageLexer.cpp",
+                "${workspaceFolder}/EasyLanguage/EasyLanguageParser.cpp",
+                "${workspaceFolder}/EasyLanguage/EasyLanguageCompiler.cpp",
                 // Link DuckDB library
                 "C:/coderepo/ct4/duckdb.lib",
                 "-o",

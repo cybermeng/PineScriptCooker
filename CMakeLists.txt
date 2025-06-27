@@ -23,9 +23,13 @@ set(CMAKE_CXX_EXTENSIONS OFF) # 推荐关闭编译器特定的扩展，以保证
 set(SOURCES
     main.cpp
     PineVM.cpp
-    Compiler.cpp
-    Parser.cpp
-    Lexer.cpp
+    PineScript/PineCompiler.cpp
+    PineScript/PineParser.cpp
+    PineScript/PineLexer.cpp
+    # Add EasyLanguage source files
+    EasyLanguage/EasyLanguageLexer.cpp
+    EasyLanguage/EasyLanguageParser.cpp
+    EasyLanguage/EasyLanguageCompiler.cpp
 )
 
 # -----------------------------------------------------------------------------

@@ -65,29 +65,53 @@ build CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj: CXX_COMPILER__PineCompilerVM
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir
 
-build CMakeFiles/PineCompilerVM.dir/Compiler.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/Compiler.cpp || cmake_object_order_depends_target_PineCompilerVM
+build CMakeFiles/PineCompilerVM.dir/PineScript/PineCompiler.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/PineScript/PineCompiler.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
-  DEP_FILE = CMakeFiles\PineCompilerVM.dir\Compiler.cpp.obj.d
+  DEP_FILE = CMakeFiles\PineCompilerVM.dir\PineScript\PineCompiler.cpp.obj.d
   FLAGS = -g -std=c++17
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
-  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir
+  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\PineScript
 
-build CMakeFiles/PineCompilerVM.dir/Parser.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/Parser.cpp || cmake_object_order_depends_target_PineCompilerVM
+build CMakeFiles/PineCompilerVM.dir/PineScript/PineParser.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/PineScript/PineParser.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
-  DEP_FILE = CMakeFiles\PineCompilerVM.dir\Parser.cpp.obj.d
+  DEP_FILE = CMakeFiles\PineCompilerVM.dir\PineScript\PineParser.cpp.obj.d
   FLAGS = -g -std=c++17
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
-  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir
+  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\PineScript
 
-build CMakeFiles/PineCompilerVM.dir/Lexer.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/Lexer.cpp || cmake_object_order_depends_target_PineCompilerVM
+build CMakeFiles/PineCompilerVM.dir/PineScript/PineLexer.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/PineScript/PineLexer.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
-  DEP_FILE = CMakeFiles\PineCompilerVM.dir\Lexer.cpp.obj.d
+  DEP_FILE = CMakeFiles\PineCompilerVM.dir\PineScript\PineLexer.cpp.obj.d
   FLAGS = -g -std=c++17
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
-  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir
+  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\PineScript
+
+build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageLexer.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/EasyLanguage/EasyLanguageLexer.cpp || cmake_object_order_depends_target_PineCompilerVM
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\PineCompilerVM.dir\EasyLanguage\EasyLanguageLexer.cpp.obj.d
+  FLAGS = -g -std=c++17
+  INCLUDES = -IC:/coderepo/ct4
+  OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
+  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\EasyLanguage
+
+build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageParser.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/EasyLanguage/EasyLanguageParser.cpp || cmake_object_order_depends_target_PineCompilerVM
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\PineCompilerVM.dir\EasyLanguage\EasyLanguageParser.cpp.obj.d
+  FLAGS = -g -std=c++17
+  INCLUDES = -IC:/coderepo/ct4
+  OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
+  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\EasyLanguage
+
+build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageCompiler.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/EasyLanguage/EasyLanguageCompiler.cpp || cmake_object_order_depends_target_PineCompilerVM
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\PineCompilerVM.dir\EasyLanguage\EasyLanguageCompiler.cpp.obj.d
+  FLAGS = -g -std=c++17
+  INCLUDES = -IC:/coderepo/ct4
+  OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
+  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\EasyLanguage
 
 
 # =============================================================================
@@ -97,7 +121,7 @@ build CMakeFiles/PineCompilerVM.dir/Lexer.cpp.obj: CXX_COMPILER__PineCompilerVM_
 #############################################
 # Link the executable PineCompilerVM.exe
 
-build PineCompilerVM.exe: CXX_EXECUTABLE_LINKER__PineCompilerVM_Debug CMakeFiles/PineCompilerVM.dir/main.cpp.obj CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj CMakeFiles/PineCompilerVM.dir/Compiler.cpp.obj CMakeFiles/PineCompilerVM.dir/Parser.cpp.obj CMakeFiles/PineCompilerVM.dir/Lexer.cpp.obj | C$:/coderepo/ct4/duckdb.lib
+build PineCompilerVM.exe: CXX_EXECUTABLE_LINKER__PineCompilerVM_Debug CMakeFiles/PineCompilerVM.dir/main.cpp.obj CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineCompiler.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineParser.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageParser.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageCompiler.cpp.obj | C$:/coderepo/ct4/duckdb.lib
   CONFIG = Debug
   FLAGS = -g
   LINK_LIBRARIES = C:/coderepo/ct4/duckdb.lib  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32

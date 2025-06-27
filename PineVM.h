@@ -46,7 +46,7 @@ enum class OpCode {
     JUMP,               // 无条件跳转
     // 函数调用
     CALL_BUILTIN_FUNC,  // 调用一个内置函数 (如 'ta.sma')
-    CALL_PLOT,          // 调用特殊的 'plot' 函数
+    CALL_PLOT,          // 调用特殊的 'plot' 函数 (plot_name, series, color)
     
     // 控制
     HALT                // 停止当前K线柱的执行

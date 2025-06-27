@@ -3,26 +3,6 @@
 #include "Lexer.h" // For Lexer class
 #include <map>
 
-// AST 表达式节点
-struct BinaryExpr;
-struct CallExpr;
-struct LiteralExpr;
-struct VariableExpr;
-struct MemberAccessExpr;
-
-struct ExprVisitor {
-    virtual void visit(BinaryExpr& expr) = 0;
-    virtual void visit(CallExpr& expr) = 0;
-    virtual void visit(LiteralExpr& expr) = 0;
-    virtual void visit(VariableExpr& expr) = 0;
-    virtual void visit(MemberAccessExpr& expr) = 0;
-};
-
-struct Expr {
-    virtual ~Expr() = default;
-    virtual void accept(ExprVisitor& visitor) = 0;
-};
-
 struct LiteralExpr : Expr {
     Value value;
     LiteralExpr(Value val) : value(std::move(val)) {}
@@ -56,14 +36,6 @@ struct BinaryExpr : Expr {
     BinaryExpr(std::unique_ptr<Expr> left, Token op, std::unique_ptr<Expr> right)
         : left(std::move(left)), op(op), right(std::move(right)) {}
     void accept(ExprVisitor& visitor) override { visitor.visit(*this); }
-};
-
-// ... 其他表达式节点，如 BinaryExpr
-
-// 语句基类
-struct Stmt {
-    virtual ~Stmt() = default;
-    virtual void accept(AstVisitor& visitor) = 0;
 };
 
 // 表达式语句 (例如，单独一行的 plot(...)调用)

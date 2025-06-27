@@ -13,20 +13,38 @@
 },
 {
   "directory": "C:/coderepo/ct4/build",
-  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\Compiler.cpp.obj -c C:\\coderepo\\ct4\\Compiler.cpp",
-  "file": "C:\\coderepo\\ct4\\Compiler.cpp",
-  "output": "CMakeFiles\\PineCompilerVM.dir\\Compiler.cpp.obj"
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\PineScript\\PineCompiler.cpp.obj -c C:\\coderepo\\ct4\\PineScript\\PineCompiler.cpp",
+  "file": "C:\\coderepo\\ct4\\PineScript\\PineCompiler.cpp",
+  "output": "CMakeFiles\\PineCompilerVM.dir\\PineScript\\PineCompiler.cpp.obj"
 },
 {
   "directory": "C:/coderepo/ct4/build",
-  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\Parser.cpp.obj -c C:\\coderepo\\ct4\\Parser.cpp",
-  "file": "C:\\coderepo\\ct4\\Parser.cpp",
-  "output": "CMakeFiles\\PineCompilerVM.dir\\Parser.cpp.obj"
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\PineScript\\PineParser.cpp.obj -c C:\\coderepo\\ct4\\PineScript\\PineParser.cpp",
+  "file": "C:\\coderepo\\ct4\\PineScript\\PineParser.cpp",
+  "output": "CMakeFiles\\PineCompilerVM.dir\\PineScript\\PineParser.cpp.obj"
 },
 {
   "directory": "C:/coderepo/ct4/build",
-  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\Lexer.cpp.obj -c C:\\coderepo\\ct4\\Lexer.cpp",
-  "file": "C:\\coderepo\\ct4\\Lexer.cpp",
-  "output": "CMakeFiles\\PineCompilerVM.dir\\Lexer.cpp.obj"
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\PineScript\\PineLexer.cpp.obj -c C:\\coderepo\\ct4\\PineScript\\PineLexer.cpp",
+  "file": "C:\\coderepo\\ct4\\PineScript\\PineLexer.cpp",
+  "output": "CMakeFiles\\PineCompilerVM.dir\\PineScript\\PineLexer.cpp.obj"
+},
+{
+  "directory": "C:/coderepo/ct4/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\EasyLanguage\\EasyLanguageLexer.cpp.obj -c C:\\coderepo\\ct4\\EasyLanguage\\EasyLanguageLexer.cpp",
+  "file": "C:\\coderepo\\ct4\\EasyLanguage\\EasyLanguageLexer.cpp",
+  "output": "CMakeFiles\\PineCompilerVM.dir\\EasyLanguage\\EasyLanguageLexer.cpp.obj"
+},
+{
+  "directory": "C:/coderepo/ct4/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\EasyLanguage\\EasyLanguageParser.cpp.obj -c C:\\coderepo\\ct4\\EasyLanguage\\EasyLanguageParser.cpp",
+  "file": "C:\\coderepo\\ct4\\EasyLanguage\\EasyLanguageParser.cpp",
+  "output": "CMakeFiles\\PineCompilerVM.dir\\EasyLanguage\\EasyLanguageParser.cpp.obj"
+},
+{
+  "directory": "C:/coderepo/ct4/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\EasyLanguage\\EasyLanguageCompiler.cpp.obj -c C:\\coderepo\\ct4\\EasyLanguage\\EasyLanguageCompiler.cpp",
+  "file": "C:\\coderepo\\ct4\\EasyLanguage\\EasyLanguageCompiler.cpp",
+  "output": "CMakeFiles\\PineCompilerVM.dir\\EasyLanguage\\EasyLanguageCompiler.cpp.obj"
 }
 ]

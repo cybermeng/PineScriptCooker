@@ -1,10 +1,14 @@
-#include "Compiler.h"
 #include "PineVM.h"
 #include "duckdb.h" // 新增：包含 DuckDB C API 头文件
+#include "PineScript/PineCompiler.h" // 新增：PineScript 编译器头文件
+#include <chrono> // 新增：用于时间测量
 #include <iostream>
 #include <vector>
 #include <variant>
 #include <iomanip>
+#include "EasyLanguage/EasyLanguageLexer.h"
+#include "EasyLanguage/EasyLanguageParser.h"
+#include "EasyLanguage/EasyLanguageCompiler.h"
 
 // --- 调试辅助函数 ---
 
@@ -96,25 +100,58 @@ void disassembleChunk(const Bytecode& bytecode, const std::string& name) {
     }
 }
 int main() {
-    std::string source = R"(
-ma_length = input.int(14, "MA Length")
-ma = ta.sma(close, ma_length)
-rsi = ta.rsi(close, 14)
-plot(rsi, color.green)
-plot(ma, color.red)
-)";
+    std::string pine_source = R"(
+        ma_length = input.int(14, "MA Length")
+        ma = ta.sma(close, ma_length)
+        rsi = ta.rsi(close, 14)
+        plot(rsi, color.green)
+        plot(ma, color.red)
+    )";
+
+    // Simplified EasyLanguage example for demonstration.
+    // Note: Actual EasyLanguage RSI calculation is more complex and often uses built-in functions.
+    // This example maps EL's Average and RSI to PineVM's ta.sma and ta.rsi.
+    std::string easylanguage_source = R"(
+        Inputs: Length(14);
+        Variables: MySMA(0), MyRSI(0);
+
+        MySMA = Average(Close, Length);
+        MyRSI = RSI(Close, Length); // This will map to ta.rsi(close, Length)
+
+        Plot1(MySMA, "My SMA");
+        Plot2(MyRSI, "My RSI");
+    )";
+
+    std::string selected_language;
+    std::cout << "Enter language to compile (p: pine / e: easylanguage): ";
+    std::cin >> selected_language;
 
     std::cout << "--- Compiling Source ---" << std::endl;
-    std::cout << source << std::endl;
-    
-    Compiler compiler;
     try {
-        Bytecode bytecode = compiler.compile(source);
-        
+        Bytecode bytecode;
+        if (selected_language == "p" || selected_language == "pine") {
+            std::cout << pine_source << std::endl;
+            PineCompiler compiler; 
+            bytecode = compiler.compile(pine_source);
+        } else if (selected_language == "e" || selected_language == "easylanguage") {
+            std::cout << easylanguage_source << std::endl;
+            EasyLanguageParser parser(easylanguage_source);
+            std::vector<std::unique_ptr<ELStatement>> el_ast = parser.parse(); 
+            EasyLanguageCompiler el_compiler;
+            bytecode = el_compiler.compile(el_ast);
+        } else {
+            throw std::runtime_error("Invalid language selected. Please choose 'pine' or 'easylanguage'.");
+        }
+
         disassembleChunk(bytecode, "Compiled Script");
 
         // --- 设置 DuckDB 并加载数据 ---
-        std::vector<double> close_prices = {100, 102, 105, 103, 106, 108, 110, 111, 115, 120};
+        // Increase data size significantly
+        int num_bars = 1000;
+        std::vector<double> close_prices(num_bars);
+        for (int i = 0; i < num_bars; ++i) {
+            close_prices[i] = 100.0 + (i % 20 - 10) * 0.5;  // Example oscillating data
+        }
 
         // 1. 初始化 VM，这将创建内存数据库
         // 传递空字符串表示内存数据库
@@ -154,10 +191,18 @@ plot(ma, color.red)
         duckdb_appender_destroy(&appender);
         std::cout << "Loaded " << close_prices.size() << " bars into DuckDB." << std::endl;
 
-        // 3. 初始化并运行 VM
+        // --- 3. 初始化并测量 VM 执行时间 ---
+        auto start_time = std::chrono::high_resolution_clock::now();
+
         std::cout << "\n--- Executing VM ---" << std::endl;
         vm.loadBytecode(&bytecode);
         vm.execute();
+
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+
+        std::cout << "\n--- Execution Time ---" << std::endl;
+        std::cout << "VM execution took: " << duration.count() << " milliseconds" << std::endl;
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

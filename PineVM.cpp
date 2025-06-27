@@ -217,19 +217,21 @@ void PineVM::runCurrentBar() {
                 break;
             }
             case OpCode::CALL_PLOT: {
+                Value plot_name_val = pop(); // Pop plot name (e.g., "Plot1")
                 Value color_val = pop();
                 Value series_to_plot_val = pop();
                 
                 auto series_ptr = std::get<std::shared_ptr<Series>>(series_to_plot_val);
                 double current_val = series_ptr->getCurrent(bar_index);
                 
+                std::string plot_name_str = std::get<std::string>(plot_name_val);
                 std::string color_str = "default_color";
                 if (std::holds_alternative<std::string>(color_val)) {
                     // The compiler pushes color constants as strings like "color.blue"
                     color_str = std::get<std::string>(color_val);
                 }
 
-                std::cout << "PLOT> Plotting '" << series_ptr->name << "' at bar " << bar_index
+                std::cout << "PLOT> " << plot_name_str << " plotting '" << series_ptr->name << "' at bar " << bar_index
                           << " with value: " << current_val << " and color: " << color_str << std::endl;
 
                 push(true);
