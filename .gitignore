@@ -5,3 +5,7 @@ build/CMakeFiles/PineCompilerVM.dir/Lexer.cpp.obj
 build/CMakeFiles/PineCompilerVM.dir/main.cpp.obj
 build/CMakeFiles/PineCompilerVM.dir/Parser.cpp.obj
 build/CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj
+
+duckdb.dll
+duckdb.lib
+duckdb.hpp

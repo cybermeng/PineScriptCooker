@@ -1,6 +1,6 @@
 #include "Compiler.h"
 #include "PineVM.h"
-#include "duckdb.hpp" // 新增：包含 DuckDB 头文件
+#include "duckdb.h" // 新增：包含 DuckDB C API 头文件
 #include <iostream>
 #include <vector>
 #include <variant>
@@ -99,6 +99,8 @@ int main() {
     std::string source = R"(
 ma_length = input.int(14, "MA Length")
 ma = ta.sma(close, ma_length)
+rsi = ta.rsi(close, 14)
+plot(rsi, color.green)
 plot(ma, color.red)
 )";
 
@@ -111,35 +113,49 @@ plot(ma, color.red)
         
         disassembleChunk(bytecode, "Compiled Script");
 
-        // --- 新增：设置 DuckDB 并加载数据 ---
-        duckdb::DuckDB db(nullptr); // 使用内存数据库
-        duckdb::Connection con(db);
+        // --- 设置 DuckDB 并加载数据 ---
+        std::vector<double> close_prices = {100, 102, 105, 103, 106, 108, 110, 111, 115, 120};
+
+        // 1. 初始化 VM，这将创建内存数据库
+        // 传递空字符串表示内存数据库
+        PineVM vm(close_prices.size(), ""); 
+        duckdb_connection con = vm.getConnection();
+        if (!con) {
+            throw std::runtime_error("Failed to get DuckDB connection from PineVM");
+        }
 
         std::cout << "\n--- Preparing Data in DuckDB ---" << std::endl;
 
         // 创建一个市场数据表
-        con.Query("CREATE TABLE market_data(bar_id INTEGER PRIMARY KEY, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE)");
-
-        // 准备数据
-        std::vector<double> close_prices = {100, 102, 105, 103, 106, 108, 110, 111, 115, 120};
-        
-        // 使用 Appender 高效地插入数据
-        auto appender = duckdb::Appender(con, "market_data");
-        for (int i = 0; i < close_prices.size(); ++i) {
-            appender.BeginRow();
-            appender.Append<int32_t>(i); // bar_id
-            appender.Append<double>(NAN); // open (示例数据)
-            appender.Append<double>(NAN); // high (示例数据)
-            appender.Append<double>(NAN); // low (示例数据)
-            appender.Append<double>(close_prices[i]); // close
-            appender.EndRow();
+        duckdb_result result;
+        const char* create_table_query = "CREATE TABLE market_data(bar_id INTEGER PRIMARY KEY, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE)";
+        if (duckdb_query(con, create_table_query, &result) == DuckDBError) {
+            std::string error_msg = "Failed to create table: ";
+            error_msg += duckdb_result_error(&result);
+            duckdb_destroy_result(&result);
+            throw std::runtime_error(error_msg);
         }
-        appender.Close();
+        duckdb_destroy_result(&result);
+
+        // 使用 Appender 高效地插入数据
+        duckdb_appender appender;
+        if (duckdb_appender_create(con, nullptr, "market_data", &appender) == DuckDBError) {
+            throw std::runtime_error("Failed to create appender");
+        }
+        for (int i = 0; i < close_prices.size(); ++i) {
+            duckdb_appender_begin_row(appender);
+            duckdb_append_int32(appender, i); // bar_id
+            duckdb_append_double(appender, NAN); // open (示例数据)
+            duckdb_append_double(appender, NAN); // high (示例数据)
+            duckdb_append_double(appender, NAN); // low (示例数据)
+            duckdb_append_double(appender, close_prices[i]); // close
+            duckdb_appender_end_row(appender);
+        }
+        duckdb_appender_destroy(&appender);
         std::cout << "Loaded " << close_prices.size() << " bars into DuckDB." << std::endl;
 
         // 3. 初始化并运行 VM
         std::cout << "\n--- Executing VM ---" << std::endl;
-        PineVM vm(close_prices.size(), &con); // 将 DuckDB 连接传递给 VM
         vm.loadBytecode(&bytecode);
         vm.execute();
 

@@ -14,6 +14,7 @@
 		"commands" : 
 		[
 			"add_executable",
+			"target_link_libraries",
 			"target_include_directories"
 		],
 		"files" : 
@@ -34,6 +35,12 @@
 			{
 				"command" : 1,
 				"file" : 0,
+				"line" : 64,
+				"parent" : 0
+			},
+			{
+				"command" : 2,
+				"file" : 0,
 				"line" : 44,
 				"parent" : 0
 			}
@@ -51,7 +58,7 @@
 			"includes" : 
 			[
 				{
-					"backtrace" : 2,
+					"backtrace" : 3,
 					"path" : "C:/coderepo/ct4"
 				}
 			],
@@ -82,6 +89,11 @@
 			{
 				"fragment" : "-g",
 				"role" : "flags"
+			},
+			{
+				"backtrace" : 2,
+				"fragment" : "C:\\coderepo\\ct4\\duckdb.lib",
+				"role" : "libraries"
 			},
 			{
 				"fragment" : "-lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32",

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "duckdb.h" // 使用 DuckDB C API
 #include <vector>
 #include <string>
 #include <variant>
@@ -11,7 +12,6 @@
 
 // 前向声明 PineVM 类，因为内置函数签名需要它
 class PineVM;
-namespace duckdb { class Connection; } // 前向声明 DuckDB Connection
 
 //-----------------------------------------------------------------------------
 // 1. 数据结构 (Data Structures)
@@ -59,7 +59,7 @@ enum class OpCode {
 struct Series {
     std::string name;
     std::vector<double> data;
-    duckdb::Connection* con = nullptr; // 新增：指向 DuckDB 连接的指针
+    duckdb_connection con = nullptr; // 新增：指向 DuckDB 连接的指针
 
     /**
      * @brief 获取指定K线柱索引处的值。
@@ -120,10 +120,11 @@ class PineVM {
 public:
     /**
      * @brief PineVM 的构造函数。
-     * @param total_bars 要模拟的历史K线柱总数。
-     * @param con 指向 DuckDB 连接的指针。
+     * @param total_bars 要模拟的历史K线柱总数
+     * @param db_path 数据库文件路径，若为空字符串则使用内存数据库
      */
-    PineVM(int total_bars, duckdb::Connection* con);
+    PineVM(int total_bars, const std::string& db_path);
+    ~PineVM();
 
     /**
      * @brief 加载要执行的字节码。
@@ -157,6 +158,12 @@ public:
      */
     int getCurrentBarIndex() const { return bar_index; }
 
+    /**
+     * @brief 获取内部的 DuckDB C API 连接句柄
+     * @return duckdb_connection 连接句柄
+     */
+    duckdb_connection getConnection();
+
 private:
     /**
      * @using BuiltinFunction
@@ -166,6 +173,8 @@ private:
     using BuiltinFunction = std::function<Value(PineVM&)>;
 
     // --- 内部状态 ---
+    duckdb_database database = nullptr;
+    duckdb_connection connection = nullptr;
     const Bytecode* bytecode = nullptr;
     const Instruction* ip = nullptr; // 指令指针
     std::vector<Value> stack;        // 操作数栈,
@@ -179,7 +188,6 @@ private:
     std::map<std::string, Value> built_in_vars;
     std::map<std::string, BuiltinFunction> built_in_funcs;
     std::map<std::string, std::shared_ptr<Series>> builtin_func_cache;
-    duckdb::Connection* db_connection = nullptr;
 
     // --- 私有辅助函数 ---
 

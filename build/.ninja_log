@@ -1,9 +1,9 @@
 # ninja log v7
-1911	18609	7726050182813092	CMakeFiles/PineCompilerVM.dir/Parser.cpp.obj	8d31ba9e35458a27
-42	62859	7726064476764701	CMakeFiles/PineCompilerVM.dir/main.cpp.obj	2b3166525dce5bbb
-1670	18431	7726050180393655	CMakeFiles/PineCompilerVM.dir/Compiler.cpp.obj	10b29e73dc4d8ea4
-34	10732	7726096445087930	CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj	fc638992e44879b
-1949	17202	7726050183186380	CMakeFiles/PineCompilerVM.dir/Lexer.cpp.obj	64923c826dc663ed
-1827	2578	7726027261051127	PineCompilerVM.exe	e242f8edc3147f25
-7	2911	7726196655506866	build.ninja	f0283001985efe39
-7	2911	7726196655387275	C:/coderepo/ct4/build/cmake_install.cmake	f0283001985efe39
+181	27492	7726948141065321	CMakeFiles/PineCompilerVM.dir/Parser.cpp.obj	8d31ba9e35458a27
+41	13780	7726953668639868	CMakeFiles/PineCompilerVM.dir/main.cpp.obj	2b3166525dce5bbb
+172	26281	7726948140985520	CMakeFiles/PineCompilerVM.dir/Compiler.cpp.obj	10b29e73dc4d8ea4
+48	14272	7726953668699704	CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj	fc638992e44879b
+188	25576	7726948141130462	CMakeFiles/PineCompilerVM.dir/Lexer.cpp.obj	64923c826dc663ed
+14273	15019	7726953810947362	PineCompilerVM.exe	7c3b9df732ba6e9
+7	2911	7726984373942801	build.ninja	f0283001985efe39
+7	2911	7726984373823095	C:/coderepo/ct4/build/cmake_install.cmake	f0283001985efe39

@@ -1,7 +1,7 @@
 #include "PineVM.h"
-#include "duckdb.hpp" // 新增：包含 DuckDB
+#include "duckdb.h" // 使用 DuckDB C API
 #include <iostream>
-#include <numeric> // For std::accumulate
+#include <numeric>
 
 double Series::getCurrent(int bar_index) {
     // 1. 首先检查缓存
@@ -14,42 +14,48 @@ double Series::getCurrent(int bar_index) {
 
     // 2. 如果不在缓存中，并且这是一个数据库支持的序列，则从数据库获取
     if (con != nullptr) {
-        // 确保向量足够大以容纳新值
+        // 确保向量足够大以容纳新值，并用NAN填充
         if (bar_index >= data.size()) {
             data.resize(bar_index + 1, NAN);
         }
 
-        try {
-            // 注意：这里的SQL拼接是安全的，因为 `name` 来自受控的内置变量名（如 "close"）
-            std::string query = "SELECT " + name + " FROM market_data WHERE bar_id = " + std::to_string(bar_index);
-            auto result = con->Query(query);
+        duckdb_result result;
+        std::string query_str = "SELECT " + name + " FROM market_data WHERE bar_id = " + std::to_string(bar_index);
+        const char* query_c_str = query_str.c_str();
 
-            if (result->HasError()) {
-                std::cerr << "DuckDB query error: " << result->GetError() << std::endl;
-                data[bar_index] = NAN; // 缓存失败结果
-                return NAN;
-            }
+        // 执行查询
+        duckdb_state status = duckdb_query(con, query_c_str, &result);
 
-            // 检查是否获取到一行数据且该值不为 NULL
-            if (result->Fetch() && !result->GetValue(0, 0).IsNull()) {
-                double value = result->GetValue<double>(0, 0);
-                data[bar_index] = value; // 缓存成功获取的值
-                return value;
-            }
-        } catch (const std::exception& e) {
-            std::cerr << "Exception during DB query: " << e.what() << std::endl;
+        if (status != DuckDBSuccess) {
+            std::cerr << "DuckDB query error: " << duckdb_result_error(&result) << std::endl;
+            duckdb_destroy_result(&result); // 总是销毁结果
             data[bar_index] = NAN; // 缓存失败结果
+            return NAN;
+        }
+
+        // 检查是否获取到一行数据且该值不为 NULL
+        // DuckDB C API 的 duckdb_value_double 会在值为 NULL 时返回 NAN
+        if (duckdb_row_count(&result) > 0 && duckdb_column_count(&result) > 0) {
+            double value = duckdb_value_double(&result, 0, 0); // 获取第一行第一列的值
+            data[bar_index] = value; // 缓存成功获取的值 (包括来自DB的NAN)
+            duckdb_destroy_result(&result);
+            return value;
+        } else {
+            // 没有行或列，或者值为空/无效
+            data[bar_index] = NAN;
+            duckdb_destroy_result(&result);
             return NAN;
         }
     }
 
-    // 3. 如果没有数据库连接或查询失败/无结果，返回当前缓存中的值（可能是NAN）
+    // 3. 如果没有数据库连接或查询失败/无结果，返回当前缓存中的值（可能是NAN）或NAN
     if (bar_index >= 0 && bar_index < data.size()) {
         return data[bar_index];
     }
     return NAN; // 通常只在 bar_index < 0 时触发
 }
 
+// ... Series::setCurrent 保持不变 ...
 void Series::setCurrent(int bar_index, double value) {
     if (bar_index >= data.size()) {
         data.resize(bar_index + 1, NAN);
@@ -57,8 +63,34 @@ void Series::setCurrent(int bar_index, double value) {
     data[bar_index] = value;
 }
 
-PineVM::PineVM(int total_bars, duckdb::Connection* con) : total_bars(total_bars), bar_index(0), db_connection(con) {
+// PineVM 构造函数现在负责打开 DuckDB 数据库和连接
+PineVM::PineVM(int total_bars, const std::string& db_path_str)
+    : total_bars(total_bars), bar_index(0), database(nullptr), connection(nullptr) {
+    
+    const char* db_path = db_path_str.empty() ? nullptr : db_path_str.c_str();
+
+    // 打开数据库
+    duckdb_state status_db = duckdb_open(db_path, &database);
+    if (status_db != DuckDBSuccess) {
+        throw std::runtime_error("Failed to open DuckDB database at " + (db_path ? db_path_str : ":memory:"));
+    }
+
+    // 连接到数据库
+    duckdb_state status_con = duckdb_connect(database, &connection);
+    if (status_con != DuckDBSuccess) {
+        duckdb_close(&database); // 如果连接失败，清理数据库
+        throw std::runtime_error("Failed to connect to DuckDB database.");
+    }
     registerBuiltins();
+}
+
+PineVM::~PineVM() {
+    if (connection != nullptr) {
+        duckdb_disconnect(&connection);
+    }
+    if (database != nullptr) {
+        duckdb_close(&database);
+    }
 }
 
 void PineVM::loadBytecode(const Bytecode* code) {
@@ -120,6 +152,11 @@ void PineVM::runCurrentBar() {
                 double right = getNumericValue(pop());
                 double left = getNumericValue(pop());
                 if (ip->op == OpCode::ADD) push(left + right);
+                else if (ip->op == OpCode::DIV) {
+                    if (right == 0.0) {
+                        push(NAN);
+                    } else push(left / right);
+                }
                 else if (ip->op == OpCode::SUB) push(left - right);
                 else if (ip->op == OpCode::MUL) push(left * right);
                 else if (ip->op == OpCode::DIV) push(left / right);
@@ -149,7 +186,7 @@ void PineVM::runCurrentBar() {
                     if (name == "close" || name == "high" || name == "low" || name == "open") {
                         auto series = std::make_shared<Series>();
                         series->name = name;
-                        series->con = db_connection; // 将序列链接到数据库连接
+                        series->con = connection; // 将序列链接到数据库连接
                         built_in_vars[name] = series;
                         push(series);
                     } else {
@@ -203,6 +240,10 @@ void PineVM::runCurrentBar() {
         }
         ip++;
     }
+}
+
+duckdb_connection PineVM::getConnection() {
+    return connection;
 }
 
 void PineVM::registerBuiltins() {
@@ -328,7 +369,7 @@ void PineVM::registerBuiltins() {
                 return rsi_series;
             }
 
-            double current_source = source_series->getCurrent(current_bar);
+            double current_source = source_series->getCurrent(current_bar); // 修正：在播种阶段也需要获取当前值
             double prev_source = source_series->getCurrent(current_bar - 1);
 
             if (std::isnan(current_source) || std::isnan(prev_source)) {
@@ -339,35 +380,36 @@ void PineVM::registerBuiltins() {
             }
 
             double change = current_source - prev_source;
-            double current_gain = std::max(0.0, change);
-            double current_loss = std::max(0.0, -change);
+             double current_gain = std::max(0.0, change);
+             double current_loss = std::max(0.0, -change);
 
-            double avg_gain, avg_loss;
-            double prev_avg_gain = gain_series->getCurrent(current_bar - 1);
+             double avg_gain, avg_loss;
+             double prev_avg_gain = gain_series->getCurrent(current_bar - 1);
 
-            if (std::isnan(prev_avg_gain)) {
-                // 用简单移动平均为AvgGain/AvgLoss播种
-                double gain_sum = 0.0;
-                double loss_sum = 0.0;
-                int count = 0;
-                for (int i = 0; i < length && current_bar - i > 0; ++i) {
-                    double s1 = source_series->getCurrent(current_bar - i);
-                    double s2 = source_series->getCurrent(current_bar - i - 1);
-                    if (!std::isnan(s1) && !std::isnan(s2)) {
-                        double chg = s1 - s2;
-                        gain_sum += std::max(0.0, chg);
-                        loss_sum += std::max(0.0, -chg);
-                        count++;
-                    }
-                }
-                if (count == length) {
-                    avg_gain = gain_sum / length;
-                    avg_loss = loss_sum / length;
-                } else {
-                    avg_gain = NAN;
-                    avg_loss = NAN;
-                }
-            } else {
+             if (std::isnan(prev_avg_gain)) {
+                 // 用简单移动平均为AvgGain/AvgLoss播种
+                 double gain_sum = 0.0;
+                 double loss_sum = 0.0;
+                 int count = 0;
+                 for (int i = 0; i < length && current_bar - i > 0; ++i) {
+                     double s1 = source_series->getCurrent(current_bar - i);
+                     double s2 = source_series->getCurrent(current_bar - i - 1);
+                     if (!std::isnan(s1) && !std::isnan(s2)) {
+                         double chg = s1 - s2;
+                         gain_sum += std::max(0.0, chg);
+                         loss_sum += std::max(0.0, -chg);
+                         count++;
+                     }
+                 }
+                 if (count == length) {
+                     avg_gain = gain_sum / length;
+                     avg_loss = loss_sum / length;
+                 } else {
+                     avg_gain = current_gain; // 至少用当前值初始化
+                     avg_loss = current_loss > 0 ? current_loss : 0.0001; // 避免除以零
+                 }
+             }
+             else {
                 // Wilder's smoothing
                 double prev_avg_loss = loss_series->getCurrent(current_bar - 1);
                 avg_gain = (prev_avg_gain * (length - 1) + current_gain) / length;

@@ -11,7 +11,7 @@
 # =============================================================================
 
 # =============================================================================
-# Project: PineScriptCompilerVM
+# Project: PineCompilerVM
 # Configurations: Debug
 # =============================================================================
 
@@ -97,12 +97,12 @@ build CMakeFiles/PineCompilerVM.dir/Lexer.cpp.obj: CXX_COMPILER__PineCompilerVM_
 #############################################
 # Link the executable PineCompilerVM.exe
 
-build PineCompilerVM.exe: CXX_EXECUTABLE_LINKER__PineCompilerVM_Debug CMakeFiles/PineCompilerVM.dir/main.cpp.obj CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj CMakeFiles/PineCompilerVM.dir/Compiler.cpp.obj CMakeFiles/PineCompilerVM.dir/Parser.cpp.obj CMakeFiles/PineCompilerVM.dir/Lexer.cpp.obj
+build PineCompilerVM.exe: CXX_EXECUTABLE_LINKER__PineCompilerVM_Debug CMakeFiles/PineCompilerVM.dir/main.cpp.obj CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj CMakeFiles/PineCompilerVM.dir/Compiler.cpp.obj CMakeFiles/PineCompilerVM.dir/Parser.cpp.obj CMakeFiles/PineCompilerVM.dir/Lexer.cpp.obj | C$:/coderepo/ct4/duckdb.lib
   CONFIG = Debug
   FLAGS = -g
-  LINK_LIBRARIES = -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  LINK_LIBRARIES = C:/coderepo/ct4/duckdb.lib  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
-  POST_BUILD = cd .
+  POST_BUILD = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\coderepo\ct4\build && "C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/coderepo/ct4/duckdb.dll C:/coderepo/ct4/build"
   PRE_LINK = cd .
   TARGET_FILE = PineCompilerVM.exe
   TARGET_IMPLIB = libPineCompilerVM.dll.a
