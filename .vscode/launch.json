@@ -1,0 +1,25 @@
+{
+    "version": "2.0.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch Pine Runner",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/pine_runner.exe",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            "preLaunchTask": "Build Pine Project"
+        }
+    ]
+}

@@ -1,20 +1,68 @@
 #include "PineVM.h"
+#include "duckdb.hpp" // 新增：包含 DuckDB
 #include <iostream>
 #include <numeric> // For std::accumulate
 
-PineVM::PineVM(int total_bars) : total_bars(total_bars), bar_index(0) {
+double Series::getCurrent(int bar_index) {
+    // 1. 首先检查缓存
+    if (bar_index >= 0 && bar_index < data.size()) {
+        // 如果值不是 NaN，说明已经缓存或计算过
+        if (!std::isnan(data[bar_index])) {
+            return data[bar_index];
+        }
+    }
+
+    // 2. 如果不在缓存中，并且这是一个数据库支持的序列，则从数据库获取
+    if (con != nullptr) {
+        // 确保向量足够大以容纳新值
+        if (bar_index >= data.size()) {
+            data.resize(bar_index + 1, NAN);
+        }
+
+        try {
+            // 注意：这里的SQL拼接是安全的，因为 `name` 来自受控的内置变量名（如 "close"）
+            std::string query = "SELECT " + name + " FROM market_data WHERE bar_id = " + std::to_string(bar_index);
+            auto result = con->Query(query);
+
+            if (result->HasError()) {
+                std::cerr << "DuckDB query error: " << result->GetError() << std::endl;
+                data[bar_index] = NAN; // 缓存失败结果
+                return NAN;
+            }
+
+            // 检查是否获取到一行数据且该值不为 NULL
+            if (result->Fetch() && !result->GetValue(0, 0).IsNull()) {
+                double value = result->GetValue<double>(0, 0);
+                data[bar_index] = value; // 缓存成功获取的值
+                return value;
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "Exception during DB query: " << e.what() << std::endl;
+            data[bar_index] = NAN; // 缓存失败结果
+            return NAN;
+        }
+    }
+
+    // 3. 如果没有数据库连接或查询失败/无结果，返回当前缓存中的值（可能是NAN）
+    if (bar_index >= 0 && bar_index < data.size()) {
+        return data[bar_index];
+    }
+    return NAN; // 通常只在 bar_index < 0 时触发
+}
+
+void Series::setCurrent(int bar_index, double value) {
+    if (bar_index >= data.size()) {
+        data.resize(bar_index + 1, NAN);
+    }
+    data[bar_index] = value;
+}
+
+PineVM::PineVM(int total_bars, duckdb::Connection* con) : total_bars(total_bars), bar_index(0), db_connection(con) {
     registerBuiltins();
 }
 
 void PineVM::loadBytecode(const Bytecode* code) {
     bytecode = code;
-}
-
-void PineVM::loadMarketData(const std::string& name, std::vector<double> data) {
-    auto series = std::make_shared<Series>();
-    series->name = name;
-    series->data = std::move(data);
-    built_in_vars[name] = series;
 }
 
 void PineVM::execute() {
@@ -36,7 +84,7 @@ Value PineVM::pop() {
     return val;
 }
 
-double PineVM::getNumericValue(const Value& val) const {
+double PineVM::getNumericValue(const Value& val) {
     if (auto* p = std::get_if<double>(&val)) {
         return *p;
     } else if (auto* p = std::get_if<std::shared_ptr<Series>>(&val)) {
@@ -96,7 +144,17 @@ void PineVM::runCurrentBar() {
                 if (built_in_vars.count(name)) {
                     push(built_in_vars.at(name));
                 } else {
-                    throw std::runtime_error("Undefined built-in variable: " + name);
+                    // 检查是否是已知的市场数据序列名称
+                    // 这些将从数据库中惰性加载
+                    if (name == "close" || name == "high" || name == "low" || name == "open") {
+                        auto series = std::make_shared<Series>();
+                        series->name = name;
+                        series->con = db_connection; // 将序列链接到数据库连接
+                        built_in_vars[name] = series;
+                        push(series);
+                    } else {
+                        throw std::runtime_error("Undefined built-in variable: " + name);
+                    }
                 }
                 break;
             }

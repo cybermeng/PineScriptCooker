@@ -11,6 +11,7 @@
 
 // 前向声明 PineVM 类，因为内置函数签名需要它
 class PineVM;
+namespace duckdb { class Connection; } // 前向声明 DuckDB Connection
 
 //-----------------------------------------------------------------------------
 // 1. 数据结构 (Data Structures)
@@ -58,31 +59,23 @@ enum class OpCode {
 struct Series {
     std::string name;
     std::vector<double> data;
+    duckdb::Connection* con = nullptr; // 新增：指向 DuckDB 连接的指针
 
     /**
      * @brief 获取指定K线柱索引处的值。
+     * 如果数据不在内存中且存在数据库连接，则会尝试从数据库加载。
      * @param bar_index K线柱的索引。
      * @return double K线柱上的值。如果越界，返回 NaN。
      */
-    double getCurrent(int bar_index) const {
-        if (bar_index >= 0 && bar_index < data.size()) {
-            return data[bar_index];
-        }
-        return NAN; 
-    }
+    double getCurrent(int bar_index); // 修改：变为非 const，实现移至 .cpp
 
     /**
      * @brief 设置指定K线柱索引处的值。如果需要，会自动扩展向量。
+     * 主要用于计算指标（如SMA）的结果，而不是市场数据。
      * @param bar_index K线柱的索引。
      * @param value 要设置的值。
      */
-    void setCurrent(int bar_index, double value) {
-        if (bar_index >= data.size()) {
-            // 用 NaN 填充直到目标索引
-            data.resize(bar_index + 1, NAN);
-        }
-        data[bar_index] = value;
-    }
+    void setCurrent(int bar_index, double value); // 修改：实现移至 .cpp
 };
 
 /**
@@ -128,21 +121,15 @@ public:
     /**
      * @brief PineVM 的构造函数。
      * @param total_bars 要模拟的历史K线柱总数。
+     * @param con 指向 DuckDB 连接的指针。
      */
-    PineVM(int total_bars);
+    PineVM(int total_bars, duckdb::Connection* con);
 
     /**
      * @brief 加载要执行的字节码。
      * @param code 指向 Bytecode 对象的指针。VM 不会获得其所有权。
      */
     void loadBytecode(const Bytecode* code);
-
-    /**
-     * @brief 加载市场数据作为内置序列。
-     * @param name 序列的名称 (例如 "close", "high")。
-     * @param data 包含市场数据的向量。
-     */
-    void loadMarketData(const std::string& name, std::vector<double> data);
     
     /**
      * @brief 执行已加载的字节码，遍历所有历史K线柱。
@@ -192,6 +179,7 @@ private:
     std::map<std::string, Value> built_in_vars;
     std::map<std::string, BuiltinFunction> built_in_funcs;
     std::map<std::string, std::shared_ptr<Series>> builtin_func_cache;
+    duckdb::Connection* db_connection = nullptr;
 
     // --- 私有辅助函数 ---
 
@@ -200,7 +188,7 @@ private:
      */
     void runCurrentBar();
     
-    double getNumericValue(const Value& val) const;
+    double getNumericValue(const Value& val);
     /**
      * @brief 注册所有由C++实现的内置函数 (如 ta.sma, input.int)。
      */

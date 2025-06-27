@@ -13,6 +13,8 @@
                 "${workspaceFolder}/Compiler.cpp",
                 "${workspaceFolder}/Parser.cpp",
                 "${workspaceFolder}/Lexer.cpp",
+                // 添加链接 DuckDB 库的指令
+                "-l:C:/coderepo/ct4/duckdb.dll",
                 "${workspaceFolder}/PineVM.cpp",
                 "-o",
                 // 输出到工作区根目录下的一个固定名称的可执行文件
