@@ -91,6 +91,16 @@ void EasyLanguageLexer::skipWhitespace() {
                 line++;
                 advance();
                 break;
+            case '/':
+                if (peek() == '/') {
+                    // A // comment goes until the end of the line.
+                    while (peek() != '\n' && !isAtEnd()) {
+                        advance();
+                    }
+                    break; // Go back to the loop to skip the newline or EOF
+                }
+                // If it's not a // comment, fall through to default.
+                break;
             default:
                 return;
         }
@@ -142,7 +152,16 @@ TokenType EasyLanguageLexer::identifierType(const std::string& text) {
     std::transform(lowerText.begin(), lowerText.end(), lowerText.begin(),
                    [](unsigned char c){ return std::tolower(c); });
 
+    // Check for PlotN functions (Plot followed by a number)
+    if (lowerText.rfind("plot", 0) == 0 && lowerText.length() > 4) {
+        bool isPlotN = true;
+        for (size_t i = 4; i < lowerText.length(); ++i) {
+            if (!isdigit(lowerText[i])) { isPlotN = false; break; }
+        }
+        if (isPlotN) return TokenType::PLOT; // Treat PlotN the same as Plot
+    }
     if (lowerText == "inputs") return TokenType::INPUTS;
+
     if (lowerText == "variables") return TokenType::VARIABLES;
     if (lowerText == "plot") return TokenType::PLOT;
     if (lowerText == "if") return TokenType::IF;
