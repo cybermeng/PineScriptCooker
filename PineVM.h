@@ -59,7 +59,6 @@ enum class OpCode {
 struct Series {
     std::string name;
     std::vector<double> data;
-    duckdb_connection con = nullptr; // 新增：指向 DuckDB 连接的指针
 
     /**
      * @brief 获取指定K线柱索引处的值。

@@ -4,55 +4,11 @@
 #include <numeric>
 
 double Series::getCurrent(int bar_index) {
-    // 1. 首先检查缓存
-    if (bar_index >= 0 && bar_index < data.size()) {
-        // 如果值不是 NaN，说明已经缓存或计算过
-        if (!std::isnan(data[bar_index])) {
-            return data[bar_index];
-        }
-    }
-
-    // 2. 如果不在缓存中，并且这是一个数据库支持的序列，则从数据库获取
-    if (con != nullptr) {
-        // 确保向量足够大以容纳新值，并用NAN填充
-        if (bar_index >= data.size()) {
-            data.resize(bar_index + 1, NAN);
-        }
-
-        duckdb_result result;
-        std::string query_str = "SELECT " + name + " FROM market_data WHERE bar_id = " + std::to_string(bar_index);
-        const char* query_c_str = query_str.c_str();
-
-        // 执行查询
-        duckdb_state status = duckdb_query(con, query_c_str, &result);
-
-        if (status != DuckDBSuccess) {
-            std::cerr << "DuckDB query error: " << duckdb_result_error(&result) << std::endl;
-            duckdb_destroy_result(&result); // 总是销毁结果
-            data[bar_index] = NAN; // 缓存失败结果
-            return NAN;
-        }
-
-        // 检查是否获取到一行数据且该值不为 NULL
-        // DuckDB C API 的 duckdb_value_double 会在值为 NULL 时返回 NAN
-        if (duckdb_row_count(&result) > 0 && duckdb_column_count(&result) > 0) {
-            double value = duckdb_value_double(&result, 0, 0); // 获取第一行第一列的值
-            data[bar_index] = value; // 缓存成功获取的值 (包括来自DB的NAN)
-            duckdb_destroy_result(&result);
-            return value;
-        } else {
-            // 没有行或列，或者值为空/无效
-            data[bar_index] = NAN;
-            duckdb_destroy_result(&result);
-            return NAN;
-        }
-    }
-
-    // 3. 如果没有数据库连接或查询失败/无结果，返回当前缓存中的值（可能是NAN）或NAN
     if (bar_index >= 0 && bar_index < data.size()) {
         return data[bar_index];
     }
-    return NAN; // 通常只在 bar_index < 0 时触发
+    // 如果索引超出范围或数据未加载，返回 NaN
+    return NAN;
 }
 
 // ... Series::setCurrent 保持不变 ...
@@ -182,11 +138,29 @@ void PineVM::runCurrentBar() {
                     push(built_in_vars.at(name));
                 } else {
                     // 检查是否是已知的市场数据序列名称
-                    // 这些将从数据库中惰性加载
-                    if (name == "close" || name == "high" || name == "low" || name == "open") {
+                    if (name == "close" || name == "high" || name == "low" || name == "open" || name == "volume") {
+                        // 首次访问：从数据库预加载整个序列
                         auto series = std::make_shared<Series>();
                         series->name = name;
-                        series->con = connection; // 将序列链接到数据库连接
+                        series->data.resize(total_bars, NAN); // 预分配并用 NAN 填充
+
+                        std::string query_str = "SELECT bar_id, " + name + " FROM market_data ORDER BY bar_id";
+                        duckdb_result result;
+                        if (duckdb_query(connection, query_str.c_str(), &result) == DuckDBSuccess) {
+                            for (idx_t i = 0; i < duckdb_row_count(&result); ++i) {
+                                idx_t bar_id = duckdb_value_int64(&result, 0, i);
+                                if (bar_id < series->data.size()) {
+                                    // duckdb_value_double 在值为 NULL 时返回 NAN，这正是我们想要的
+                                    series->data[bar_id] = duckdb_value_double(&result, 1, i);
+                                }
+                            }
+                            duckdb_destroy_result(&result);
+                        } else {
+                            std::cerr << "Failed to pre-load series '" << name << "': " << duckdb_result_error(&result) << std::endl;
+                            duckdb_destroy_result(&result);
+                            // 保持序列为空，getCurrent 将返回 NAN
+                        }
+
                         built_in_vars[name] = series;
                         push(series);
                     } else {

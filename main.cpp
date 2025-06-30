@@ -182,7 +182,7 @@ int main() {
 
         // 创建一个市场数据表
         duckdb_result result;
-        const char* create_table_query = "CREATE TABLE market_data(bar_id INTEGER PRIMARY KEY, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE)";
+        const char* create_table_query = "CREATE TABLE market_data(bar_id INTEGER PRIMARY KEY, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE, volume DOUBLE)";
         if (duckdb_query(con, create_table_query, &result) == DuckDBError) {
             std::string error_msg = "Failed to create table: ";
             error_msg += duckdb_result_error(&result);
@@ -203,6 +203,7 @@ int main() {
             duckdb_append_double(appender, NAN); // high (示例数据)
             duckdb_append_double(appender, NAN); // low (示例数据)
             duckdb_append_double(appender, close_prices[i]); // close
+            duckdb_append_double(appender, 1000.0 + (i % 5) * 100); // volume (示例数据)
             duckdb_appender_end_row(appender);
         }
         duckdb_appender_destroy(&appender);
