@@ -30,6 +30,11 @@ set(SOURCES
     EasyLanguage/EasyLanguageLexer.cpp
     EasyLanguage/EasyLanguageParser.cpp
     EasyLanguage/EasyLanguageCompiler.cpp
+
+    # Add Hithink source files
+    Hithink/HithinkLexer.cpp
+    Hithink/HithinkParser.cpp
+    Hithink/HithinkCompiler.cpp
 )
 
 # -----------------------------------------------------------------------------

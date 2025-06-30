@@ -113,6 +113,30 @@ build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageCompiler.cpp.obj: C
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\EasyLanguage
 
+build CMakeFiles/PineCompilerVM.dir/Hithink/HithinkLexer.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/Hithink/HithinkLexer.cpp || cmake_object_order_depends_target_PineCompilerVM
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\PineCompilerVM.dir\Hithink\HithinkLexer.cpp.obj.d
+  FLAGS = -g -std=c++17
+  INCLUDES = -IC:/coderepo/ct4
+  OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
+  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\Hithink
+
+build CMakeFiles/PineCompilerVM.dir/Hithink/HithinkParser.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/Hithink/HithinkParser.cpp || cmake_object_order_depends_target_PineCompilerVM
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\PineCompilerVM.dir\Hithink\HithinkParser.cpp.obj.d
+  FLAGS = -g -std=c++17
+  INCLUDES = -IC:/coderepo/ct4
+  OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
+  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\Hithink
+
+build CMakeFiles/PineCompilerVM.dir/Hithink/HithinkCompiler.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/Hithink/HithinkCompiler.cpp || cmake_object_order_depends_target_PineCompilerVM
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\PineCompilerVM.dir\Hithink\HithinkCompiler.cpp.obj.d
+  FLAGS = -g -std=c++17
+  INCLUDES = -IC:/coderepo/ct4
+  OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
+  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\Hithink
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target PineCompilerVM
@@ -121,7 +145,7 @@ build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageCompiler.cpp.obj: C
 #############################################
 # Link the executable PineCompilerVM.exe
 
-build PineCompilerVM.exe: CXX_EXECUTABLE_LINKER__PineCompilerVM_Debug CMakeFiles/PineCompilerVM.dir/main.cpp.obj CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineCompiler.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineParser.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageParser.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageCompiler.cpp.obj | C$:/coderepo/ct4/duckdb.lib
+build PineCompilerVM.exe: CXX_EXECUTABLE_LINKER__PineCompilerVM_Debug CMakeFiles/PineCompilerVM.dir/main.cpp.obj CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineCompiler.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineParser.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageParser.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageCompiler.cpp.obj CMakeFiles/PineCompilerVM.dir/Hithink/HithinkLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/Hithink/HithinkParser.cpp.obj CMakeFiles/PineCompilerVM.dir/Hithink/HithinkCompiler.cpp.obj | C$:/coderepo/ct4/duckdb.lib
   CONFIG = Debug
   FLAGS = -g
   LINK_LIBRARIES = C:/coderepo/ct4/duckdb.lib  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32

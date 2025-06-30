@@ -12,7 +12,7 @@ enum class TokenType {
     COLON, SEMICOLON, // For EasyLanguage
 
     // One or two character tokens.
-    EQUAL, EQUAL_EQUAL, BANG_EQUAL, GREATER_EQUAL, LESS_EQUAL,
+    EQUAL, EQUAL_EQUAL, BANG_EQUAL, GREATER_EQUAL, LESS_EQUAL, COLON_EQUAL, // Hithink `:=`
 
     // Literals.
     IDENTIFIER, NUMBER,

@@ -1,26 +1,22 @@
 #include "HithinkParser.h"
 #include <iostream> // 用于错误报告
 
-HithinkParser::HithinkParser(std::string_view source)
-    : lexer_(source), hadError_(false) {
-    // 在 parse() 方法开始时调用 advance() 来加载第一个词元
+HithinkParser::HithinkParser(std::string_view source) : lexer_(source), hadError_(false) {
+    advance(); // 加载第一个词元
 }
 
 std::vector<std::unique_ptr<HithinkStatement>> HithinkParser::parse() {
-    // 这是一个占位符实现。
-    // 一个真正的实现会循环调用 statement() 直到文件末尾。
-    std::cout << "[HithinkParser] Placeholder parse() called. No statements will be generated." << std::endl;
-
-    advance(); // 加载第一个词元
+    std::vector<std::unique_ptr<HithinkStatement>> statements;
     while (!check(TokenType::END_OF_FILE)) {
-        // 在一个真正的解析器中，我们会在这里调用 statement() 来解析一条语句。
-        // 现在，为了避免无限循环，我们只消耗词元。
-        // auto stmt = statement();
-        // if (stmt) statements.push_back(std::move(stmt));
-        advance();
+        auto stmt = statement();
+        if (stmt) {
+            statements.push_back(std::move(stmt));
+        } else if (hadError_) {
+            // 如果解析语句时出错，尝试同步到下一条语句的开头
+            synchronize();
+        }
     }
-
-    return {}; //暂时返回一个空的语句列表
+    return statements;
 }
 
 bool HithinkParser::hadError() const {
@@ -32,7 +28,8 @@ void HithinkParser::advance() {
     // 循环以跳过任何错误词元，并在过程中报告它们。
     for (;;) {
         current_ = lexer_.scanToken();
-        if (current_.type != TokenType::ERROR) break;
+        if (current_.type != TokenType::ERROR)
+            break;
         error(current_, current_.lexeme.c_str());
     }
 }
@@ -56,9 +53,9 @@ bool HithinkParser::check(TokenType type) const {
 }
 
 void HithinkParser::error(const Token& token, const char* message) {
-    // 如果我们已经处于紧急模式，不要报告更多的错误。
-    // 当我们添加 synchronize() 时，这将更有用。
-    if (hadError_) return;
+    // 避免在同步时报告级联错误
+    if (hadError_)
+        return;
     hadError_ = true;
     std::cerr << "[line " << token.line << "] Error";
     if (token.type == TokenType::END_OF_FILE) {
@@ -69,8 +66,129 @@ void HithinkParser::error(const Token& token, const char* message) {
     std::cerr << ": " << message << std::endl;
 }
 
-// 其他私有方法的存根实现
-void HithinkParser::synchronize() { /* TODO */ }
-std::unique_ptr<HithinkStatement> HithinkParser::statement() { return nullptr; }
-std::unique_ptr<HithinkStatement> HithinkParser::assignmentOrExpressionStatement() { return nullptr; }
-std::unique_ptr<HithinkExpression> HithinkParser::expression() { return nullptr; }
+void HithinkParser::synchronize() {
+    advance();
+    while (!check(TokenType::END_OF_FILE)) {
+        if (previous_.type == TokenType::SEMICOLON)
+            return;
+        // 可以根据语言特性在这里添加更多的同步点，例如关键字
+        advance();
+    }
+}
+
+std::unique_ptr<HithinkStatement> HithinkParser::statement() {
+    // Hithink 语法非常简单:
+    // IDENTIFIER (':' | ':=') expression ';'
+    // expression ';'
+    // 为了解决歧义，我们向前查看一个词元。
+    if (check(TokenType::IDENTIFIER) &&
+        (lexer_.peekNextToken().type == TokenType::COLON || lexer_.peekNextToken().type == TokenType::COLON_EQUAL)) {
+        Token name = current_;
+        advance(); // 消耗标识符
+        bool isOutput = match(TokenType::COLON);
+        if (!isOutput) {
+            consume(TokenType::COLON_EQUAL, "Expect ':=' for variable assignment.");
+        }
+
+        auto value = expression();
+        if (!value) {
+            return nullptr; // 错误已在 expression() 中报告
+        }
+        consume(TokenType::SEMICOLON, "Expect ';' after statement.");
+        return std::make_unique<HithinkAssignmentStatement>(name, std::move(value), isOutput);
+    }
+    return assignmentOrExpressionStatement();
+}
+
+std::unique_ptr<HithinkStatement> HithinkParser::assignmentOrExpressionStatement() {
+    auto expr = expression();
+    if (!expr)
+        return nullptr;
+    consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+    return std::make_unique<HithinkExpressionStatement>(std::move(expr));
+}
+
+std::unique_ptr<HithinkExpression> HithinkParser::expression() {
+    return comparison();
+}
+
+std::unique_ptr<HithinkExpression> HithinkParser::comparison() {
+    auto expr = term();
+    while (match(TokenType::GREATER) || match(TokenType::GREATER_EQUAL) || match(TokenType::LESS) ||
+           match(TokenType::LESS_EQUAL) || match(TokenType::EQUAL) || match(TokenType::BANG_EQUAL)) {
+        Token op = previous_;
+        auto right = term();
+        expr = std::make_unique<HithinkBinaryExpression>(std::move(expr), op, std::move(right));
+    }
+    return expr;
+}
+
+std::unique_ptr<HithinkExpression> HithinkParser::term() {
+    auto expr = factor();
+    while (match(TokenType::MINUS) || match(TokenType::PLUS)) {
+        Token op = previous_;
+        auto right = factor();
+        expr = std::make_unique<HithinkBinaryExpression>(std::move(expr), op, std::move(right));
+    }
+    return expr;
+}
+
+std::unique_ptr<HithinkExpression> HithinkParser::factor() {
+    auto expr = unary();
+    while (match(TokenType::SLASH) || match(TokenType::STAR)) {
+        Token op = previous_;
+        auto right = unary();
+        expr = std::make_unique<HithinkBinaryExpression>(std::move(expr), op, std::move(right));
+    }
+    return expr;
+}
+
+std::unique_ptr<HithinkExpression> HithinkParser::unary() {
+    if (match(TokenType::MINUS)) {
+        Token op = previous_;
+        auto right = unary();
+        return std::make_unique<HithinkUnaryExpression>(op, std::move(right));
+    }
+    return primary();
+}
+
+std::unique_ptr<HithinkExpression> HithinkParser::primary() {
+    if (match(TokenType::NUMBER)) {
+        // 使用 std::stod 将 string 转换为 double
+        return std::make_unique<HithinkLiteralExpression>(std::stod(previous_.lexeme));
+    }
+    if (match(TokenType::STRING)) {
+        // 移除字符串两边的引号
+        std::string value = previous_.lexeme.substr(1, previous_.lexeme.length() - 2);
+        return std::make_unique<HithinkLiteralExpression>(value);
+    }
+    if (match(TokenType::IDENTIFIER)) {
+        Token calleeName = previous_;
+        if (match(TokenType::LEFT_PAREN)) {
+            return finishCall(calleeName);
+        }
+        return std::make_unique<HithinkVariableExpression>(calleeName);
+    }
+    if (match(TokenType::LEFT_PAREN)) {
+        auto expr = expression();
+        consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+        return expr; // Grouping expression, not creating a node for it.
+    }
+
+    error(current_, "Expect expression.");
+    return nullptr;
+}
+
+std::unique_ptr<HithinkExpression> HithinkParser::finishCall(Token calleeName) {
+    auto callExpr = std::make_unique<HithinkFunctionCallExpression>(calleeName);
+    if (!check(TokenType::RIGHT_PAREN)) {
+        do {
+            if (callExpr->arguments.size() >= 255) {
+                error(current_, "Cannot have more than 255 arguments.");
+            }
+            callExpr->arguments.push_back(expression());
+        } while (match(TokenType::COMMA));
+    }
+    consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
+    return callExpr;
+}

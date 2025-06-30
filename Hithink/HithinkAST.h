@@ -7,7 +7,7 @@
 #include <string_view>
 #include <variant>
 
-// 前向声明 Hithink (通达信) AST 节点
+// 前向声明 Hithink (TDX) AST 节点
 struct HithinkAstNode;
 struct HithinkStatement;
 struct HithinkExpression;
@@ -19,6 +19,7 @@ struct HithinkExpressionStatement;
 struct HithinkBinaryExpression;
 struct HithinkFunctionCallExpression;
 struct HithinkLiteralExpression;
+struct HithinkUnaryExpression;
 struct HithinkVariableExpression;
 
 // Hithink AST 访问者 (Visitor) 模式
@@ -30,6 +31,7 @@ struct HithinkAstVisitor {
     virtual void visit(HithinkBinaryExpression& node) = 0;
     virtual void visit(HithinkFunctionCallExpression& node) = 0;
     virtual void visit(HithinkLiteralExpression& node) = 0;
+    virtual void visit(HithinkUnaryExpression& node) = 0;
     virtual void visit(HithinkVariableExpression& node) = 0;
 };
 
@@ -79,6 +81,17 @@ struct HithinkBinaryExpression : HithinkExpression {
 
     HithinkBinaryExpression(std::unique_ptr<HithinkExpression> left, Token op, std::unique_ptr<HithinkExpression> right)
         : left(std::move(left)), op(std::move(op)), right(std::move(right)) {}
+
+    void accept(HithinkAstVisitor& visitor) override { visitor.visit(*this); }
+};
+
+// 一元运算表达式, 如 `-A`
+struct HithinkUnaryExpression : HithinkExpression {
+    Token op; // 操作符 (e.g., MINUS)
+    std::unique_ptr<HithinkExpression> right;
+
+    HithinkUnaryExpression(Token op, std::unique_ptr<HithinkExpression> right)
+        : op(std::move(op)), right(std::move(right)) {}
 
     void accept(HithinkAstVisitor& visitor) override { visitor.visit(*this); }
 };

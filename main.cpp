@@ -9,6 +9,8 @@
 #include "EasyLanguage/EasyLanguageLexer.h"
 #include "EasyLanguage/EasyLanguageParser.h"
 #include "EasyLanguage/EasyLanguageCompiler.h"
+#include "Hithink/HithinkAST.h" // For HithinkStatement definition
+#include "Hithink/HithinkCompiler.h"
 
 // --- 调试辅助函数 ---
 
@@ -122,8 +124,16 @@ int main() {
         Plot2(MyRSI, "My RSI");
     )";
 
+    std::string hithink_source = R"(
+        { Hithink/TDX 示例 }
+        MA5: MA(CLOSE, 5);
+        MA10: MA(C, 10);
+        V1 := C > O;
+        DRAWTEXT(V1, L, 'Price Up');
+    )";
+
     std::string selected_language;
-    std::cout << "Enter language to compile (p: pine / e: easylanguage): ";
+    std::cout << "Enter language to compile (p: pine / e: easylanguage / h: hithink): ";
     std::cin >> selected_language;
 
     std::cout << "--- Compiling Source ---" << std::endl;
@@ -131,16 +141,23 @@ int main() {
         Bytecode bytecode;
         if (selected_language == "p" || selected_language == "pine") {
             std::cout << pine_source << std::endl;
-            PineCompiler compiler; 
+            PineCompiler compiler;
             bytecode = compiler.compile(pine_source);
+        } else if (selected_language == "h" || selected_language == "hithink") {
+            std::cout << hithink_source << std::endl;
+            HithinkCompiler compiler;
+            bytecode = compiler.compile(hithink_source);
+            if (compiler.hadError()) {
+                throw std::runtime_error("Hithink compilation failed.");
+            }
         } else if (selected_language == "e" || selected_language == "easylanguage") {
             std::cout << easylanguage_source << std::endl;
             EasyLanguageParser parser(easylanguage_source);
-            std::vector<std::unique_ptr<ELStatement>> el_ast = parser.parse(); 
+            std::vector<std::unique_ptr<ELStatement>> el_ast = parser.parse();
             EasyLanguageCompiler el_compiler;
             bytecode = el_compiler.compile(el_ast);
         } else {
-            throw std::runtime_error("Invalid language selected. Please choose 'pine' or 'easylanguage'.");
+            throw std::runtime_error("Invalid language selected. Please choose 'pine', 'easylanguage', or 'hithink'.");
         }
 
         disassembleChunk(bytecode, "Compiled Script");

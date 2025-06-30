@@ -46,5 +46,23 @@
   "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\EasyLanguage\\EasyLanguageCompiler.cpp.obj -c C:\\coderepo\\ct4\\EasyLanguage\\EasyLanguageCompiler.cpp",
   "file": "C:\\coderepo\\ct4\\EasyLanguage\\EasyLanguageCompiler.cpp",
   "output": "CMakeFiles\\PineCompilerVM.dir\\EasyLanguage\\EasyLanguageCompiler.cpp.obj"
+},
+{
+  "directory": "C:/coderepo/ct4/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\Hithink\\HithinkLexer.cpp.obj -c C:\\coderepo\\ct4\\Hithink\\HithinkLexer.cpp",
+  "file": "C:\\coderepo\\ct4\\Hithink\\HithinkLexer.cpp",
+  "output": "CMakeFiles\\PineCompilerVM.dir\\Hithink\\HithinkLexer.cpp.obj"
+},
+{
+  "directory": "C:/coderepo/ct4/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\Hithink\\HithinkParser.cpp.obj -c C:\\coderepo\\ct4\\Hithink\\HithinkParser.cpp",
+  "file": "C:\\coderepo\\ct4\\Hithink\\HithinkParser.cpp",
+  "output": "CMakeFiles\\PineCompilerVM.dir\\Hithink\\HithinkParser.cpp.obj"
+},
+{
+  "directory": "C:/coderepo/ct4/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\Hithink\\HithinkCompiler.cpp.obj -c C:\\coderepo\\ct4\\Hithink\\HithinkCompiler.cpp",
+  "file": "C:\\coderepo\\ct4\\Hithink\\HithinkCompiler.cpp",
+  "output": "CMakeFiles\\PineCompilerVM.dir\\Hithink\\HithinkCompiler.cpp.obj"
 }
 ]

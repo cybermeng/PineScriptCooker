@@ -17,6 +17,9 @@
                 "${workspaceFolder}/EasyLanguage/EasyLanguageLexer.cpp",
                 "${workspaceFolder}/EasyLanguage/EasyLanguageParser.cpp",
                 "${workspaceFolder}/EasyLanguage/EasyLanguageCompiler.cpp",
+                "${workspaceFolder}/Hithink/HithinkLexer.cpp",
+                "${workspaceFolder}/Hithink/HithinkCompiler.cpp",
+                "${workspaceFolder}/Hithink/HithinkParser.cpp",
                 // Link DuckDB library
                 "C:/coderepo/ct4/duckdb.lib",
                 "-o",

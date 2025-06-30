@@ -80,7 +80,7 @@ void HithinkLexer::skipWhitespace() {
                 line_++;
                 advance();
                 break;
-            case '{': // Hithink/通达信 注释
+            case '{': // Hithink/TDX 注释
                 while (peek() != '}' && !isAtEnd()) {
                     if (peek() == '\n') line_++;
                     advance();
