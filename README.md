@@ -1,3 +1,24 @@
+# PineCompilerVM
+
+PineCompilerVM is a high-performance, modular backtesting and scripting engine written in modern C++. It features a custom stack-based virtual machine and supports multiple popular trading script languages by compiling them into a common bytecode format.
+
+## Features
+
+-   **Multi-Language Frontend**: Compiles scripts from **PineScript**, **EasyLanguage**, and **Hithink/TDX**.
+-   **Custom Virtual Machine**: A lightweight, efficient stack-based VM (`PineVM`) designed for executing trading logic over time-series data.
+-   **Modular Compiler Design**: Utilizes the classic Lexer -> Parser -> AST -> Code Generator pipeline for each language, making it easy to extend or improve.
+-   **Pluggable Data Sources**: An abstracted data layer (`DataSource`) supports different data inputs, including in-memory mock data for testing and CSV files for real market data.
+-   **High-Performance Data Handling**: Leverages the DuckDB library for fast, in-process analytical queries on CSV files.
+
+## Architecture
+
+The engine is designed in three distinct stages, orchestrated by `main.cpp`:
+
+1.  **Compilation (Frontend)**: The user-selected source code (e.g., PineScript) is processed by its corresponding compiler. This involves lexical analysis (`Lexer`), syntax analysis (`Parser` to build an AST), and code generation (`Compiler` using a Visitor pattern) to produce universal `Bytecode`.
+2.  **Data Preparation**: A `DataSource` is created based on user choice (e.g., `CSVDataSource`). It loads market data and prepares it for the VM by registering the necessary time series (`open`, `high`, `low`, `close`, etc.).
+3.  **Execution (Backend)**: The `PineVM` is instantiated. It loads the `Bytecode` and the data series. The `execute()` method then iterates through all data bars, running the bytecode for each bar to simulate the script's logic.
+
+
 ```mermaid
 graph TD
     subgraph "用户接口 (User Interface)"
