@@ -39,7 +39,7 @@ graph TD
             HithinkCompiler["Hithink<br>Compiler"]
         end
 
-        CompilerChoice -- "2\. 处理源码" --> ProcessingFlow
+        CompilerChoice -- "2\. 处理源码" --> Bytecode
         
         subgraph ProcessingFlow["编译流程 (以PineScript为例)"]
             SourceString["源码字符串<br>'ma = ta.sma(close, 14)'"]
