@@ -1,6 +1,6 @@
-# PineCompilerVM
+# PineScriptCooker
 
-PineCompilerVM is a high-performance, modular backtesting and scripting engine written in modern C++. It features a custom stack-based virtual machine and supports multiple popular trading script languages by compiling them into a common bytecode format.
+PineScriptCooker is a high-performance, modular backtesting and scripting engine written in modern C++. It features a custom stack-based virtual machine and supports multiple popular trading script languages by compiling them into a common bytecode format.
 
 ## Features
 
