@@ -98,6 +98,15 @@ struct Bytecode {
     std::vector<Value> constant_pool;
 };
 
+/**
+ * @struct PlottedSeries
+ * @brief 代表一个已绘制的序列，包含其数据和可视化属性。
+ */
+struct PlottedSeries {
+    std::shared_ptr<Series> series;
+    std::string color;
+};
+
 
 //-----------------------------------------------------------------------------
 // 2. PineVM 类 (The Virtual Machine Class)
@@ -148,6 +157,17 @@ public:
      */
     int getCurrentBarIndex() const { return bar_index; }
 
+    /**
+     * @brief 获取所有已绘制的序列及其属性。
+     * @return const std::vector<PlottedSeries>& 对已绘制序列向量的常量引用。
+     */
+    const std::vector<PlottedSeries>& getPlottedSeries() const { return plotted_series; }
+
+    /**
+     * @brief 打印所有已绘制的序列及其数据。
+     */
+    void printPlottedResults() const;
+
     void registerSeries(const std::string& name, std::shared_ptr<Series> series);
 
     /**
@@ -188,6 +208,9 @@ private:
     std::map<std::string, Value> built_in_vars;
     std::map<std::string, BuiltinFunction> built_in_funcs;
     std::map<std::string, std::shared_ptr<Series>> builtin_func_cache;
+
+    // --- 结果存储 ---
+    std::vector<PlottedSeries> plotted_series; // 用于存储 plot() 调用的结果
 
     // --- 私有辅助函数 ---
 

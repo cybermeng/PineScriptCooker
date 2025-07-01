@@ -204,6 +204,9 @@ int main() {
         std::cout << "\n--- Execution Time ---" << std::endl;
         std::cout << "VM execution took: " << duration.count() << " milliseconds" << std::endl;
 
+        // 打印计算和绘制的结果
+        vm.printPlottedResults();
+
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;

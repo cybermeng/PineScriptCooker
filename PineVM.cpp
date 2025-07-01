@@ -1,6 +1,8 @@
 #include "PineVM.h"
 #include <iostream>
+#include <iomanip>
 #include <numeric>
+#include <algorithm> // For std::find_if
 
 double Series::getCurrent(int bar_index) {
     if (bar_index >= 0 && bar_index < data.size()) {
@@ -33,6 +35,7 @@ void PineVM::loadBytecode(const Bytecode* code) {
 
 void PineVM::execute() {
     globals.resize(10); // 假设最多10个全局变量, 在所有K线计算前初始化一次
+    plotted_series.clear(); // 在每次执行前清除之前的绘制结果
     for (bar_index = 0; bar_index < total_bars; ++bar_index) {
         // std::cout << "--- Executing Bar #" << bar_index << " ---" << std::endl; // 注释掉以保持输出整洁
         runCurrentBar();
@@ -141,22 +144,26 @@ void PineVM::runCurrentBar() {
                 break;
             }
             case OpCode::CALL_PLOT: {
-                Value color_val = pop();
-                Value series_to_plot_val = pop();
-                
+                Value color_val = pop(); // 颜色
+                Value series_to_plot_val = pop(); // 要绘制的序列
+
                 auto series_ptr = std::get<std::shared_ptr<Series>>(series_to_plot_val);
-                double current_val = series_ptr->getCurrent(bar_index);
-                
-                std::string color_str = "default_color";
-                if (std::holds_alternative<std::string>(color_val)) {
-                    // The compiler pushes color constants as strings like "color.blue"
-                    color_str = std::get<std::string>(color_val);
+
+                // 检查此序列是否已注册以进行绘制
+                auto it = std::find_if(plotted_series.begin(), plotted_series.end(),
+                                       [&](const PlottedSeries& ps) {
+                                           return ps.series.get() == series_ptr.get();
+                                       });
+
+                if (it == plotted_series.end()) {
+                    // 尚未注册，添加它
+                    std::string color_str = "default_color";
+                    if (std::holds_alternative<std::string>(color_val)) {
+                        color_str = std::get<std::string>(color_val);
+                    }
+                    plotted_series.push_back({series_ptr, color_str});
                 }
-
-                std::cout << " plotting '" << series_ptr->name << "' at bar " << bar_index
-                          << " with value: " << current_val << " and color: " << color_str << std::endl;
-
-                push(true);
+                push(true); // plot() 在PineScript中返回void，但我们的VM可能需要一个返回值
                 break;
             }
             default:
@@ -361,4 +368,50 @@ void PineVM::registerBuiltins() {
          Value defval = vm.pop();
          return defval;
     };
+}
+
+void PineVM::printPlottedResults() const {
+    if (plotted_series.empty()) {
+        std::cout << "\n--- No Plotted Results ---" << std::endl;
+        return;
+    }
+
+    std::cout << "\n--- Plotted Results (前10个和后10个值) ---" << std::endl;
+    for (const auto& plotted : plotted_series) {
+        std::cout << "Series: " << plotted.series->name << ", Color: " << plotted.color << std::endl;
+        
+        const auto& data = plotted.series->data;
+        const size_t n = data.size();
+
+        auto print_value = [](double val) {
+            if (std::isnan(val)) {
+                std::cout << "nan";
+            } else {
+                std::cout << std::fixed << std::setprecision(2) << val;
+            }
+        };
+
+        std::cout << "  Data (total " << n << " points): [";
+
+        if (n <= 20) {
+            // 如果点数少于等于20，则全部打印
+            for (size_t i = 0; i < n; ++i) {
+                if (i > 0) std::cout << ", ";
+                print_value(data[i]);
+            }
+        } else {
+            // 打印前10个点
+            for (size_t i = 0; i < 10; ++i) {
+                if (i > 0) std::cout << ", ";
+                print_value(data[i]);
+            }
+            std::cout << ", ...";
+            // 打印后10个点
+            for (size_t i = n - 10; i < n; ++i) {
+                std::cout << ", ";
+                print_value(data[i]);
+            }
+        }
+        std::cout << "]" << std::endl;
+    }
 }
