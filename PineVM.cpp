@@ -363,6 +363,46 @@ void PineVM::registerBuiltins() {
         return rsi_series;
     };
     
+    built_in_funcs["MA"] = [](PineVM& vm) -> Value {
+        Value length_val = vm.pop();
+        Value source_val = vm.pop();
+        
+        int length = static_cast<int>(std::get<double>(length_val));
+        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+
+        // 基于函数和参数创建唯一的缓存键，以支持状态保持
+        std::string cache_key = "MA(" + source_series->name + "," + std::to_string(length) + ")";
+
+        std::shared_ptr<Series> result_series;
+        if (vm.builtin_func_cache.count(cache_key)) {
+            result_series = vm.builtin_func_cache.at(cache_key);
+        } else {
+            result_series = std::make_shared<Series>();
+            result_series->name = "MA(" + source_series->name + ", " + std::to_string(length) + ")";
+            vm.builtin_func_cache[cache_key] = result_series;
+        }
+        
+        int current_bar = vm.getCurrentBarIndex();
+
+        // 仅当尚未为当前K线计算时才计算
+        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
+            double sum = 0.0;
+            int count = 0;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    sum += val;
+                    count++;
+                }
+            }
+            
+            double ma_val = (count == length)? sum / count : NAN;
+            result_series->setCurrent(current_bar, ma_val);
+        }
+
+        return result_series;
+    };
+
     built_in_funcs["input.int"] = [](PineVM& vm) -> Value {
          vm.pop();
          Value defval = vm.pop();

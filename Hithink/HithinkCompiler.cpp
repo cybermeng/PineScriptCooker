@@ -6,7 +6,6 @@
 
 // 将 Hithink 内置名称映射到 PineVM 内置名称
 const std::unordered_map<std::string, std::string> HithinkCompiler::builtin_mappings = {
-    {"MA", "ta.sma"},
     {"CLOSE", "close"},
     {"C", "close"},
     {"OPEN", "open"},
