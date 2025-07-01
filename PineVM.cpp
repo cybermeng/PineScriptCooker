@@ -1,5 +1,4 @@
 #include "PineVM.h"
-#include "duckdb.h" // 使用 DuckDB C API
 #include <iostream>
 #include <numeric>
 
@@ -20,33 +19,12 @@ void Series::setCurrent(int bar_index, double value) {
 }
 
 // PineVM 构造函数现在负责打开 DuckDB 数据库和连接
-PineVM::PineVM(int total_bars, const std::string& db_path_str)
-    : total_bars(total_bars), bar_index(0), database(nullptr), connection(nullptr) {
-    
-    const char* db_path = db_path_str.empty() ? nullptr : db_path_str.c_str();
-
-    // 打开数据库
-    duckdb_state status_db = duckdb_open(db_path, &database);
-    if (status_db != DuckDBSuccess) {
-        throw std::runtime_error("Failed to open DuckDB database at " + (db_path ? db_path_str : ":memory:"));
-    }
-
-    // 连接到数据库
-    duckdb_state status_con = duckdb_connect(database, &connection);
-    if (status_con != DuckDBSuccess) {
-        duckdb_close(&database); // 如果连接失败，清理数据库
-        throw std::runtime_error("Failed to connect to DuckDB database.");
-    }
+PineVM::PineVM(int total_bars)
+    : total_bars(total_bars), bar_index(0), bytecode(nullptr), ip(nullptr) {
     registerBuiltins();
 }
 
 PineVM::~PineVM() {
-    if (connection != nullptr) {
-        duckdb_disconnect(&connection);
-    }
-    if (database != nullptr) {
-        duckdb_close(&database);
-    }
 }
 
 void PineVM::loadBytecode(const Bytecode* code) {
@@ -137,35 +115,7 @@ void PineVM::runCurrentBar() {
                 if (built_in_vars.count(name)) {
                     push(built_in_vars.at(name));
                 } else {
-                    // 检查是否是已知的市场数据序列名称
-                    if (name == "close" || name == "high" || name == "low" || name == "open" || name == "volume") {
-                        // 首次访问：从数据库预加载整个序列
-                        auto series = std::make_shared<Series>();
-                        series->name = name;
-                        series->data.resize(total_bars, NAN); // 预分配并用 NAN 填充
-
-                        std::string query_str = "SELECT bar_id, " + name + " FROM market_data ORDER BY bar_id";
-                        duckdb_result result;
-                        if (duckdb_query(connection, query_str.c_str(), &result) == DuckDBSuccess) {
-                            for (idx_t i = 0; i < duckdb_row_count(&result); ++i) {
-                                idx_t bar_id = duckdb_value_int64(&result, 0, i);
-                                if (bar_id < series->data.size()) {
-                                    // duckdb_value_double 在值为 NULL 时返回 NAN，这正是我们想要的
-                                    series->data[bar_id] = duckdb_value_double(&result, 1, i);
-                                }
-                            }
-                            duckdb_destroy_result(&result);
-                        } else {
-                            std::cerr << "Failed to pre-load series '" << name << "': " << duckdb_result_error(&result) << std::endl;
-                            duckdb_destroy_result(&result);
-                            // 保持序列为空，getCurrent 将返回 NAN
-                        }
-
-                        built_in_vars[name] = series;
-                        push(series);
-                    } else {
-                        throw std::runtime_error("Undefined built-in variable: " + name);
-                    }
+                    throw std::runtime_error("Undefined built-in variable: " + name);
                 }
                 break;
             }
@@ -216,8 +166,8 @@ void PineVM::runCurrentBar() {
     }
 }
 
-duckdb_connection PineVM::getConnection() {
-    return connection;
+void PineVM::registerSeries(const std::string& name, std::shared_ptr<Series> series) {
+    built_in_vars[name] = series;
 }
 
 void PineVM::registerBuiltins() {

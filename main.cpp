@@ -1,5 +1,4 @@
 #include "PineVM.h"
-#include "duckdb.h" // 新增：包含 DuckDB C API 头文件
 #include "PineScript/PineCompiler.h" // 新增：PineScript 编译器头文件
 #include <chrono> // 新增：用于时间测量
 #include <iostream>
@@ -162,52 +161,38 @@ int main() {
 
         disassembleChunk(bytecode, "Compiled Script");
 
-        // --- 设置 DuckDB 并加载数据 ---
+        // --- 准备市场数据 ---
         // Increase data size significantly
         int num_bars = 1000;
         std::vector<double> close_prices(num_bars);
+        std::vector<double> open_prices(num_bars);
+        std::vector<double> high_prices(num_bars);
+        std::vector<double> low_prices(num_bars);
+        std::vector<double> volume_data(num_bars);
+
         for (int i = 0; i < num_bars; ++i) {
             close_prices[i] = 100.0 + (i % 20 - 10) * 0.5;  // Example oscillating data
+            open_prices[i] = close_prices[i] - (i % 5 - 2) * 0.1;
+            high_prices[i] = std::max(open_prices[i], close_prices[i]) + (i % 3) * 0.05;
+            low_prices[i] = std::min(open_prices[i], close_prices[i]) - (i % 3) * 0.05;
+            volume_data[i] = 1000.0 + (i % 5) * 100;
         }
 
-        // 1. 初始化 VM，这将创建内存数据库
-        // 传递空字符串表示内存数据库
-        PineVM vm(close_prices.size(), ""); 
-        duckdb_connection con = vm.getConnection();
-        if (!con) {
-            throw std::runtime_error("Failed to get DuckDB connection from PineVM");
-        }
+        // --- 初始化 VM 并注册数据 ---
+        PineVM vm(num_bars);
 
-        std::cout << "\n--- Preparing Data in DuckDB ---" << std::endl;
+        auto make_series = [](const std::string& name, const std::vector<double>& data) {
+            auto series = std::make_shared<Series>();
+            series->name = name;
+            series->data = data;
+            return series;
+        };
 
-        // 创建一个市场数据表
-        duckdb_result result;
-        const char* create_table_query = "CREATE TABLE market_data(bar_id INTEGER PRIMARY KEY, open DOUBLE, high DOUBLE, low DOUBLE, close DOUBLE, volume DOUBLE)";
-        if (duckdb_query(con, create_table_query, &result) == DuckDBError) {
-            std::string error_msg = "Failed to create table: ";
-            error_msg += duckdb_result_error(&result);
-            duckdb_destroy_result(&result);
-            throw std::runtime_error(error_msg);
-        }
-        duckdb_destroy_result(&result);
-
-        // 使用 Appender 高效地插入数据
-        duckdb_appender appender;
-        if (duckdb_appender_create(con, nullptr, "market_data", &appender) == DuckDBError) {
-            throw std::runtime_error("Failed to create appender");
-        }
-        for (int i = 0; i < close_prices.size(); ++i) {
-            duckdb_appender_begin_row(appender);
-            duckdb_append_int32(appender, i); // bar_id
-            duckdb_append_double(appender, NAN); // open (示例数据)
-            duckdb_append_double(appender, NAN); // high (示例数据)
-            duckdb_append_double(appender, NAN); // low (示例数据)
-            duckdb_append_double(appender, close_prices[i]); // close
-            duckdb_append_double(appender, 1000.0 + (i % 5) * 100); // volume (示例数据)
-            duckdb_appender_end_row(appender);
-        }
-        duckdb_appender_destroy(&appender);
-        std::cout << "Loaded " << close_prices.size() << " bars into DuckDB." << std::endl;
+        vm.registerSeries("close", make_series("close", close_prices));
+        vm.registerSeries("open", make_series("open", open_prices));
+        vm.registerSeries("high", make_series("high", high_prices));
+        vm.registerSeries("low", make_series("low", low_prices));
+        vm.registerSeries("volume", make_series("volume", volume_data));
 
         // --- 3. 初始化并测量 VM 执行时间 ---
         auto start_time = std::chrono::high_resolution_clock::now();

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "duckdb.h" // 使用 DuckDB C API
 #include <vector>
 #include <string>
 #include <variant>
@@ -59,13 +58,6 @@ enum class OpCode {
 struct Series {
     std::string name;
     std::vector<double> data;
-
-    /**
-     * @brief 获取指定K线柱索引处的值。
-     * 如果数据不在内存中且存在数据库连接，则会尝试从数据库加载。
-     * @param bar_index K线柱的索引。
-     * @return double K线柱上的值。如果越界，返回 NaN。
-     */
     double getCurrent(int bar_index); // 修改：变为非 const，实现移至 .cpp
 
     /**
@@ -118,11 +110,10 @@ struct Bytecode {
 class PineVM {
 public:
     /**
-     * @brief PineVM 的构造函数。
+     * @brief PineVM 的构造函数
      * @param total_bars 要模拟的历史K线柱总数
-     * @param db_path 数据库文件路径，若为空字符串则使用内存数据库
      */
-    PineVM(int total_bars, const std::string& db_path);
+    PineVM(int total_bars);
     ~PineVM();
 
     /**
@@ -157,11 +148,7 @@ public:
      */
     int getCurrentBarIndex() const { return bar_index; }
 
-    /**
-     * @brief 获取内部的 DuckDB C API 连接句柄
-     * @return duckdb_connection 连接句柄
-     */
-    duckdb_connection getConnection();
+    void registerSeries(const std::string& name, std::shared_ptr<Series> series);
 
 private:
     /**
@@ -172,8 +159,6 @@ private:
     using BuiltinFunction = std::function<Value(PineVM&)>;
 
     // --- 内部状态 ---
-    duckdb_database database = nullptr;
-    duckdb_connection connection = nullptr;
     const Bytecode* bytecode = nullptr;
     const Instruction* ip = nullptr; // 指令指针
     std::vector<Value> stack;        // 操作数栈,
