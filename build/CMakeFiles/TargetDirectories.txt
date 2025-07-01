@@ -1,3 +1,0 @@
-C:/coderepo/ct4/build/CMakeFiles/PineCompilerVM.dir
-C:/coderepo/ct4/build/CMakeFiles/edit_cache.dir
-C:/coderepo/ct4/build/CMakeFiles/rebuild_cache.dir
