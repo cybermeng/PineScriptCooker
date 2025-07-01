@@ -1,89 +1,46 @@
 ```mermaid
 graph TD
-    subgraph "入口与数据准备 (Entry & Data Prep)"
-        main_cpp["main.cpp"]
-    end
-
-    subgraph "语言前端 (Language Frontends)"
+    subgraph "用户接口 (User Interface)"
         direction LR
-        subgraph "PineScript"
-            PineCompiler["PineCompiler.cpp"]
-            PineParser["PineParser.cpp"]
-            PineLexer["PineLexer.cpp"]
-            PineAST["PineAST.h"]
+        UserInput["用户输入<br>(选择语言, 数据源)"] --> Main["main.cpp<br>(应用入口)"]
+    end
+
+    subgraph "编译阶段 <br>(Compilation Frontend)"
+        direction LR
+        style Bytecode fill:#bbf,stroke:#333,stroke-width:2px
+        
+        Main -- "1\. 选择编译器" --> CompilerChoice
+        
+        subgraph CompilerChoice["语言编译器"]
+            direction TB
+            PineCompiler["PineScript<br>Compiler"]
+            ELCompiler["EasyLanguage<br>Compiler"]
+            HithinkCompiler["Hithink<br>Compiler"]
         end
-        subgraph "EasyLanguage"
-            ELCompiler["EasyLanguageCompiler.cpp"]
-            ELParser["EasyLanguageParser.cpp"]
-            ELLexer["EasyLanguageLexer.cpp"]
-            ELAST["EasyLanguageAST.h"]
-        end
-        subgraph "Hithink"
-            HithinkCompiler["HithinkCompiler.cpp"]
-            HithinkParser["HithinkParser.cpp"]
-            HithinkLexer["HithinkLexer.cpp"]
-            HithinkAST["HithinkAST.h"]
+
+        CompilerChoice -- "2\. 处理源码" --> ProcessingFlow
+        
+        subgraph ProcessingFlow["编译流程 (以PineScript为例)"]
+            SourceString["源码字符串<br>'ma = ta.sma(close, 14)'"]
+            SourceString --> Lexer["PineLexer<br>(词法分析)"]
+            Lexer --> Tokens["Token序列<br>[IDENTIFIER(ma), EQUAL, ... ]"]
+            Tokens --> Parser["PineParser<br>(语法分析)"]
+            Parser --> AST["抽象语法树 (AST)<br>(AssignmentStmt)"]
+            AST --> CodeGen["PineCompiler<br>(代码生成 / AST Visitor)"]
+            CodeGen --> Bytecode["通用字节码<br>(Bytecode)"]
         end
     end
 
-    subgraph "共享后端与执行 (Shared Backend & Execution)"
-        PineVM["PineVM.cpp (虚拟机)"]
-        Bytecode["[Bytecode]"]
-        SeriesData["[Series Data]"]
-    end
-    
-    subgraph "公共组件 (Common Components)"
-        CompilerCommon["CompilerCommon.h"]
+    subgraph "数据准备<br> (Data Preparation)"
+        direction LR
+        Main -- "创建" --> DataSources["数据源 (DataSource)"]
+        DataSources -- "加载数据到" --> PineVM
     end
 
-    %% --- 流程定义 (Flow Definition) ---
+    subgraph "执行阶段<br> (Execution Backend)"
+        direction LR
+        style PineVM fill:#9f9,stroke:#333,stroke-width:2px
+        Bytecode -- "加载指令到" --> PineVM["PineVM<br>(虚拟机)"]
+        PineVM -- "执行字节码" --> Result["执行结果<br>(指标序列)"]
+    end
 
-    main_cpp -- "1\. 选择语言" --> PineCompiler
-    main_cpp -- "1\. 选择语言" --> ELCompiler
-    main_cpp -- "1\. 选择语言" --> HithinkCompiler
-
-    PineCompiler -- "2\. 使用" --> PineParser
-    PineParser -- "3\. 使用" --> PineLexer
-    PineLexer -- "4\. 扫描源码生成 [Tokens]" --> PineParser
-    PineParser -- "5\. 解析 Tokens 生成" --> PineAST
-    PineCompiler -- "6\. 遍历 AST 生成" --> Bytecode
-
-    ELCompiler -- "2\. 使用" --> ELParser
-    ELParser -- "3\. 使用" --> ELLexer
-    ELLexer -- "4\. 扫描源码生成 [Tokens]" --> ELParser
-    ELParser -- "5\. 解析 Tokens 生成" --> ELAST
-    ELCompiler -- "6\. 遍历 AST 生成" --> Bytecode
-
-    HithinkCompiler -- "2\. 使用" --> HithinkParser
-    HithinkParser -- "3\. 使用" --> HithinkLexer
-    HithinkLexer -- "4\. 扫描源码生成 [Tokens]" --> HithinkParser
-    HithinkParser -- "5\. 解析 Tokens 生成" --> HithinkAST
-    HithinkCompiler -- "6\. 遍历 AST 生成" --> Bytecode
-
-    Bytecode -- "7\. 加载字节码" --> PineVM
-    main_cpp -- "创建" --> SeriesData
-    SeriesData -- "8\. 注册数据 (registerSeries)" --> PineVM
-    main_cpp -- "9\. 调用 vm.execute()" --> PineVM
-    PineVM -- "10\. 解释执行" --> Bytecode
-
-    %% --- 依赖关系 (Dependencies) ---
-    PineCompiler -- "依赖" --> CompilerCommon
-    ELCompiler -- "依赖" --> CompilerCommon
-    HithinkCompiler -- "依赖" --> CompilerCommon
-    PineVM -- "依赖" --> CompilerCommon
-    PineAST -- "依赖" --> CompilerCommon
-    ELAST -- "依赖" --> CompilerCommon
-    HithinkAST -- "依赖" --> CompilerCommon
-
-    %% --- 样式定义 (Styling) ---
-    classDef frontend fill:#e6f3ff,stroke:#0066cc,stroke-width:2px;
-    class PineCompiler,PineParser,PineLexer,PineAST,ELCompiler,ELParser,ELLexer,ELAST,HithinkCompiler,HithinkParser,HithinkLexer,HithinkAST frontend;
-
-    classDef backend fill:#e6ffe6,stroke:#009933,stroke-width:2px;
-    class PineVM,Bytecode,SeriesData backend;
-
-    classDef main fill:#fff0e6,stroke:#ff6600,stroke-width:2px;
-    class main_cpp main;
-    
-    classDef common fill:#f2f2f2,stroke:#595959,stroke-width:2px;
-    class CompilerCommon common;
