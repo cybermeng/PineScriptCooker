@@ -1,5 +1,7 @@
 #include "PineVM.h"
 #include "PineScript/PineCompiler.h" // 新增：PineScript 编译器头文件
+#include "DataSource.h" // 新增：数据源层
+#include "DataSource/CSVDataSource.h" // 新增：CSV数据源
 #include <chrono> // 新增：用于时间测量
 #include <iostream>
 #include <vector>
@@ -161,38 +163,33 @@ int main() {
 
         disassembleChunk(bytecode, "Compiled Script");
 
-        // --- 准备市场数据 ---
-        // Increase data size significantly
-        int num_bars = 1000;
-        std::vector<double> close_prices(num_bars);
-        std::vector<double> open_prices(num_bars);
-        std::vector<double> high_prices(num_bars);
-        std::vector<double> low_prices(num_bars);
-        std::vector<double> volume_data(num_bars);
+        // --- 准备数据源 ---
+        std::unique_ptr<DataSource> dataSource;
+        std::string ds_type;
+        std::cout << "\nEnter data source type (m: mock / c: csv): ";
+        std::cin >> ds_type;
 
-        for (int i = 0; i < num_bars; ++i) {
-            close_prices[i] = 100.0 + (i % 20 - 10) * 0.5;  // Example oscillating data
-            open_prices[i] = close_prices[i] - (i % 5 - 2) * 0.1;
-            high_prices[i] = std::max(open_prices[i], close_prices[i]) + (i % 3) * 0.05;
-            low_prices[i] = std::min(open_prices[i], close_prices[i]) - (i % 3) * 0.05;
-            volume_data[i] = 1000.0 + (i % 5) * 100;
+        if (ds_type == "m") {
+            dataSource = std::make_unique<MockDataSource>(1000);
+        } else if (ds_type == "c") {
+            std::string csv_path;
+            std::cout << "Enter CSV file path: ";
+            std::cin >> csv_path;
+            // 注意: 为了测试，请创建一个名为 market_data.csv 的示例文件，包含以下列：
+            // open,high,low,close,volume
+            // 例如:
+            // open,high,low,close,volume
+            // 100.1,100.2,99.9,100.0,1000
+            // 100.0,100.3,99.8,100.1,1200
+            dataSource = std::make_unique<CSVDataSource>(csv_path);
+        } else {
+            std::cerr << "Invalid data source type." << std::endl;
+            return 1;
         }
 
         // --- 初始化 VM 并注册数据 ---
-        PineVM vm(num_bars);
-
-        auto make_series = [](const std::string& name, const std::vector<double>& data) {
-            auto series = std::make_shared<Series>();
-            series->name = name;
-            series->data = data;
-            return series;
-        };
-
-        vm.registerSeries("close", make_series("close", close_prices));
-        vm.registerSeries("open", make_series("open", open_prices));
-        vm.registerSeries("high", make_series("high", high_prices));
-        vm.registerSeries("low", make_series("low", low_prices));
-        vm.registerSeries("volume", make_series("volume", volume_data));
+        PineVM vm(dataSource->getNumBars());
+        dataSource->loadData(vm);
 
         // --- 3. 初始化并测量 VM 执行时间 ---
         auto start_time = std::chrono::high_resolution_clock::now();

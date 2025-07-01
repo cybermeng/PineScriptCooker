@@ -22,6 +22,8 @@ set(CMAKE_CXX_EXTENSIONS OFF) # 推荐关闭编译器特定的扩展，以保证
 # 注意：CMake 会自动处理头文件 (.h) 的依赖关系，无需在此列出。
 set(SOURCES
     main.cpp
+    DataSource.cpp
+    DataSource/CSVDataSource.cpp
     PineVM.cpp
     PineScript/PineCompiler.cpp
     PineScript/PineParser.cpp

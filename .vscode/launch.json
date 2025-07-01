@@ -1,19 +1,20 @@
 {
-    "version": "2.0.0",
+    "version": "0.2.0",
     "configurations": [
         {
-            "name": "(gdb) Launch Pine Runner",
+            "name": "Debug (gdb) PineCompilerVM",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/pine_runner.exe",
+            // 关键：指向 CMake 构建任务生成的可执行文件
+            "program": "${workspaceFolder}/build/PineCompilerVM.exe",
             "args": [],
             "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
+            // 关键：将工作目录设置为可执行文件所在的目录，以便能找到 duckdb.dll
+            "cwd": "${workspaceFolder}/build",
             "environment": [],
             "externalConsole": false,
             "MIMode": "gdb",
-            // 新增：明确指定 GDB 调试器的路径
-            "miDebuggerPath": "C:\\msys64\\ucrt64\\bin\\gdb.exe",
+            "miDebuggerPath": "C:/msys64/ucrt64/bin/gdb.exe",
             "setupCommands": [
                 {
                     "description": "Enable pretty-printing for gdb",
@@ -21,7 +22,8 @@
                     "ignoreFailures": true
                 }
             ],
-            "preLaunchTask": "Build Pine Project"
+            // 关键：在每次启动调试前，自动运行 CMake 构建任务
+            "preLaunchTask": "CMake: build"
         }
     ]
 }

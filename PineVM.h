@@ -150,6 +150,22 @@ public:
 
     void registerSeries(const std::string& name, std::shared_ptr<Series> series);
 
+    /**
+     * @brief 获取一个已注册的序列。
+     * @param name 序列的名称 (例如 "open", "close").
+     * @return Series* 指向序列对象的原始指针，如果未找到则返回 nullptr。
+     */
+    Series* getSeries(const std::string& name) {
+        auto it = built_in_vars.find(name);
+        if (it != built_in_vars.end()) {
+            // 尝试将 Value 转换为 std::shared_ptr<Series>
+            if (std::holds_alternative<std::shared_ptr<Series>>(it->second)) {
+                return std::get<std::shared_ptr<Series>>(it->second).get();
+            }
+        }
+        return nullptr;
+    }
+
 private:
     /**
      * @using BuiltinFunction

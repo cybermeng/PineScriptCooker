@@ -2,41 +2,18 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "type": "cppbuild",
-            "label": "Build Pine Project",
-            "command": "C:\\msys64\\ucrt64\\bin\\g++.exe",
-            "args": [
-                "-fdiagnostics-color=always",
-                "-g",
-                // 编译项目中的所有源文件
-                "${workspaceFolder}/main.cpp",
-                "${workspaceFolder}/PineVM.cpp",
-                "${workspaceFolder}/PineScript/PineCompiler.cpp",
-                "${workspaceFolder}/PineScript/PineParser.cpp",
-                "${workspaceFolder}/PineScript/PineLexer.cpp",
-                "${workspaceFolder}/EasyLanguage/EasyLanguageLexer.cpp",
-                "${workspaceFolder}/EasyLanguage/EasyLanguageParser.cpp",
-                "${workspaceFolder}/EasyLanguage/EasyLanguageCompiler.cpp",
-                "${workspaceFolder}/Hithink/HithinkLexer.cpp",
-                "${workspaceFolder}/Hithink/HithinkCompiler.cpp",
-                "${workspaceFolder}/Hithink/HithinkParser.cpp",
-                // Link DuckDB library
-                "C:/coderepo/ct4/duckdb.lib",
-                "-o",
-                // 输出到工作区根目录下的一个固定名称的可执行文件
-                "${workspaceFolder}/pine_runner.exe"
-            ],
-            "options": {
-                "cwd": "${workspaceFolder}"
-            },
-            "problemMatcher": [
-                "$gcc"
+            "type": "cmake",
+            "label": "CMake: build",
+            "command": "build",
+            "targets": [
+                "PineCompilerVM"
             ],
             "group": {
                 "kind": "build",
                 "isDefault": true
             },
-            "detail": "Builds the entire Pine language interpreter/VM."
+            "problemMatcher": [],
+            "detail": "CMake template build task"
         }
     ]
 }
