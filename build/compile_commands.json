@@ -13,6 +13,12 @@
 },
 {
   "directory": "C:/coderepo/ct4/build",
+  "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\DataSource\\JsonDataSource.cpp.obj -c C:\\coderepo\\ct4\\DataSource\\JsonDataSource.cpp",
+  "file": "C:\\coderepo\\ct4\\DataSource\\JsonDataSource.cpp",
+  "output": "CMakeFiles\\PineCompilerVM.dir\\DataSource\\JsonDataSource.cpp.obj"
+},
+{
+  "directory": "C:/coderepo/ct4/build",
   "command": "C:\\msys64\\ucrt64\\bin\\g++.exe -IC:/coderepo/ct4 -g -std=c++17 -o CMakeFiles\\PineCompilerVM.dir\\DataSource\\CSVDataSource.cpp.obj -c C:\\coderepo\\ct4\\DataSource\\CSVDataSource.cpp",
   "file": "C:\\coderepo\\ct4\\DataSource\\CSVDataSource.cpp",
   "output": "CMakeFiles\\PineCompilerVM.dir\\DataSource\\CSVDataSource.cpp.obj"

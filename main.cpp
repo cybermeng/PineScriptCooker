@@ -3,6 +3,7 @@
 #include "DataSource.h" // 新增：数据源层
 #include "DataSource/CSVDataSource.h" // 新增：CSV数据源
 #include <chrono> // 新增：用于时间测量
+#include "DataSource/JsonDataSource.h" // 新增：JSON数据源
 #include <iostream>
 #include <vector>
 #include <variant>
@@ -166,7 +167,7 @@ int main() {
         // --- 准备数据源 ---
         std::unique_ptr<DataSource> dataSource;
         std::string ds_type;
-        std::cout << "\nEnter data source type (m: mock / c: csv): ";
+        std::cout << "\nEnter data source type (m: mock / c: csv / j: json): ";
         std::cin >> ds_type;
 
         if (ds_type == "m") {
@@ -182,6 +183,17 @@ int main() {
             // 100.1,100.2,99.9,100.0,1000
             // 100.0,100.3,99.8,100.1,1200
             dataSource = std::make_unique<CSVDataSource>(csv_path);
+        } else if (ds_type == "j") {
+            std::string json_path;
+            std::cout << "Enter JSON file path: ";
+            std::cin >> json_path;
+            // 注意: 为了测试，可以使用项目中的 db/amzn.json 或 db/aapl.json 文件。
+            // 这些文件是换行符分隔的JSON (NDJSON)，每行一个JSON对象。
+            // JsonDataSource 被配置为读取具有以下数字键的格式：
+            // "7": open, "8": high, "9": low, "11": close, "13": volume
+            // 示例行:
+            // {"code":"AMZN","trade_date":19970731,"7":29.25,"8":29.25,"9":28.0,"11":28.75,"13":121200}
+            dataSource = std::make_unique<JsonDataSource>(json_path);
         } else {
             std::cerr << "Invalid data source type." << std::endl;
             return 1;

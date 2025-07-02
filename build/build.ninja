@@ -56,8 +56,6 @@ build CMakeFiles/PineCompilerVM.dir/main.cpp.obj: CXX_COMPILER__PineCompilerVM_u
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/DataSource.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/DataSource.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -66,8 +64,14 @@ build CMakeFiles/PineCompilerVM.dir/DataSource.cpp.obj: CXX_COMPILER__PineCompil
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
+
+build CMakeFiles/PineCompilerVM.dir/DataSource/JsonDataSource.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/DataSource/JsonDataSource.cpp || cmake_object_order_depends_target_PineCompilerVM
+  CONFIG = Debug
+  DEP_FILE = CMakeFiles\PineCompilerVM.dir\DataSource\JsonDataSource.cpp.obj.d
+  FLAGS = -g -std=c++17
+  INCLUDES = -IC:/coderepo/ct4
+  OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
+  OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\DataSource
 
 build CMakeFiles/PineCompilerVM.dir/DataSource/CSVDataSource.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/DataSource/CSVDataSource.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -76,8 +80,6 @@ build CMakeFiles/PineCompilerVM.dir/DataSource/CSVDataSource.cpp.obj: CXX_COMPIL
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\DataSource
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/PineVM.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -86,8 +88,6 @@ build CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj: CXX_COMPILER__PineCompilerVM
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/PineScript/PineCompiler.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/PineScript/PineCompiler.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -96,8 +96,6 @@ build CMakeFiles/PineCompilerVM.dir/PineScript/PineCompiler.cpp.obj: CXX_COMPILE
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\PineScript
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/PineScript/PineParser.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/PineScript/PineParser.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -106,8 +104,6 @@ build CMakeFiles/PineCompilerVM.dir/PineScript/PineParser.cpp.obj: CXX_COMPILER_
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\PineScript
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/PineScript/PineLexer.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/PineScript/PineLexer.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -116,8 +112,6 @@ build CMakeFiles/PineCompilerVM.dir/PineScript/PineLexer.cpp.obj: CXX_COMPILER__
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\PineScript
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageLexer.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/EasyLanguage/EasyLanguageLexer.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -126,8 +120,6 @@ build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageLexer.cpp.obj: CXX_
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\EasyLanguage
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageParser.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/EasyLanguage/EasyLanguageParser.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -136,8 +128,6 @@ build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageParser.cpp.obj: CXX
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\EasyLanguage
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageCompiler.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/EasyLanguage/EasyLanguageCompiler.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -146,8 +136,6 @@ build CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageCompiler.cpp.obj: C
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\EasyLanguage
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/Hithink/HithinkLexer.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/Hithink/HithinkLexer.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -156,8 +144,6 @@ build CMakeFiles/PineCompilerVM.dir/Hithink/HithinkLexer.cpp.obj: CXX_COMPILER__
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\Hithink
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/Hithink/HithinkParser.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/Hithink/HithinkParser.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -166,8 +152,6 @@ build CMakeFiles/PineCompilerVM.dir/Hithink/HithinkParser.cpp.obj: CXX_COMPILER_
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\Hithink
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 build CMakeFiles/PineCompilerVM.dir/Hithink/HithinkCompiler.cpp.obj: CXX_COMPILER__PineCompilerVM_unscanned_Debug C$:/coderepo/ct4/Hithink/HithinkCompiler.cpp || cmake_object_order_depends_target_PineCompilerVM
   CONFIG = Debug
@@ -176,8 +160,6 @@ build CMakeFiles/PineCompilerVM.dir/Hithink/HithinkCompiler.cpp.obj: CXX_COMPILE
   INCLUDES = -IC:/coderepo/ct4
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   OBJECT_FILE_DIR = CMakeFiles\PineCompilerVM.dir\Hithink
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
-  TARGET_PDB = PineCompilerVM.pdb
 
 
 # =============================================================================
@@ -187,17 +169,16 @@ build CMakeFiles/PineCompilerVM.dir/Hithink/HithinkCompiler.cpp.obj: CXX_COMPILE
 #############################################
 # Link the executable PineCompilerVM.exe
 
-build PineCompilerVM.exe: CXX_EXECUTABLE_LINKER__PineCompilerVM_Debug CMakeFiles/PineCompilerVM.dir/main.cpp.obj CMakeFiles/PineCompilerVM.dir/DataSource.cpp.obj CMakeFiles/PineCompilerVM.dir/DataSource/CSVDataSource.cpp.obj CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineCompiler.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineParser.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageParser.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageCompiler.cpp.obj CMakeFiles/PineCompilerVM.dir/Hithink/HithinkLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/Hithink/HithinkParser.cpp.obj CMakeFiles/PineCompilerVM.dir/Hithink/HithinkCompiler.cpp.obj | C$:/coderepo/ct4/duckdb.lib
+build PineCompilerVM.exe: CXX_EXECUTABLE_LINKER__PineCompilerVM_Debug CMakeFiles/PineCompilerVM.dir/main.cpp.obj CMakeFiles/PineCompilerVM.dir/DataSource.cpp.obj CMakeFiles/PineCompilerVM.dir/DataSource/JsonDataSource.cpp.obj CMakeFiles/PineCompilerVM.dir/DataSource/CSVDataSource.cpp.obj CMakeFiles/PineCompilerVM.dir/PineVM.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineCompiler.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineParser.cpp.obj CMakeFiles/PineCompilerVM.dir/PineScript/PineLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageParser.cpp.obj CMakeFiles/PineCompilerVM.dir/EasyLanguage/EasyLanguageCompiler.cpp.obj CMakeFiles/PineCompilerVM.dir/Hithink/HithinkLexer.cpp.obj CMakeFiles/PineCompilerVM.dir/Hithink/HithinkParser.cpp.obj CMakeFiles/PineCompilerVM.dir/Hithink/HithinkCompiler.cpp.obj | C$:/coderepo/ct4/duckdb.lib
   CONFIG = Debug
   FLAGS = -g
   LINK_LIBRARIES = C:/coderepo/ct4/duckdb.lib  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\PineCompilerVM.dir
   POST_BUILD = C:\WINDOWS\system32\cmd.exe /C "cd /D C:\coderepo\ct4\build && "C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different C:/coderepo/ct4/duckdb.dll C:/coderepo/ct4/build"
   PRE_LINK = cd .
-  TARGET_COMPILE_PDB = CMakeFiles\PineCompilerVM.dir\
   TARGET_FILE = PineCompilerVM.exe
   TARGET_IMPLIB = libPineCompilerVM.dll.a
-  TARGET_PDB = PineCompilerVM.pdb
+  TARGET_PDB = PineCompilerVM.exe.dbg
 
 
 #############################################
@@ -245,14 +226,14 @@ build all: phony PineCompilerVM.exe
 #############################################
 # Re-run CMake if any of its inputs changed.
 
-build build.ninja C$:/coderepo/ct4/build/cmake_install.cmake: RERUN_CMAKE | C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCXXCompiler.cmake.in C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCXXCompilerABI.cpp C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCompilerIdDetection.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineCXXCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineCompilerABI.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineCompilerSupport.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineRCCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineSystem.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeFindBinUtils.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeNinjaFindMake.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeParseImplicitIncludeInfo.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeParseImplicitLinkInfo.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeParseLibraryArchitecture.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeRCCompiler.cmake.in C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeRCInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeSystem.cmake.in C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeTestCXXCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeTestCompilerCommon.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeTestRCCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/ADSP-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/ARMCC-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/ARMClang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/AppleClang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Borland-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Clang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Clang-DetermineCompilerInternal.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Compaq-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Cray-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/CrayClang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Embarcadero-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Fujitsu-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/FujitsuClang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GHS-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU-CXX-CXXImportStd.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU-FindBinUtils.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/HP-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/IAR-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/IBMCPP-CXX-DetermineVersionInternal.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/IBMClang-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Intel-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/IntelLLVM-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/LCC-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/MSVC-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/NVHPC-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/NVIDIA-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/OpenWatcom-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/OrangeC-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/PGI-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/PathScale-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/SCO-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/SunPro-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/TI-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/TIClang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Tasking-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/VisualAge-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Watcom-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/XL-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/XLClang-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/zOS-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeCXXLinkerInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeCommonLinkerInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeDetermineLinkerId.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeInspectCXXLinker.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/FeatureTesting.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Linker/GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Linker/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/Windows-GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/Windows-GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-Determine-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-Initialize.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/WindowsPaths.cmake C$:/coderepo/ct4/CMakeLists.txt CMakeCache.txt CMakeFiles/4.0.3/CMakeCXXCompiler.cmake CMakeFiles/4.0.3/CMakeRCCompiler.cmake CMakeFiles/4.0.3/CMakeSystem.cmake
+build build.ninja C$:/coderepo/ct4/build/cmake_install.cmake: RERUN_CMAKE | C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeRCInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeCXXLinkerInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeCommonLinkerInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Linker/GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Linker/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/Windows-GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/Windows-GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-Initialize.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/WindowsPaths.cmake C$:/coderepo/ct4/CMakeLists.txt CMakeCache.txt CMakeFiles/4.0.3/CMakeCXXCompiler.cmake CMakeFiles/4.0.3/CMakeRCCompiler.cmake CMakeFiles/4.0.3/CMakeSystem.cmake
   pool = console
 
 
 #############################################
 # A missing CMake input file is not an error.
 
-build C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCXXCompiler.cmake.in C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCXXCompilerABI.cpp C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCompilerIdDetection.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineCXXCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineCompilerABI.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineCompilerId.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineCompilerSupport.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineRCCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeDetermineSystem.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeFindBinUtils.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeNinjaFindMake.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeParseImplicitIncludeInfo.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeParseImplicitLinkInfo.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeParseLibraryArchitecture.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeRCCompiler.cmake.in C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeRCInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeSystem.cmake.in C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeTestCXXCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeTestCompilerCommon.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeTestRCCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/ADSP-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/ARMCC-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/ARMClang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/AppleClang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Borland-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Clang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Clang-DetermineCompilerInternal.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Compaq-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Cray-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/CrayClang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Embarcadero-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Fujitsu-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/FujitsuClang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GHS-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU-CXX-CXXImportStd.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU-FindBinUtils.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/HP-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/IAR-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/IBMCPP-CXX-DetermineVersionInternal.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/IBMClang-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Intel-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/IntelLLVM-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/LCC-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/MSVC-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/NVHPC-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/NVIDIA-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/OpenWatcom-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/OrangeC-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/PGI-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/PathScale-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/SCO-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/SunPro-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/TI-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/TIClang-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Tasking-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/VisualAge-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/Watcom-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/XL-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/XLClang-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/zOS-CXX-DetermineCompiler.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeCXXLinkerInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeCommonLinkerInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeDetermineLinkerId.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeInspectCXXLinker.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/FeatureTesting.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Linker/GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Linker/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/Windows-GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/Windows-GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-Determine-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-Initialize.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/WindowsPaths.cmake C$:/coderepo/ct4/CMakeLists.txt CMakeCache.txt CMakeFiles/4.0.3/CMakeCXXCompiler.cmake CMakeFiles/4.0.3/CMakeRCCompiler.cmake CMakeFiles/4.0.3/CMakeSystem.cmake: phony
+build C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCXXInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeCommonLanguageInclude.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeGenericSystem.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeInitializeConfigs.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeLanguageInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeRCInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeSystemSpecificInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/CMakeSystemSpecificInitialize.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/CMakeCommonCompilerMacros.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Compiler/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeCXXLinkerInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Internal/CMakeCommonLinkerInformation.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Linker/GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Linker/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/Windows-GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Linker/Windows-GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU-CXX-ABI.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU-CXX.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-GNU.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-Initialize.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows-windres.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/Windows.cmake C$:/Program$ Files/CMake/share/cmake-4.0/Modules/Platform/WindowsPaths.cmake C$:/coderepo/ct4/CMakeLists.txt CMakeCache.txt CMakeFiles/4.0.3/CMakeCXXCompiler.cmake CMakeFiles/4.0.3/CMakeRCCompiler.cmake CMakeFiles/4.0.3/CMakeSystem.cmake: phony
 
 
 #############################################

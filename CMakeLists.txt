@@ -23,6 +23,7 @@ set(CMAKE_CXX_EXTENSIONS OFF) # 推荐关闭编译器特定的扩展，以保证
 set(SOURCES
     main.cpp
     DataSource.cpp
+    DataSource/JsonDataSource.cpp
     DataSource/CSVDataSource.cpp
     PineVM.cpp
     PineScript/PineCompiler.cpp
