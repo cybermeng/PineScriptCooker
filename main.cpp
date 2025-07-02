@@ -48,6 +48,8 @@ const char* getOpCodeName(OpCode op) {
         case OpCode::LOAD_BUILTIN_VAR:  return "LOAD_BUILTIN_VAR";
         case OpCode::LOAD_GLOBAL:       return "LOAD_GLOBAL";
         case OpCode::STORE_GLOBAL:      return "STORE_GLOBAL";
+        case OpCode::RENAME_SERIES:     return "RENAME_SERIES";
+        case OpCode::STORE_AND_PLOT_GLOBAL: return "STORE_AND_PLOT_GLOBAL";
         case OpCode::JUMP_IF_FALSE:     return "JUMP_IF_FALSE";
         case OpCode::JUMP:              return "JUMP";
         case OpCode::CALL_BUILTIN_FUNC: return "CALL_BUILTIN_FUNC";
@@ -77,7 +79,8 @@ void disassembleChunk(const Bytecode& bytecode, const std::string& name) {
             case OpCode::LOAD_BUILTIN_VAR:
             case OpCode::CALL_BUILTIN_FUNC:
             case OpCode::LOAD_GLOBAL:
-            case OpCode::STORE_GLOBAL: {
+            case OpCode::STORE_GLOBAL:
+            case OpCode::STORE_AND_PLOT_GLOBAL: {
                 std::cout << std::left << std::setw(20) << opName 
                           << std::right << std::setw(4) << instruction.operand << " ";
                 // For these, operand is an index to constant pool (for name) or global slot

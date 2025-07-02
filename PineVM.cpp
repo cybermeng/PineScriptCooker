@@ -113,6 +113,32 @@ void PineVM::runCurrentBar() {
                 globals[ip->operand] = pop();
                 break;
             }
+            case OpCode::RENAME_SERIES: {
+                Value name_val = pop();
+                Value& series_val = stack.back(); // Peek at the top of the stack
+                auto series_ptr = std::get<std::shared_ptr<Series>>(series_val);
+                series_ptr->name = std::get<std::string>(name_val);
+                break;
+            }
+            case OpCode::STORE_AND_PLOT_GLOBAL: {
+                // 窥视（Peek），而不是弹出（Pop）。该值可能被后续指令（例如 POP）使用。
+                Value& val_to_store = stack.back();
+                globals[ip->operand] = val_to_store; // 存储一个副本
+
+                // Now handle plotting
+                auto series_ptr = std::get<std::shared_ptr<Series>>(val_to_store);
+
+                // Check if this series is already registered for plotting
+                auto it = std::find_if(plotted_series.begin(), plotted_series.end(),
+                                       [&](const PlottedSeries& ps) {
+                                           return ps.series.get() == series_ptr.get();
+                                       });
+
+                if (it == plotted_series.end()) {
+                    plotted_series.push_back({series_ptr, "default_color"});
+                }
+                break;
+            }
             case OpCode::LOAD_BUILTIN_VAR: {
                 const std::string& name = std::get<std::string>(bytecode->constant_pool[ip->operand]);
                 if (built_in_vars.count(name)) {

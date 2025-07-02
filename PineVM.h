@@ -40,6 +40,8 @@ enum class OpCode {
     LOAD_BUILTIN_VAR,   // 加载一个内置变量 (如 'close')
     LOAD_GLOBAL,        // 加载一个全局变量
     STORE_GLOBAL,       // 存储一个全局变量
+    RENAME_SERIES,      // 重命名栈顶的序列
+    STORE_AND_PLOT_GLOBAL, // 存储到全局变量并添加到绘图列表
     
     JUMP_IF_FALSE,      // 如果栈顶值为假，则跳转
     JUMP,               // 无条件跳转

@@ -48,13 +48,11 @@ Bytecode HithinkCompiler::compile(std::string_view source) {
 void HithinkCompiler::visit(HithinkAssignmentStatement& node) {
     node.value->accept(*this);
     if (node.isOutput) {
-        // 1. 处理输出变量（使用 ':'）
-        //  - 将变量值存储到全局槽位
-        //  - 将变量值再次压入栈顶 (这样绘图时栈顶始终是绘图数据)
-        resolveAndEmitStore(node.name);
-        resolveAndEmitLoad(node.name);
+        // 1. 处理输出变量 (使用 ':')
+        //  - 将其存储到全局槽位并标记为绘图
+        resolveAndEmitStoreAndPlot(node.name);
     } else {
-        // 2. 处理普通赋值 (使用 ':='), 仅将值存储到全局槽位
+        // 2. 处理普通赋值 (使用 ':=')
         resolveAndEmitStore(node.name);
     }
 }
@@ -179,11 +177,20 @@ void HithinkCompiler::resolveAndEmitLoad(const Token& name) {
 
 void HithinkCompiler::resolveAndEmitStore(const Token& name) {
     std::string varName = name.lexeme;
-    // 即使是输出变量，也使用相同的全局槽位
+    // 即使是输出变量，也使用相同的全局槽位 (Even if it's an output variable, use the same global slot)
     if (globalVarSlots.find(varName) == globalVarSlots.end()) {
         globalVarSlots[varName] = nextSlot++;
     }
     emitByteWithOperand(OpCode::STORE_GLOBAL, globalVarSlots[varName]);
+}
+
+void HithinkCompiler::resolveAndEmitStoreAndPlot(const Token& name) {
+    std::string varName = name.lexeme;
+    // 输出变量也使用全局槽位 (Output variables also use global slots)
+    if (globalVarSlots.find(varName) == globalVarSlots.end()) {
+        globalVarSlots[varName] = nextSlot++;
+    }
+    emitByteWithOperand(OpCode::STORE_AND_PLOT_GLOBAL, globalVarSlots[varName]);
 }
 
 int HithinkCompiler::emitJump(OpCode jumpType) {
