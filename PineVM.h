@@ -170,6 +170,8 @@ public:
      */
     void printPlottedResults() const;
 
+    void writePlottedResults(const std::string& filename) const;
+
     void registerSeries(const std::string& name, std::shared_ptr<Series> series);
 
     /**

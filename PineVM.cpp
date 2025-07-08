@@ -3,6 +3,8 @@
 #include <iomanip>
 #include <numeric>
 #include <algorithm> // For std::find_if
+#include <fstream> // For file output
+
 
 double Series::getCurrent(int bar_index) {
     if (bar_index >= 0 && bar_index < data.size()) {
@@ -183,6 +185,23 @@ void PineVM::runCurrentBar() {
 
                 if (it == plotted_series.end()) {
                     // 尚未注册，添加它
+                    if (series_ptr->name.empty()) {
+                        // 如果序列没有名称，尝试从常量池中获取一个
+                        // 这通常发生在像 `plot(close)` 这样的情况下，`close` 是一个内置变量，
+                        // 它的 Series 对象可能没有在编译时设置名称。
+                        // 我们可以使用其在 `built_in_vars` 中的键作为名称。
+                        for (const auto& pair : built_in_vars) {
+                            if (std::holds_alternative<std::shared_ptr<Series>>(pair.second) &&
+                                std::get<std::shared_ptr<Series>>(pair.second).get() == series_ptr.get()) {
+                                series_ptr->name = pair.first;
+                                break;
+                            }
+                        }
+                        if (series_ptr->name.empty()) {
+                            series_ptr->name = "unnamed_series"; // 最后的备用名称
+                        }
+                    }
+
                     std::string color_str = "default_color";
                     if (std::holds_alternative<std::string>(color_val)) {
                         color_str = std::get<std::string>(color_val);
@@ -212,14 +231,14 @@ void PineVM::registerBuiltins() {
         auto source_series = std::get<std::shared_ptr<Series>>(source_val);
 
         // 基于函数和参数创建唯一的缓存键，以支持状态保持
-        std::string cache_key = "ta.sma(" + source_series->name + "," + std::to_string(length) + ")";
+        std::string cache_key = "ta.sma(" + source_series->name + "~" + std::to_string(length) + ")";
 
         std::shared_ptr<Series> result_series;
         if (vm.builtin_func_cache.count(cache_key)) {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
             result_series = std::make_shared<Series>();
-            result_series->name = "sma(" + source_series->name + ", " + std::to_string(length) + ")";
+            result_series->name = "sma(" + source_series->name + "~" + std::to_string(length) + ")";
             vm.builtin_func_cache[cache_key] = result_series;
         }
         
@@ -251,14 +270,14 @@ void PineVM::registerBuiltins() {
         int length = static_cast<int>(std::get<double>(length_val));
         auto source_series = std::get<std::shared_ptr<Series>>(source_val);
 
-        std::string cache_key = "ta.ema(" + source_series->name + "," + std::to_string(length) + ")";
+        std::string cache_key = "ta.ema(" + source_series->name + "~" + std::to_string(length) + ")";
 
         std::shared_ptr<Series> result_series;
         if (vm.builtin_func_cache.count(cache_key)) {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
             result_series = std::make_shared<Series>();
-            result_series->name = "ema(" + source_series->name + ", " + std::to_string(length) + ")";
+            result_series->name = "ema(" + source_series->name + "- " + std::to_string(length) + ")";
             vm.builtin_func_cache[cache_key] = result_series;
         }
         
@@ -301,9 +320,9 @@ void PineVM::registerBuiltins() {
         auto source_series = std::get<std::shared_ptr<Series>>(source_val);
 
         std::string src_name = source_series->name;
-        std::string rsi_key = "ta.rsi(" + src_name + "," + std::to_string(length) + ")";
-        std::string gain_key = "__rsi_avg_gain(" + src_name + "," + std::to_string(length) + ")";
-        std::string loss_key = "__rsi_avg_loss(" + src_name + "," + std::to_string(length) + ")";
+        std::string rsi_key = "ta.rsi(" + src_name + "~" + std::to_string(length) + ")";
+        std::string gain_key = "__rsi_avg_gain(" + src_name + "~" + std::to_string(length) + ")";
+        std::string loss_key = "__rsi_avg_loss(" + src_name + "~" + std::to_string(length) + ")";
 
         auto get_or_create = [&](const std::string& key, const std::string& name) {
             if (vm.builtin_func_cache.count(key)) return vm.builtin_func_cache.at(key);
@@ -313,7 +332,7 @@ void PineVM::registerBuiltins() {
             return series;
         };
 
-        auto rsi_series = get_or_create(rsi_key, "rsi(" + src_name + ", " + std::to_string(length) + ")");
+        auto rsi_series = get_or_create(rsi_key, "rsi(" + src_name + "~" + std::to_string(length) + ")");
         auto gain_series = get_or_create(gain_key, gain_key);
         auto loss_series = get_or_create(loss_key, loss_key);
 
@@ -397,14 +416,14 @@ void PineVM::registerBuiltins() {
         auto source_series = std::get<std::shared_ptr<Series>>(source_val);
 
         // 基于函数和参数创建唯一的缓存键，以支持状态保持
-        std::string cache_key = "MA(" + source_series->name + "," + std::to_string(length) + ")";
+        std::string cache_key = "MA(" + source_series->name + "~" + std::to_string(length) + ")";
 
         std::shared_ptr<Series> result_series;
         if (vm.builtin_func_cache.count(cache_key)) {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
             result_series = std::make_shared<Series>();
-            result_series->name = "MA(" + source_series->name + ", " + std::to_string(length) + ")";
+            result_series->name = "MA(" + source_series->name + "~" + std::to_string(length) + ")";
             vm.builtin_func_cache[cache_key] = result_series;
         }
         
@@ -428,6 +447,30 @@ void PineVM::registerBuiltins() {
 
         return result_series;
     };
+    built_in_funcs["MAX"] = [](PineVM& vm) -> Value {
+        Value val2 = vm.pop();
+        Value val1 = vm.pop();
+
+        double dval1 = vm.getNumericValue(val1);
+        double dval2 = vm.getNumericValue(val2);
+
+        if (std::isnan(dval1) || std::isnan(dval2)) {
+            return NAN;
+        }
+        return std::max(dval1, dval2);
+    };
+    built_in_funcs["MIN"] = [](PineVM& vm) -> Value {
+        Value val2 = vm.pop();
+        Value val1 = vm.pop();
+
+        double dval1 = vm.getNumericValue(val1);
+        double dval2 = vm.getNumericValue(val2);
+
+        if (std::isnan(dval1) || std::isnan(dval2)) {
+            return NAN;
+        }
+        return std::min(dval1, dval2);
+    };
 
     built_in_funcs["input.int"] = [](PineVM& vm) -> Value {
          vm.pop();
@@ -442,6 +485,50 @@ void PineVM::printPlottedResults() const {
         return;
     }
 
+    // 查找名为 "time" 的序列
+    std::shared_ptr<Series> time_series = nullptr;
+    for (const auto& pair : built_in_vars) {
+        if (pair.first == "time" && std::holds_alternative<std::shared_ptr<Series>>(pair.second)) {
+            time_series = std::get<std::shared_ptr<Series>>(pair.second);
+            break;
+        }
+    }
+
+    if (time_series) {
+        std::cout << "\n--- Time Series (前10个和后10个值) ---" << std::endl;
+        const auto& data = time_series->data;
+        const size_t n = data.size();
+
+        auto print_time_value = [](double val) {
+            // 假设时间戳是YYYYMMDD格式的整数，转换为可读的日期
+            if (std::isnan(val)) {
+                std::cout << "nan";
+            } else {
+                long long date_int = static_cast<long long>(val);
+                std::cout << date_int;
+            }
+        };
+
+        std::cout << "  Data (total " << n << " points): [";
+
+        if (n <= 20) {
+            for (size_t i = 0; i < n; ++i) {
+                if (i > 0) std::cout << ", ";
+                print_time_value(data[i]);
+            }
+        } else {
+            for (size_t i = 0; i < 10; ++i) {
+                if (i > 0) std::cout << ", ";
+                print_time_value(data[i]);
+            }
+            std::cout << ", ...";
+            for (size_t i = n - 10; i < n; ++i) {
+                std::cout << ", ";
+                print_time_value(data[i]);
+            }
+        }
+        std::cout << "]" << std::endl;
+    }
     std::cout << "\n--- Plotted Results (前10个和后10个值) ---" << std::endl;
     for (const auto& plotted : plotted_series) {
         std::cout << "Series: " << plotted.series->name << ", Color: " << plotted.color << std::endl;
@@ -480,4 +567,75 @@ void PineVM::printPlottedResults() const {
         }
         std::cout << "]" << std::endl;
     }
+}
+
+void PineVM::writePlottedResults(const std::string& filename) const {
+    std::ofstream outfile(filename);
+    if (!outfile.is_open()) {
+        std::cerr << "Error: Could not open file " << filename << " for writing." << std::endl;
+        return;
+    }
+
+    // 查找名为 "time" 的序列，并将其作为第一列写入
+    std::shared_ptr<Series> time_series = nullptr;
+    for (const auto& pair : built_in_vars) {
+        if (pair.first == "time" && std::holds_alternative<std::shared_ptr<Series>>(pair.second)) {
+            time_series = std::get<std::shared_ptr<Series>>(pair.second);
+            break;
+        }
+    }
+
+    // 写入CSV头
+    bool first_series = true;
+    if (time_series) {
+        outfile << "time";
+        first_series = false;
+    }
+    for (const auto& plotted : plotted_series) {
+        if (!first_series) {
+            outfile << ",";
+        }
+        outfile << plotted.series->name;
+        first_series = false;
+    }
+    outfile << "\n";
+
+    // 写入数据
+    if (!plotted_series.empty()) {
+        size_t max_data_points = 0;
+        for (const auto& plotted : plotted_series) {
+            if (time_series && time_series->data.size() > max_data_points) {
+                max_data_points = time_series->data.size();
+            }
+            if (plotted.series->data.size() > max_data_points) {
+                max_data_points = plotted.series->data.size();
+            }
+        }
+
+        for (size_t i = 0; i < max_data_points; ++i) {
+            first_series = true;
+            if (time_series) {
+                if (i < time_series->data.size()) {
+                    outfile << std::fixed << std::setprecision(0) << time_series->data[i]; // 时间戳通常不需要小数
+                } else {
+                    outfile << " ";
+                }
+                first_series = false;
+            }
+            for (const auto& plotted : plotted_series) {
+                if (!first_series) {
+                    outfile << ",";
+                }
+                if (i < plotted.series->data.size()) {
+                    outfile << std::fixed << std::setprecision(2) << plotted.series->data[i];
+                } else {
+                    outfile << " "; // 如果数据点不足，留空
+                }
+                first_series = false;
+            }
+            outfile << "\n";
+        }
+    }
+    outfile.close();
+    std::cout << "Plotted results written to " << filename << std::endl;
 }

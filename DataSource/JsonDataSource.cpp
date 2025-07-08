@@ -58,36 +58,40 @@ void JsonDataSource::loadData(PineVM& vm) {
     // DuckDB的read_json_auto会将这些键作为列名。
     // 我们使用 AS 来重命名它们，以便VM的其余部分可以按名称 ("open", "high", etc.) 找到它们。
     // 注意：这假设了JSON文件中的列名是 "7", "8", "9", "11", "13"。
-    std::string query = R"(SELECT "7" AS open, "8" AS high, "9" AS low, "11" AS close, "13" AS volume FROM market_data)";
+    std::string query = R"(SELECT trade_date AS time, "7" AS open, "8" AS high, "9" AS low, "11" AS close, "13" AS volume FROM market_data ORDER BY "trade_date" ASC)";
     if (duckdb_query(con, query.c_str(), &result) != DuckDBSuccess) {
         std::string error_msg = "Failed to query market_data table: " + std::string(duckdb_result_error(&result));
         duckdb_destroy_result(&result);
         throw std::runtime_error(error_msg);
     }
 
+    // 在加载数据之前，确保VM中存在这些序列
+    vm.registerSeries("time", std::make_shared<Series>());
     vm.registerSeries("open", std::make_shared<Series>());
     vm.registerSeries("high", std::make_shared<Series>());
     vm.registerSeries("low", std::make_shared<Series>());
     vm.registerSeries("close", std::make_shared<Series>());
     vm.registerSeries("volume", std::make_shared<Series>());
 
+    auto* time_series = vm.getSeries("time");
     auto* open_series = vm.getSeries("open");
     auto* high_series = vm.getSeries("high");
     auto* low_series = vm.getSeries("low");
     auto* close_series = vm.getSeries("close");
     auto* volume_series = vm.getSeries("volume");
 
-    if (!open_series || !high_series || !low_series || !close_series || !volume_series) {
+    if (!time_series || !open_series || !high_series || !low_series || !close_series || !volume_series) {
         duckdb_destroy_result(&result);
         throw std::runtime_error("One or more required series (open, high, low, close, volume) not found in PineVM.");
     }
 
     for (idx_t r = 0; r < num_bars; ++r) {
-        open_series->data.push_back(duckdb_value_double(&result, 0, r));
-        high_series->data.push_back(duckdb_value_double(&result, 1, r));
-        low_series->data.push_back(duckdb_value_double(&result, 2, r));
-        close_series->data.push_back(duckdb_value_double(&result, 3, r));
-        volume_series->data.push_back(duckdb_value_double(&result, 4, r));
+        time_series->data.push_back(duckdb_value_double(&result, 0, r));
+        open_series->data.push_back(duckdb_value_double(&result, 1, r));
+        high_series->data.push_back(duckdb_value_double(&result, 2, r));
+        low_series->data.push_back(duckdb_value_double(&result, 3, r));
+        close_series->data.push_back(duckdb_value_double(&result, 4, r));
+        volume_series->data.push_back(duckdb_value_double(&result, 5, r));
     }
 
     duckdb_destroy_result(&result);

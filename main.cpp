@@ -8,6 +8,7 @@
 #include <vector>
 #include <variant>
 #include <iomanip>
+#include <fstream>
 #include "EasyLanguage/EasyLanguageLexer.h"
 #include "EasyLanguage/EasyLanguageParser.h"
 #include "EasyLanguage/EasyLanguageCompiler.h"
@@ -130,7 +131,7 @@ int main() {
     )";
 
     std::string hithink_source = R"(
-        { Hithink/TDX 示例 }
+        { Hithink/TDX 示例} 
         MA5: MA(CLOSE, 5);
         MA10: MA(C, 10);
         V1 := C > O;
@@ -138,9 +139,14 @@ int main() {
     )";
 
     std::string selected_language;
-    std::cout << "Enter language to compile (p: pine / e: easylanguage / h: hithink): ";
-    std::cin >> selected_language;
-
+    // 提示用户输入语言类型，并提供默认值
+    std::cout << "Enter language to compile (p: pine / e: easylanguage / h: hithink) (default: h): "; 
+    std::getline(std::cin, selected_language); // 读取用户输入
+    if (selected_language.empty()) {
+        selected_language = "h"; // Default to Hithink if no input
+        // std::cout << " (default: h): " << selected_language << std::endl; // This line is redundant now
+    }
+ 
     std::cout << "--- Compiling Source ---" << std::endl;
     try {
         Bytecode bytecode;
@@ -169,9 +175,16 @@ int main() {
 
         // --- 准备数据源 ---
         std::unique_ptr<DataSource> dataSource;
-        std::string ds_type;
-        std::cout << "\nEnter data source type (m: mock / c: csv / j: json): ";
-        std::cin >> ds_type;
+        std::string ds_type; // Declare ds_type here
+        std::cout << "Enter data source type (m: mock / c: csv / j: json) (default: j): ";
+        std::string default_ds_type = "j"; // 默认使用JSON
+        std::string user_input_ds_type;
+        std::getline(std::cin, user_input_ds_type); // Read the actual input for data source selection
+        if (user_input_ds_type.empty()) {
+            ds_type = default_ds_type; // 如果用户输入为空，则使用默认值
+        } else {
+            ds_type = user_input_ds_type;
+        }
 
         if (ds_type == "m") {
             dataSource = std::make_unique<MockDataSource>(1000);
@@ -188,8 +201,14 @@ int main() {
             dataSource = std::make_unique<CSVDataSource>(csv_path);
         } else if (ds_type == "j") {
             std::string json_path;
-            std::cout << "Enter JSON file path: ";
-            std::cin >> json_path;
+            std::cout << "Enter JSON file path (default: ./aapl.json): "; // Prompt for JSON path
+            std::string user_json_path;
+            std::getline(std::cin, user_json_path); // Read JSON path input
+            if (user_json_path.empty()) {
+                json_path = "./aapl.json"; // Default value
+            } else {
+                json_path = user_json_path;
+            }
             // 注意: 为了测试，可以使用项目中的 db/amzn.json 或 db/aapl.json 文件。
             // 这些文件是换行符分隔的JSON (NDJSON)，每行一个JSON对象。
             // JsonDataSource 被配置为读取具有以下数字键的格式：
@@ -221,6 +240,8 @@ int main() {
 
         // 打印计算和绘制的结果
         vm.printPlottedResults();
+
+        vm.writePlottedResults("plotted_results.csv");
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
