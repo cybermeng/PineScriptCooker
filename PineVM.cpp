@@ -22,6 +22,10 @@ void Series::setCurrent(int bar_index, double value) {
     data[bar_index] = value;
 }
 
+void Series::setName(const std::string& name) {
+    this->name = name;
+}
+
 // PineVM 构造函数现在负责打开 DuckDB 数据库和连接
 PineVM::PineVM(int total_bars)
     : total_bars(total_bars), bar_index(0), bytecode(nullptr), ip(nullptr) {
@@ -35,13 +39,23 @@ void PineVM::loadBytecode(const Bytecode* code) {
     bytecode = code;
 }
 
-void PineVM::execute() {
+int PineVM::execute() {
     globals.resize(10); // 假设最多10个全局变量, 在所有K线计算前初始化一次
     plotted_series.clear(); // 在每次执行前清除之前的绘制结果
-    for (bar_index = 0; bar_index < total_bars; ++bar_index) {
+    try
+    {
+        for (bar_index = 0; bar_index < total_bars; ++bar_index) {
         // std::cout << "--- Executing Bar #" << bar_index << " ---" << std::endl; // 注释掉以保持输出整洁
         runCurrentBar();
     }
+    } catch (const std::exception& e) {
+        std::cerr << "PineVM::execute Error: " << e.what()
+         << " @bar_index: " << bar_index
+         << " @ip:" << int(ip - &bytecode->instructions[0])
+         << std::endl;
+        return 1;
+    }
+    return 0;
 }
 
 void PineVM::push(Value val) {
@@ -63,6 +77,45 @@ double PineVM::getNumericValue(const Value& val) {
     } else {
         throw std::runtime_error("Unsupported operand type for numeric operation.");
     }
+}
+
+Value& PineVM::storeGlobal(int operand, const Value& val) {
+        // 检查全局变量槽位是否已经是一个Series
+    if (std::holds_alternative<std::shared_ptr<Series>>(globals[operand])) {
+        auto series_ptr = std::get<std::shared_ptr<Series>>(globals[operand]);
+        if (std::holds_alternative<double>(val)) {
+            // 如果弹出的值是double，则设置Series的当前bar值
+            series_ptr->setCurrent(bar_index, std::get<double>(val));
+        } else if (std::holds_alternative<std::shared_ptr<Series>>(val)) {
+            // 如果弹出的值是Series，则替换bar对应数值
+            auto val_series_ptr = std::get<std::shared_ptr<Series>>(val);
+            series_ptr->setCurrent(bar_index, val_series_ptr->getCurrent(bar_index));
+        } else {
+            // 尝试将其他类型的值存储到Series中（可能需要转换或抛出错误）
+            throw std::runtime_error("Attempted to store unsupported type into existing Series global.");
+        }
+    } else if (std::holds_alternative<std::monostate>(globals[operand])) {
+        // 如果是monostate，说明这个槽位是空的，可以根据弹出的值类型来初始化
+        if (std::holds_alternative<double>(val)) {
+            // 如果是double，创建一个新的Series来存储它
+            auto new_series = std::make_shared<Series>();
+            new_series->setCurrent(bar_index, std::get<double>(val));
+            new_series->setName(bytecode->global_name_pool[operand]);
+            globals[operand] = new_series;
+        } else {
+            // 其他类型直接存储
+            globals[operand] = val;
+            auto series_ptr = std::get<std::shared_ptr<Series>>(globals[operand]);
+            series_ptr->setName(bytecode->global_name_pool[operand]);
+        }
+
+    } else {
+        // 如果不是Series，直接存储弹出的值
+        globals[operand] = val;
+        auto series_ptr = std::get<std::shared_ptr<Series>>(globals[operand]);
+        series_ptr->setName(bytecode->global_name_pool[operand]);
+    }
+    return globals[operand];
 }
 
 void PineVM::runCurrentBar() {
@@ -112,7 +165,7 @@ void PineVM::runCurrentBar() {
                 break;
             }
             case OpCode::STORE_GLOBAL: {
-                globals[ip->operand] = pop();
+                storeGlobal(ip->operand, pop());
                 break;
             }
             case OpCode::RENAME_SERIES: {
@@ -125,10 +178,10 @@ void PineVM::runCurrentBar() {
             case OpCode::STORE_AND_PLOT_GLOBAL: {
                 // 窥视（Peek），而不是弹出（Pop）。该值可能被后续指令（例如 POP）使用。
                 Value& val_to_store = stack.back();
-                globals[ip->operand] = val_to_store; // 存储一个副本
+                Value& val_stored = storeGlobal(ip->operand, val_to_store); // 存储一个副本
 
                 // Now handle plotting
-                auto series_ptr = std::get<std::shared_ptr<Series>>(val_to_store);
+                auto series_ptr = std::get<std::shared_ptr<Series>>(val_stored);
 
                 // Check if this series is already registered for plotting
                 auto it = std::find_if(plotted_series.begin(), plotted_series.end(),
@@ -227,7 +280,8 @@ void PineVM::registerBuiltins() {
         Value length_val = vm.pop();
         Value source_val = vm.pop();
         
-        int length = static_cast<int>(std::get<double>(length_val));
+        int current_bar = vm.getCurrentBarIndex();
+        int length = static_cast<int>(vm.getNumericValue(length_val));
         auto source_series = std::get<std::shared_ptr<Series>>(source_val);
 
         // 基于函数和参数创建唯一的缓存键，以支持状态保持
@@ -242,8 +296,6 @@ void PineVM::registerBuiltins() {
             vm.builtin_func_cache[cache_key] = result_series;
         }
         
-        int current_bar = vm.getCurrentBarIndex();
-
         // 仅当尚未为当前K线计算时才计算
         if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
             double sum = 0.0;
@@ -267,7 +319,8 @@ void PineVM::registerBuiltins() {
         Value length_val = vm.pop();
         Value source_val = vm.pop();
         
-        int length = static_cast<int>(std::get<double>(length_val));
+        int current_bar = vm.getCurrentBarIndex();
+        int length = static_cast<int>(vm.getNumericValue(length_val));
         auto source_series = std::get<std::shared_ptr<Series>>(source_val);
 
         std::string cache_key = "ta.ema(" + source_series->name + "~" + std::to_string(length) + ")";
@@ -281,8 +334,6 @@ void PineVM::registerBuiltins() {
             vm.builtin_func_cache[cache_key] = result_series;
         }
         
-        int current_bar = vm.getCurrentBarIndex();
-
         if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
             double current_source_val = source_series->getCurrent(current_bar);
             double prev_ema = result_series->getCurrent(current_bar - 1);
@@ -316,7 +367,8 @@ void PineVM::registerBuiltins() {
         Value length_val = vm.pop();
         Value source_val = vm.pop();
 
-        int length = static_cast<int>(std::get<double>(length_val));
+        int current_bar = vm.getCurrentBarIndex();
+        int length = static_cast<int>(vm.getNumericValue(length_val));
         auto source_series = std::get<std::shared_ptr<Series>>(source_val);
 
         std::string src_name = source_series->name;
@@ -336,7 +388,6 @@ void PineVM::registerBuiltins() {
         auto gain_series = get_or_create(gain_key, gain_key);
         auto loss_series = get_or_create(loss_key, loss_key);
 
-        int current_bar = vm.getCurrentBarIndex();
         if (current_bar >= rsi_series->data.size() || std::isnan(rsi_series->data[current_bar])) {
             if (current_bar == 0) {
                 gain_series->setCurrent(current_bar, NAN);
@@ -409,10 +460,14 @@ void PineVM::registerBuiltins() {
     };
     
     built_in_funcs["MA"] = [](PineVM& vm) -> Value {
+        // Hithink/TDX SMA函数有三个参数: SMA(X,N,M)
+        // X: 源数据, N: 周期, M: 权重 (通常为1, 表示简单移动平均)
+        Value weight_val = vm.pop(); // M
         Value length_val = vm.pop();
         Value source_val = vm.pop();
         
-        int length = static_cast<int>(std::get<double>(length_val));
+        int current_bar = vm.getCurrentBarIndex();
+        int length = static_cast<int>(vm.getNumericValue(length_val));
         auto source_series = std::get<std::shared_ptr<Series>>(source_val);
 
         // 基于函数和参数创建唯一的缓存键，以支持状态保持
@@ -427,8 +482,6 @@ void PineVM::registerBuiltins() {
             vm.builtin_func_cache[cache_key] = result_series;
         }
         
-        int current_bar = vm.getCurrentBarIndex();
-
         // 仅当尚未为当前K线计算时才计算
         if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
             double sum = 0.0;
@@ -470,6 +523,122 @@ void PineVM::registerBuiltins() {
             return NAN;
         }
         return std::min(dval1, dval2);
+    };
+    built_in_funcs["LLV"] = [](PineVM& vm) -> Value {
+        Value length_val = vm.pop();
+        Value source_val = vm.pop();
+
+        int current_bar = vm.getCurrentBarIndex();
+        int length = static_cast<int>(vm.getNumericValue(length_val));
+        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+
+        std::string cache_key = "LLV(" + source_series->name + "~" + std::to_string(length) + ")";
+
+        std::shared_ptr<Series> result_series;
+        if (vm.builtin_func_cache.count(cache_key)) {
+            result_series = vm.builtin_func_cache.at(cache_key);
+        } else {
+            result_series = std::make_shared<Series>();
+            result_series->name = "LLV(" + source_series->name + "~" + std::to_string(length) + ")";
+            vm.builtin_func_cache[cache_key] = result_series;
+        }
+
+        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
+            double lowest_val = NAN;
+            bool first = true;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    if (first) {
+                        lowest_val = val;
+                        first = false;
+                    } else {
+                        lowest_val = std::min(lowest_val, val);
+                    }
+                }
+            }
+            result_series->setCurrent(current_bar, lowest_val);
+        }
+        return result_series;
+    };
+
+    built_in_funcs["HHV"] = [](PineVM& vm) -> Value {
+        Value length_val = vm.pop();
+        Value source_val = vm.pop();
+
+        int current_bar = vm.getCurrentBarIndex();
+        int length = static_cast<int>(vm.getNumericValue(length_val));
+        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+
+        std::string cache_key = "HHV(" + source_series->name + "~" + std::to_string(length) + ")";
+
+        std::shared_ptr<Series> result_series;
+        if (vm.builtin_func_cache.count(cache_key)) {
+            result_series = vm.builtin_func_cache.at(cache_key);
+        } else {
+            result_series = std::make_shared<Series>();
+            result_series->name = "HHV(" + source_series->name + "~" + std::to_string(length) + ")";
+            vm.builtin_func_cache[cache_key] = result_series;
+        }
+
+        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
+            double highest_val = NAN;
+            bool first = true;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    if (first) {
+                        highest_val = val;
+                        first = false;
+                    } else {
+                        highest_val = std::max(highest_val, val);
+                    }
+                }
+            }
+            result_series->setCurrent(current_bar, highest_val);
+        }
+        return result_series;
+    };
+    built_in_funcs["SMA"] = [](PineVM& vm) -> Value {
+         // Hithink/TDX SMA函数有三个参数: SMA(X,N,M)
+        // X: 源数据, N: 周期, M: 权重 (通常为1, 表示简单移动平均)
+        Value weight_val = vm.pop(); // M
+        Value length_val = vm.pop();
+        Value source_val = vm.pop();
+        
+        int current_bar = vm.getCurrentBarIndex();
+        int length = static_cast<int>(vm.getNumericValue(length_val));
+        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+
+        // 基于函数和参数创建唯一的缓存键，以支持状态保持
+        std::string cache_key = "SMA(" + source_series->name + "~" + std::to_string(length) + ")";
+
+        std::shared_ptr<Series> result_series;
+        if (vm.builtin_func_cache.count(cache_key)) {
+            result_series = vm.builtin_func_cache.at(cache_key);
+        } else {
+            result_series = std::make_shared<Series>();
+            result_series->name = "SMA(" + source_series->name + "~" + std::to_string(length) + ")";
+            vm.builtin_func_cache[cache_key] = result_series;
+        }
+        
+        // 仅当尚未为当前K线计算时才计算
+        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
+            double sum = 0.0;
+            int count = 0;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    sum += val;
+                    count++;
+                }
+            }
+            
+            double sma_val = (count == length)? sum / count : NAN;
+            result_series->setCurrent(current_bar, sma_val);
+        }
+
+        return result_series;
     };
 
     built_in_funcs["input.int"] = [](PineVM& vm) -> Value {

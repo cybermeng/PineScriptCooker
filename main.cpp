@@ -88,6 +88,8 @@ void disassembleChunk(const Bytecode& bytecode, const std::string& name) {
                 // We can print the constant value if it's a name.
                 if (instruction.op == OpCode::LOAD_BUILTIN_VAR || instruction.op == OpCode::CALL_BUILTIN_FUNC) {
                      printValue(bytecode.constant_pool[instruction.operand]);
+                } else if (instruction.op == OpCode::LOAD_GLOBAL || instruction.op == OpCode::STORE_GLOBAL || instruction.op == OpCode::STORE_AND_PLOT_GLOBAL) {
+                     printValue(bytecode.global_name_pool[instruction.operand]);
                 }
                 std::cout << std::endl;
                 offset++;
@@ -131,13 +133,27 @@ int main() {
     )";
 
     std::string hithink_source = R"(
+        RSV:=(CLOSE-LLV(LOW,9))/(HHV(HIGH,9)-LLV(LOW,9))*100;
+        K:SMA(RSV,3,1);
+        D:SMA(K,3,1);
+        J:3*K-2*D;
+    )";
+   /*
+        Zero : 0;
+        DIF : EMA(CLOSE,6) - EMA(CLOSE,13);
+        DEA : EMA(DIF,4);
+        macd : 2*(DIF-DEA),COLORFF00FF;
+        //主力线:EMA(DIF-MA(REF(DIF,1),1),1)*1.862,colorwhite,LINETHICK1;
+        //STICKLINE(MACD>0 AND MACD>=REF(MACD,1),0,MACD,5,0),color0000ff;
+        //STICKLINE(MACD>0 AND MACD<REF(MACD,1),0,MACD,5,0),colorffff00;
+   */
+   /*
         { Hithink/TDX 示例} 
         MA5: MA(CLOSE, 5);
         MA10: MA(C, 10);
         V1 := C > O;
         DRAWTEXT(V1, L, 'Price Up');
-    )";
-
+    */
     std::string selected_language;
     // 提示用户输入语言类型，并提供默认值
     std::cout << "Enter language to compile (p: pine / e: easylanguage / h: hithink) (default: h): "; 
@@ -230,7 +246,7 @@ int main() {
 
         std::cout << "\n--- Executing VM ---" << std::endl;
         vm.loadBytecode(&bytecode);
-        vm.execute();
+        int result = vm.execute();
 
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
@@ -238,6 +254,10 @@ int main() {
         std::cout << "\n--- Execution Time ---" << std::endl;
         std::cout << "VM execution took: " << duration.count() << " milliseconds" << std::endl;
 
+        if(result != 0) {
+            std::cerr << "VM execution failed." << std::endl;
+            return 1;
+        }
         // 打印计算和绘制的结果
         vm.printPlottedResults();
 

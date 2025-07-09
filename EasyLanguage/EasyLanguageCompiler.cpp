@@ -199,6 +199,7 @@ void EasyLanguageCompiler::resolveAndEmitLoad(const Token& name) {
 
 void EasyLanguageCompiler::resolveAndEmitStore(const Token& name) {
     if (globalVarSlots.find(name.lexeme) == globalVarSlots.end()) {
+        bytecode.global_name_pool.push_back(name.lexeme);
         globalVarSlots[name.lexeme] = nextSlot++;
     }
     emitByteWithOperand(OpCode::STORE_GLOBAL, globalVarSlots[name.lexeme]);

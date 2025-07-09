@@ -69,6 +69,8 @@ struct Series {
      * @param value 要设置的值。
      */
     void setCurrent(int bar_index, double value); // 修改：实现移至 .cpp
+
+    void setName(const std::string& name);
 };
 
 /**
@@ -76,6 +78,7 @@ struct Series {
  * @brief 一个通用的值类型，可以持有VM中所有可能的数据类型。
  */
 using Value = std::variant<
+    std::monostate, 
     double,                           // 用于 int 和 float
     bool,                             // 用于布尔值
     std::string,                      // 用于字符串
@@ -98,6 +101,7 @@ struct Instruction {
 struct Bytecode {
     std::vector<Instruction> instructions;
     std::vector<Value> constant_pool;
+    std::vector<std::string> global_name_pool;
 };
 
 /**
@@ -136,7 +140,7 @@ public:
     /**
      * @brief 执行已加载的字节码，遍历所有历史K线柱。
      */
-    void execute();
+    int execute();
 
     // --- 公共API，主要供内置函数回调使用 ---
     
@@ -222,6 +226,8 @@ private:
      * @brief 执行当前K线柱(bar_index)的字节码。
      */
     void runCurrentBar();
+
+    Value& storeGlobal(int operand, const Value& val);
     
     double getNumericValue(const Value& val);
     /**

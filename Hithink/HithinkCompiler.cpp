@@ -170,6 +170,7 @@ void HithinkCompiler::resolveAndEmitLoad(const Token& name) {
     // 2. 否则，作为全局变量处理
     if (globalVarSlots.find(varName) == globalVarSlots.end()) {
         // 首次使用，先定义
+        bytecode.global_name_pool.push_back(varName);
         globalVarSlots[varName] = nextSlot++;
     }
     emitByteWithOperand(OpCode::LOAD_GLOBAL, globalVarSlots[varName]);
@@ -179,6 +180,7 @@ void HithinkCompiler::resolveAndEmitStore(const Token& name) {
     std::string varName = name.lexeme;
     // 即使是输出变量，也使用相同的全局槽位 (Even if it's an output variable, use the same global slot)
     if (globalVarSlots.find(varName) == globalVarSlots.end()) {
+        bytecode.global_name_pool.push_back(varName);
         globalVarSlots[varName] = nextSlot++;
     }
     emitByteWithOperand(OpCode::STORE_GLOBAL, globalVarSlots[varName]);
@@ -188,6 +190,7 @@ void HithinkCompiler::resolveAndEmitStoreAndPlot(const Token& name) {
     std::string varName = name.lexeme;
     // 输出变量也使用全局槽位 (Output variables also use global slots)
     if (globalVarSlots.find(varName) == globalVarSlots.end()) {
+        bytecode.global_name_pool.push_back(varName);
         globalVarSlots[varName] = nextSlot++;
     }
     emitByteWithOperand(OpCode::STORE_AND_PLOT_GLOBAL, globalVarSlots[varName]);
