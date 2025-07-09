@@ -292,7 +292,7 @@ void PineVM::registerBuiltins() {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
             result_series = std::make_shared<Series>();
-            result_series->name = "sma(" + source_series->name + "~" + std::to_string(length) + ")";
+            result_series->name = cache_key;
             vm.builtin_func_cache[cache_key] = result_series;
         }
         
@@ -315,7 +315,7 @@ void PineVM::registerBuiltins() {
         return result_series;
     };
     
-    built_in_funcs["ta.ema"] = [](PineVM& vm) -> Value {
+    built_in_funcs["EMA"] = built_in_funcs["ta.ema"] = [](PineVM& vm) -> Value {
         Value length_val = vm.pop();
         Value source_val = vm.pop();
         
@@ -323,14 +323,14 @@ void PineVM::registerBuiltins() {
         int length = static_cast<int>(vm.getNumericValue(length_val));
         auto source_series = std::get<std::shared_ptr<Series>>(source_val);
 
-        std::string cache_key = "ta.ema(" + source_series->name + "~" + std::to_string(length) + ")";
+        std::string cache_key = "ema(" + source_series->name + "~" + std::to_string(length) + ")";
 
         std::shared_ptr<Series> result_series;
         if (vm.builtin_func_cache.count(cache_key)) {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
             result_series = std::make_shared<Series>();
-            result_series->name = "ema(" + source_series->name + "- " + std::to_string(length) + ")";
+            result_series->name = cache_key;
             vm.builtin_func_cache[cache_key] = result_series;
         }
         
@@ -384,7 +384,7 @@ void PineVM::registerBuiltins() {
             return series;
         };
 
-        auto rsi_series = get_or_create(rsi_key, "rsi(" + src_name + "~" + std::to_string(length) + ")");
+        auto rsi_series = get_or_create(rsi_key, rsi_key);
         auto gain_series = get_or_create(gain_key, gain_key);
         auto loss_series = get_or_create(loss_key, loss_key);
 
@@ -478,7 +478,7 @@ void PineVM::registerBuiltins() {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
             result_series = std::make_shared<Series>();
-            result_series->name = "MA(" + source_series->name + "~" + std::to_string(length) + ")";
+            result_series->name = cache_key;
             vm.builtin_func_cache[cache_key] = result_series;
         }
         
@@ -539,7 +539,7 @@ void PineVM::registerBuiltins() {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
             result_series = std::make_shared<Series>();
-            result_series->name = "LLV(" + source_series->name + "~" + std::to_string(length) + ")";
+            result_series->name = cache_key;
             vm.builtin_func_cache[cache_key] = result_series;
         }
 
@@ -577,7 +577,7 @@ void PineVM::registerBuiltins() {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
             result_series = std::make_shared<Series>();
-            result_series->name = "HHV(" + source_series->name + "~" + std::to_string(length) + ")";
+            result_series->name = cache_key;
             vm.builtin_func_cache[cache_key] = result_series;
         }
 
@@ -618,7 +618,7 @@ void PineVM::registerBuiltins() {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
             result_series = std::make_shared<Series>();
-            result_series->name = "SMA(" + source_series->name + "~" + std::to_string(length) + ")";
+            result_series->name = cache_key;
             vm.builtin_func_cache[cache_key] = result_series;
         }
         

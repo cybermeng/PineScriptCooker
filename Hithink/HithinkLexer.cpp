@@ -87,7 +87,17 @@ void HithinkLexer::skipWhitespace() {
                 }
                 if (!isAtEnd()) advance(); // Skip '}'
                 break;
-            default:
+             case '/':
+                if (peek() == '/') {
+                    // A // comment goes until the end of the line.
+                    while (peek() != '\n' && !isAtEnd()) {
+                        advance();
+                    }
+                    break; // Go back to the loop to skip the newline or EOF
+                }
+                // If it's not a // comment, fall through to default.
+                break;
+           default:
                 return;
         }
     }
