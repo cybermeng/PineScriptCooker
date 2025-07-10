@@ -88,7 +88,7 @@ const char* run_pine_calculation(const char* bytecode_string_c, const char* fina
             }
             
             if (num_bars > 0) {
-                std::cout << "\nVM start" << num_bars << std::endl;
+                std::cout << "\nVM start, bar number:" << num_bars << std::endl;
                 PineVM vm(num_bars);
                 parse_and_load_data(vm, financial_data_string);
                 vm.loadBytecode(bytecode_string);
