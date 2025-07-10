@@ -67,6 +67,7 @@
         "streambuf": "cpp",
         "text_encoding": "cpp",
         "thread": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "fstream": "cpp"
     }
 }

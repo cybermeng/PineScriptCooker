@@ -1,36 +1,73 @@
 @echo off
-REM ---------------------------------------------------------------
-REM  Windows build script for PineVM WebAssembly module.
-REM
-REM  PREREQUISITE: You must run "emsdk_env.bat" in this command 
-REM  prompt session before running this script. This sets up the
-REM  necessary paths for the emcc compiler.
-REM ---------------------------------------------------------------
+setlocal
 
-echo Compiling PineVM to Wasm...
+:: build.bat - Compiles the PineVM C++ project to WebAssembly using Emscripten on Windows.
 
-REM The main emcc command.
-REM The caret (^) is the line continuation character in Windows Batch files.
-emcc bindings.cpp ^
-  -std=c++17 ^
-  -o pine_vm.js ^
-  -s WASM=1 ^
-  -s MODULARIZE=1 ^
-  -s EXPORT_ES6=1 ^
-  -s "EXPORT_NAME='createPineVmModule'" ^
-  -s ALLOW_MEMORY_GROWTH=1 ^
-  --bind ^
-  -O2
+:: --- Configuration ---
+:: C++ source files to compile
+set SOURCES=main.cpp ../../PineVM.cpp
 
-REM Check if the compilation was successful
-IF %ERRORLEVEL% EQU 0 (
-  echo.
-  echo Compilation successful. Output: pine_vm.js, pine_vm.wasm
-  echo To run the example server, execute: python run_server.py
-) ELSE (
-  echo.
-  echo Compilation failed. Check the error messages above.
+:: Output directory for build artifacts
+set OUTPUT_DIR=public
+
+:: Final JavaScript output file (will also generate a .wasm file)
+set OUTPUT_JS=%OUTPUT_DIR%/pine_vm.js
+
+:: Source HTML file
+set SOURCE_HTML=index.html
+
+:: Emscripten compiler flags. Note: No array syntax in batch.
+set EMCC_FLAGS=-std=c++17 -O3 -fexceptions -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_NAME="createPineVmModule" -s ENVIRONMENT=web -s WASM=1 -s EXPORTED_FUNCTIONS="['_run_pine_calculation', '_malloc', '_free']" -s EXPORTED_RUNTIME_METHODS="['cwrap']"
+:: --- Build Process ---
+echo --- Starting PineVM WebAssembly Build ---
+
+:: Check if emcc command is available
+where emcc >nul 2>nul
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: 'emcc' command not found.
+    echo Please make sure the Emscripten SDK is installed and its environment is active.
+    echo You can activate it by running 'emsdk_env.bat' in your command prompt.
+    echo.
+    exit /b 1
 )
 
-REM Pause the script so the user can see the output before the window closes.
-pause
+:: 1. Create the output directory if it doesn't exist
+echo.
+echo => Creating output directory: %OUTPUT_DIR%
+if not exist "%OUTPUT_DIR%" (
+    mkdir "%OUTPUT_DIR%"
+)
+
+:: 2. Compile C++ sources to JavaScript and WebAssembly
+echo.
+echo => Compiling C++ sources...
+emcc %EMCC_FLAGS% %SOURCES% -o "%OUTPUT_JS%"
+if %errorlevel% neq 0 (
+    echo.
+    echo ERROR: Compilation failed.
+    exit /b 1
+)
+echo => Compilation successful! Generated:
+echo    - %OUTPUT_JS%
+echo    - %OUTPUT_JS:.js=.wasm%
+
+:: 3. Copy support files to the output directory
+echo.
+echo => Copying support files to %OUTPUT_DIR%
+copy "%SOURCE_HTML%" "%OUTPUT_DIR%\" >nul
+copy "main.js" "%OUTPUT_DIR%\" >nul
+
+
+echo.
+echo --- Build Complete! ---
+echo All necessary files are in the '%OUTPUT_DIR%' directory.
+echo.
+echo To run the application, start a local web server.
+echo For example, using Python:
+echo cd %OUTPUT_DIR% ^& python -m http.server
+echo.
+echo Then, open your browser to http://localhost:8000
+echo.
+
+endlocal
