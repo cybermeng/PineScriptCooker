@@ -198,6 +198,9 @@ int main() {
 
         disassembleChunk(bytecode, "Compiled Script");
 
+        std::string bytecodeString = PineVM::bytecodeToTxt(bytecode);
+        std::cout << bytecodeString;
+
         // --- 准备数据源 ---
         std::unique_ptr<DataSource> dataSource;
         std::string ds_type; // Declare ds_type here
@@ -254,7 +257,7 @@ int main() {
         auto start_time = std::chrono::high_resolution_clock::now();
 
         std::cout << "\n--- Executing VM ---" << std::endl;
-        vm.loadBytecode(&bytecode);
+        vm.loadBytecode(bytecodeString);
         int result = vm.execute();
 
         auto end_time = std::chrono::high_resolution_clock::now();

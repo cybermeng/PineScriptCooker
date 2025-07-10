@@ -2,11 +2,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Debug (gdb) PineCompilerVM",
+            "name": "Debug (gdb) PineVM",
             "type": "cppdbg",
             "request": "launch",
             // 关键：指向 CMake 构建任务生成的可执行文件
-            "program": "${workspaceFolder}/build/PineCompilerVM.exe",
+            "program": "${workspaceFolder}/build/PineVM.exe",
             "args": [],
             "stopAtEntry": false,
             // 关键：将工作目录设置为可执行文件所在的目录，以便能找到 duckdb.dll

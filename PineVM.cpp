@@ -4,6 +4,9 @@
 #include <numeric>
 #include <algorithm> // For std::find_if
 #include <fstream> // For file output
+#include <sstream> // For std::stringstream
+#include <map> // For opCodeMap in txtToBytecode
+#include <optional> // For std::optional in txtToBytecode
 
 
 double Series::getCurrent(int bar_index) {
@@ -28,30 +31,33 @@ void Series::setName(const std::string& name) {
 
 // PineVM 构造函数现在负责打开 DuckDB 数据库和连接
 PineVM::PineVM(int total_bars)
-    : total_bars(total_bars), bar_index(0), bytecode(nullptr), ip(nullptr) {
+    : total_bars(total_bars), bar_index(0), ip(nullptr) {
     registerBuiltins();
 }
 
 PineVM::~PineVM() {
 }
 
-void PineVM::loadBytecode(const Bytecode* code) {
-    bytecode = code;
+void PineVM::loadBytecode(const std::string& code) {
+    std::cout << "----- Loading bytecode -----" << std::endl;
+    bytecode = PineVM::txtToBytecode(code); // This line is causing the error
+    std::cout << PineVM::bytecodeToTxt(bytecode);
 }
 
 int PineVM::execute() {
-    globals.resize(10); // 假设最多10个全局变量, 在所有K线计算前初始化一次
-    plotted_series.clear(); // 在每次执行前清除之前的绘制结果
+    globals.resize(bytecode.global_name_pool.size());
+    plotted_series.clear();
     try
     {
-        for (bar_index = 0; bar_index < total_bars; ++bar_index) {
-        // std::cout << "--- Executing Bar #" << bar_index << " ---" << std::endl; // 注释掉以保持输出整洁
-        runCurrentBar();
-    }
+        for (bar_index = 0; bar_index < total_bars; ++bar_index)
+        {
+            // std::cout << "--- Executing Bar #" << bar_index << " ---" << std::endl; // 注释掉以保持输出整洁
+            runCurrentBar();
+        }
     } catch (const std::exception& e) {
         std::cerr << "PineVM::execute Error: " << e.what()
          << " @bar_index: " << bar_index
-         << " @ip:" << int(ip - &bytecode->instructions[0])
+         << " @ip: " << int(ip - &bytecode.instructions[0])
          << std::endl;
         return 1;
     }
@@ -100,31 +106,31 @@ Value& PineVM::storeGlobal(int operand, const Value& val) {
             // 如果是double，创建一个新的Series来存储它
             auto new_series = std::make_shared<Series>();
             new_series->setCurrent(bar_index, std::get<double>(val));
-            new_series->setName(bytecode->global_name_pool[operand]);
+            new_series->setName(bytecode.global_name_pool[operand]);
             globals[operand] = new_series;
         } else {
             // 其他类型直接存储
             globals[operand] = val;
             auto series_ptr = std::get<std::shared_ptr<Series>>(globals[operand]);
-            series_ptr->setName(bytecode->global_name_pool[operand]);
+            series_ptr->setName(bytecode.global_name_pool[operand]);
         }
 
     } else {
         // 如果不是Series，直接存储弹出的值
         globals[operand] = val;
         auto series_ptr = std::get<std::shared_ptr<Series>>(globals[operand]);
-        series_ptr->setName(bytecode->global_name_pool[operand]);
+        series_ptr->setName(bytecode.global_name_pool[operand]);
     }
     return globals[operand];
 }
 
 void PineVM::runCurrentBar() {
-    ip = &bytecode->instructions[0];
+    ip = &bytecode.instructions[0];
 
     while (ip->op != OpCode::HALT) {
         switch (ip->op) {
             case OpCode::PUSH_CONST: {
-                push(bytecode->constant_pool[ip->operand]);
+                push(bytecode.constant_pool[ip->operand]);
                 break;
             }
             case OpCode::POP: {
@@ -195,7 +201,7 @@ void PineVM::runCurrentBar() {
                 break;
             }
             case OpCode::LOAD_BUILTIN_VAR: {
-                const std::string& name = std::get<std::string>(bytecode->constant_pool[ip->operand]);
+                const std::string& name = std::get<std::string>(bytecode.constant_pool[ip->operand]);
                 if (built_in_vars.count(name)) {
                     push(built_in_vars.at(name));
                 } else {
@@ -215,7 +221,7 @@ void PineVM::runCurrentBar() {
                 ip += ip->operand; // Jump forward
                 break;
             case OpCode::CALL_BUILTIN_FUNC: {
-                const std::string& func_name = std::get<std::string>(bytecode->constant_pool[ip->operand]);
+                const std::string& func_name = std::get<std::string>(bytecode.constant_pool[ip->operand]);
                  if (built_in_funcs.count(func_name)) {
                     Value result = built_in_funcs.at(func_name)(*this);
                     push(result);
@@ -807,4 +813,312 @@ void PineVM::writePlottedResults(const std::string& filename) const {
     }
     outfile.close();
     std::cout << "Plotted results written to " << filename << std::endl;
+}
+/**
+ * @brief (内部辅助函数) 为 Bytecode 对象生成一个确定性的校验和。
+ * 
+ * 这个函数通过将所有指令、常量和全局名称序列化为一个规范的字符串，
+ * 然后对该字符串应用 std::hash 来工作。
+ * 为了确保一致性，两个函数 bytecodeToTxt 和 txtToBytecode 必须使用这个函数。
+ * 
+ * @param bytecode 要计算校验和的 Bytecode 对象。
+ * @return 代表校验和的 size_t 值。
+ */
+size_t _generateChecksum(const Bytecode& bytecode) {
+    std::stringstream canonical_stream;
+
+    // 1. 序列化指令
+    for (const auto& instr : bytecode.instructions) {
+        // 将 OpCode 转换为整数以获得稳定表示
+        canonical_stream << static_cast<int>(instr.op) << ":" << instr.operand << ";";
+    }
+    canonical_stream << "|"; // 分隔符
+
+    // 2. 序列化常量池
+    for (const auto& constant : bytecode.constant_pool) {
+        std::visit([&](auto&& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, std::monostate>) {
+                canonical_stream << "m;";
+            } else if constexpr (std::is_same_v<T, double>) {
+                canonical_stream << "d:" << arg << ";";
+            } else if constexpr (std::is_same_v<T, bool>) {
+                canonical_stream << "b:" << (arg ? '1' : '0') << ";";
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                canonical_stream << "s:" << arg.length() << ":" << arg << ";";
+            } else if constexpr (std::is_same_v<T, std::shared_ptr<Series>>) {
+                canonical_stream << "r:" << arg->name.length() << ":" << arg->name << ";";
+            }
+        }, constant);
+    }
+    canonical_stream << "|"; // 分隔符
+
+    // 3. 序列化全局名称池
+    for (const auto& name : bytecode.global_name_pool) {
+        canonical_stream << name << ";";
+    }
+
+    // 4. 计算哈希值
+    std::hash<std::string> hasher;
+    return hasher(canonical_stream.str());
+}
+
+
+std::string PineVM::bytecodeToTxt(const Bytecode& bytecode)
+{
+    std::string result = "--- Bytecode ---\n";
+    for (int i = 0; i < bytecode.instructions.size(); ++i) {
+        const auto& instr = bytecode.instructions[i];
+        result += std::to_string(i) + ": ";
+        switch (instr.op) {
+            case OpCode::PUSH_CONST:
+                result += "PUSH_CONST " + std::to_string(instr.operand);
+                // Optionally, print the constant value itself
+                // result += " (" + std::visit([](auto&& arg){ return std::to_string(arg); }, bytecode.constant_pool[instr.operand]) + ")";
+                break;
+            case OpCode::POP:
+                result += "POP";
+                break;
+            case OpCode::ADD: result += "ADD"; break;
+            case OpCode::SUB: result += "SUB"; break;
+            case OpCode::MUL: result += "MUL"; break;
+            case OpCode::DIV: result += "DIV"; break;
+            case OpCode::LESS: result += "LESS"; break;
+            case OpCode::LESS_EQUAL: result += "LESS_EQUAL"; break;
+            case OpCode::EQUAL_EQUAL: result += "EQUAL_EQUAL"; break;
+            case OpCode::BANG_EQUAL: result += "BANG_EQUAL"; break;
+            case OpCode::GREATER: result += "GREATER"; break;
+            case OpCode::GREATER_EQUAL: result += "GREATER_EQUAL"; break;
+            case OpCode::LOAD_BUILTIN_VAR:
+                result += "LOAD_BUILTIN_VAR " + std::to_string(instr.operand);
+                break;
+            case OpCode::LOAD_GLOBAL:
+                result += "LOAD_GLOBAL " + std::to_string(instr.operand);
+                break;
+            case OpCode::STORE_GLOBAL:
+                result += "STORE_GLOBAL " + std::to_string(instr.operand);
+                break;
+            case OpCode::RENAME_SERIES:
+                result += "RENAME_SERIES";
+                break;
+            case OpCode::STORE_AND_PLOT_GLOBAL:
+                result += "STORE_AND_PLOT_GLOBAL " + std::to_string(instr.operand);
+                break;
+            case OpCode::JUMP_IF_FALSE:
+                result += "JUMP_IF_FALSE " + std::to_string(instr.operand);
+                break;
+            case OpCode::JUMP:
+                result += "JUMP " + std::to_string(instr.operand);
+                break;
+            case OpCode::CALL_BUILTIN_FUNC:
+                result += "CALL_BUILTIN_FUNC " + std::to_string(instr.operand);
+                break;
+            case OpCode::CALL_PLOT:
+                result += "CALL_PLOT " + std::to_string(instr.operand);
+                break;
+            case OpCode::HALT:
+                result += "HALT";
+                break;
+            default:
+                result += "UNKNOWN_OPCODE";
+                break;
+        }
+        result += "\n";
+    }
+ 
+    result += "\n--- Constant Pool ---\n";
+    for (int i = 0; i < bytecode.constant_pool.size(); ++i) {
+        result += std::to_string(i) + ": ";
+        std::visit([&](auto&& arg) {
+            using T = std::decay_t<decltype(arg)>;
+            if constexpr (std::is_same_v<T, double>) {
+                result += std::to_string(arg);
+            } else if constexpr (std::is_same_v<T, bool>) {
+                result += (arg ? "true" : "false");
+            } else if constexpr (std::is_same_v<T, std::string>) {
+                result += "\"" + arg + "\"";
+            } else if constexpr (std::is_same_v<T, std::shared_ptr<Series>>) {
+                result += "Series(" + arg->name + ")";
+            } else if constexpr (std::is_same_v<T, std::monostate>) {
+                result += "monostate";
+            }
+        }, bytecode.constant_pool[i]);
+        result += "\n";
+    }
+
+    result += "\n--- Global Name Pool ---\n";
+    for (int i = 0; i < bytecode.global_name_pool.size(); ++i) {
+        result += std::to_string(i) + ": " + bytecode.global_name_pool[i] + "\n";
+    }
+
+    result += "\n--- Validation ---\n";
+    result += "Checksum: " + std::to_string(_generateChecksum(bytecode)) + "\n";
+    return result;
+}
+
+Bytecode PineVM::txtToBytecode(const std::string& txt)
+{
+    Bytecode bytecode;
+    std::stringstream ss(txt);
+    std::string line;
+
+    // 用于跟踪当前正在解析哪个部分
+    enum class ParsingSection {
+        NONE,
+        INSTRUCTIONS,
+        CONSTANTS,
+        GLOBALS,
+        VALIDATION
+    };
+    ParsingSection currentSection = ParsingSection::NONE;
+
+    // 创建从字符串到 OpCode 的映射，以便于查找
+    const std::map<std::string, OpCode> opCodeMap = {
+        {"PUSH_CONST", OpCode::PUSH_CONST},
+        {"POP", OpCode::POP},
+        {"ADD", OpCode::ADD},
+        {"SUB", OpCode::SUB},
+        {"MUL", OpCode::MUL},
+        {"DIV", OpCode::DIV},
+        {"LESS", OpCode::LESS},
+        {"LESS_EQUAL", OpCode::LESS_EQUAL},
+        {"EQUAL_EQUAL", OpCode::EQUAL_EQUAL},
+        {"BANG_EQUAL", OpCode::BANG_EQUAL},
+        {"GREATER", OpCode::GREATER},
+        {"GREATER_EQUAL", OpCode::GREATER_EQUAL},
+        {"LOAD_BUILTIN_VAR", OpCode::LOAD_BUILTIN_VAR},
+        {"LOAD_GLOBAL", OpCode::LOAD_GLOBAL},
+        {"STORE_GLOBAL", OpCode::STORE_GLOBAL},
+        {"RENAME_SERIES", OpCode::RENAME_SERIES},
+        {"STORE_AND_PLOT_GLOBAL", OpCode::STORE_AND_PLOT_GLOBAL},
+        {"JUMP_IF_FALSE", OpCode::JUMP_IF_FALSE},
+        {"JUMP", OpCode::JUMP},
+        {"CALL_BUILTIN_FUNC", OpCode::CALL_BUILTIN_FUNC},
+        {"CALL_PLOT", OpCode::CALL_PLOT},
+        {"HALT", OpCode::HALT}
+    };
+
+    std::optional<size_t> expected_checksum;
+
+    while (std::getline(ss, line)) {
+        // 跳过空行
+        if (line.empty()) {
+            continue;
+        }
+
+        // 切换解析部分
+        if (line == "--- Bytecode ---") {
+            currentSection = ParsingSection::INSTRUCTIONS;
+            continue;
+        }
+        if (line == "--- Constant Pool ---") {
+            currentSection = ParsingSection::CONSTANTS;
+            continue;
+        }
+        if (line == "--- Global Name Pool ---") {
+            currentSection = ParsingSection::GLOBALS;
+            continue;
+        }
+         if (line == "--- Validation ---") { 
+            currentSection = ParsingSection::VALIDATION;
+            continue;
+        }
+
+        // 根据当前部分解析行
+        switch (currentSection) {
+            case ParsingSection::INSTRUCTIONS: {
+                std::stringstream line_ss(line);
+                std::string index_part, op_str;
+                
+                // 解析 "index: OPCODE [operand]"
+                line_ss >> index_part >> op_str;
+                
+                auto it = opCodeMap.find(op_str);
+                if (it == opCodeMap.end()) {
+                    throw std::runtime_error("Unknown opcode in bytecode text: " + op_str);
+                }
+                
+                Instruction instr;
+                instr.op = it->second;
+                
+                // 尝试读取操作数（如果存在）
+                line_ss >> instr.operand; 
+                
+                bytecode.instructions.push_back(instr);
+                break;
+            }
+
+            case ParsingSection::CONSTANTS: {
+                // 解析 "index: value"
+                size_t colon_pos = line.find(": ");
+                if (colon_pos == std::string::npos) continue; // 跳过格式不正确的行
+                
+                std::string valueStr = line.substr(colon_pos + 2);
+                Value val;
+
+                if (valueStr == "true") {
+                    val = true;
+                } else if (valueStr == "false") {
+                    val = false;
+                } else if (valueStr.front() == '"' && valueStr.back() == '"') {
+                    val = valueStr.substr(1, valueStr.length() - 2);
+                } else if (valueStr.rfind("Series(", 0) == 0 && valueStr.back() == ')') {
+                    std::string series_name = valueStr.substr(7, valueStr.length() - 8);
+                    auto series = std::make_shared<Series>();
+                    series->setName(series_name);
+                    val = series;
+                } else if (valueStr == "monostate") {
+                    val = std::monostate{};
+                }
+                else {
+                    try {
+                        val = std::stod(valueStr);
+                    } catch (const std::invalid_argument& e) {
+                        throw std::runtime_error("Could not parse constant value: " + valueStr);
+                    }
+                }
+                bytecode.constant_pool.push_back(val);
+                break;
+            }
+
+            case ParsingSection::GLOBALS: {
+                // 解析 "index: name"
+                size_t colon_pos = line.find(": ");
+                if (colon_pos == std::string::npos) continue; // 跳过格式不正确的行
+                
+                std::string globalName = line.substr(colon_pos + 2);
+                bytecode.global_name_pool.push_back(globalName);
+                break;
+            }
+
+            case ParsingSection::VALIDATION: {
+                std::string checksum_label;
+                size_t checksum_value;
+                std::stringstream line_ss(line);
+                line_ss >> checksum_label >> checksum_value;
+                if (checksum_label == "Checksum:") {
+                    expected_checksum = checksum_value;
+                }
+                break;
+            }
+
+            case ParsingSection::NONE:
+                // 在任何部分之前忽略所有行
+                break;
+        }
+    }
+
+    // --- 最后的校验步骤 ---
+    if (!expected_checksum.has_value()) {
+        throw std::runtime_error("Validation checksum not found in the bytecode text.");
+    }
+    
+    size_t actual_checksum = _generateChecksum(bytecode);
+
+    if (actual_checksum != expected_checksum.value()) {
+        throw std::runtime_error("Checksum mismatch! The bytecode text is corrupted or has been tampered with.");
+    }
+    
+    // 校验通过，返回结果
+    return bytecode;
 }

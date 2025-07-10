@@ -6,7 +6,7 @@
             "label": "CMake: build",
             "command": "build",
             "targets": [
-                "PineCompilerVM"
+                "PineVM"
             ],
             "group": {
                 "kind": "build",
@@ -14,6 +14,32 @@
             },
             "problemMatcher": [],
             "detail": "CMake template build task"
+        },
+        {
+            "label": "Emscripten: Build WebAssembly",
+            "type": "shell",
+            "command": "emcc",
+            "args": [
+                "PineVM.cpp",
+                "-o",
+                "front/pinevm_wasm.html",
+                "-s",
+                "ASYNCIFY",
+                "-s",
+                "EXPORT_ES6=1",
+                "-s",
+                "EXPORT_NAME='PineVM'",
+                "-s",
+                "MODULARIZE=1",
+                "-g",
+                "-O2"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "detail": "Compiles a C/C++ module to WebAssembly using Emscripten"
         }
     ]
 }

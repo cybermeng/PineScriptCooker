@@ -2,7 +2,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 # 定义项目名称和所用语言 (C++)
-project(PineCompilerVM CXX)
+project(PineVM CXX)
 
 # -----------------------------------------------------------------------------
 # 配置项目设置
@@ -44,8 +44,8 @@ set(SOURCES
 # 定义可执行目标
 # -----------------------------------------------------------------------------
 
-# 从上面列出的源文件创建一个名为 "PineCompilerVM" 的可执行文件。
-add_executable(PineCompilerVM ${SOURCES})
+# 从上面列出的源文件创建一个名为 "PineVM" 的可执行文件。
+add_executable(PineVM ${SOURCES})
 
 # -----------------------------------------------------------------------------
 # 配置目标的属性
@@ -53,7 +53,7 @@ add_executable(PineCompilerVM ${SOURCES})
 
 # 将当前目录添加到目标的包含路径中。
 # 这是一个好习惯，可以确保 #include "PineVM.h" 等指令能被正确解析。
-target_include_directories(PineCompilerVM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(PineVM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # -----------------------------------------------------------------------------
 # 链接外部库 (DuckDB)
@@ -73,16 +73,16 @@ if(NOT EXISTS ${DUCKDB_DLL})
 endif()
 
 # 将 DuckDB 库链接到我们的可执行文件。
-target_link_libraries(PineCompilerVM PRIVATE ${DUCKDB_LIBRARY})
+target_link_libraries(PineVM PRIVATE ${DUCKDB_LIBRARY})
 
 # 添加一个构建后命令，将 duckdb.dll 复制到可执行文件所在的目录。
 # 这对于在 Windows 上运行程序是必需的。
 add_custom_command(
-    TARGET PineCompilerVM POST_BUILD
+    TARGET PineVM POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
     "${DUCKDB_DLL}"
-    "$<TARGET_FILE_DIR:PineCompilerVM>"
+    "$<TARGET_FILE_DIR:PineVM>"
     COMMENT "Copying duckdb.dll to build directory")
 
 # 打印一条消息，方便用户知道配置已完成。
-message(STATUS "配置完成。现在你可以构建 'PineCompilerVM' 目标了。")
+message(STATUS "配置完成。现在你可以构建 'PineVM' 目标了。")

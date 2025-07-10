@@ -57,7 +57,7 @@ enum class OpCode {
  * @struct Series
  * @brief 代表一个时间序列数据。PineScript 的核心数据类型。
  */
-struct Series {
+struct Series : public std::enable_shared_from_this<Series> {
     std::string name;
     std::vector<double> data;
     double getCurrent(int bar_index); // 修改：变为非 const，实现移至 .cpp
@@ -113,7 +113,6 @@ struct PlottedSeries {
     std::string color;
 };
 
-
 //-----------------------------------------------------------------------------
 // 2. PineVM 类 (The Virtual Machine Class)
 //-----------------------------------------------------------------------------
@@ -133,9 +132,9 @@ public:
 
     /**
      * @brief 加载要执行的字节码。
-     * @param code 指向 Bytecode 对象的指针。VM 不会获得其所有权。
+     * @param 
      */
-    void loadBytecode(const Bytecode* code);
+    void loadBytecode(const std::string& code);
     
     /**
      * @brief 执行已加载的字节码，遍历所有历史K线柱。
@@ -194,6 +193,8 @@ public:
         return nullptr;
     }
 
+    static std::string bytecodeToTxt(const Bytecode& bytecode);
+    static Bytecode txtToBytecode(const std::string& txt);
 private:
     /**
      * @using BuiltinFunction
@@ -203,7 +204,7 @@ private:
     using BuiltinFunction = std::function<Value(PineVM&)>;
 
     // --- 内部状态 ---
-    const Bytecode* bytecode = nullptr;
+    Bytecode bytecode;
     const Instruction* ip = nullptr; // 指令指针
     std::vector<Value> stack;        // 操作数栈,
     std::vector<Value> globals;      // 全局变量存储槽
