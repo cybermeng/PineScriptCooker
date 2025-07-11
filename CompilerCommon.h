@@ -28,9 +28,10 @@ enum class TokenType {
     COLOR_CONST, // e.g. color.blue (PineScript specific)
     SHAPE_CONST, // e.g. shape.xcross (PineScript specific)
 
-    // EasyLanguage Keywords
+    // EasyLanguage / Hithink Keywords
     THEN, INPUTS, VARIABLES, BEGIN, END,
     AVERAGE, RSI_EL, // Distinguishing EL's RSI from Pine's
+    SELECT, // Hithink select keyword
 
     // General
     ERROR, END_OF_FILE

@@ -85,13 +85,20 @@ double PineVM::getNumericValue(const Value& val) {
     }
 }
 
+void PineVM::pushNumbericValue(double val) {
+    //todo
+   push(val);
+}
+
+
 Value& PineVM::storeGlobal(int operand, const Value& val) {
         // 检查全局变量槽位是否已经是一个Series
     if (std::holds_alternative<std::shared_ptr<Series>>(globals[operand])) {
         auto series_ptr = std::get<std::shared_ptr<Series>>(globals[operand]);
-        if (std::holds_alternative<double>(val)) {
+        if (std::holds_alternative<double>(val) || std::holds_alternative<bool>(val)) {
             // 如果弹出的值是double，则设置Series的当前bar值
-            series_ptr->setCurrent(bar_index, std::get<double>(val));
+            series_ptr->setCurrent(bar_index,
+                std::holds_alternative<bool>(val) ? static_cast<double>(std::get<bool>(val)) : std::get<double>(val));
         } else if (std::holds_alternative<std::shared_ptr<Series>>(val)) {
             // 如果弹出的值是Series，则替换bar对应数值
             auto val_series_ptr = std::get<std::shared_ptr<Series>>(val);
@@ -102,10 +109,11 @@ Value& PineVM::storeGlobal(int operand, const Value& val) {
         }
     } else if (std::holds_alternative<std::monostate>(globals[operand])) {
         // 如果是monostate，说明这个槽位是空的，可以根据弹出的值类型来初始化
-        if (std::holds_alternative<double>(val)) {
-            // 如果是double，创建一个新的Series来存储它
+        if (std::holds_alternative<double>(val) || std::holds_alternative<bool>(val)) {
+            // 如果是double/bool，创建一个新的Series来存储它
             auto new_series = std::make_shared<Series>();
-            new_series->setCurrent(bar_index, std::get<double>(val));
+            new_series->setCurrent(bar_index,
+                std::holds_alternative<bool>(val) ? static_cast<double>(std::get<bool>(val)) : std::get<double>(val));
             new_series->setName(bytecode.global_name_pool[operand]);
             globals[operand] = new_series;
         } else {
@@ -682,8 +690,8 @@ void PineVM::registerBuiltins() {
     };
 
     built_in_funcs["COUNT"] = [](PineVM& vm) -> Value {
-        Value condition_val = vm.pop();
         Value length_val = vm.pop();
+        Value condition_val = vm.pop();
 
         int current_bar = vm.getCurrentBarIndex();
         int length = static_cast<int>(vm.getNumericValue(length_val));

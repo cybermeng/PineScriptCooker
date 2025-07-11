@@ -77,6 +77,21 @@ void HithinkParser::synchronize() {
 }
 
 std::unique_ptr<HithinkStatement> HithinkParser::statement() {
+    // 新增：处理 'select' 语句
+    if (match(TokenType::SELECT)) {
+        Token selectKeyword = previous_; // 保存 'select' 关键字词元以获取行号
+        auto condition = expression();
+        if (!condition) {
+            return nullptr; // expression() 中已报告错误
+        }
+        consume(TokenType::SEMICOLON, "Expect ';' after select condition.");
+
+        // 将 'select' 语句转换为一个隐式的输出赋值语句
+        // 变量名为 "select"，并且 isOutput 为 true
+        Token nameToken = {TokenType::IDENTIFIER, "select", selectKeyword.line};
+        return std::make_unique<HithinkAssignmentStatement>(nameToken, std::move(condition), true);
+    }
+
     // Hithink 语法非常简单:
     // IDENTIFIER (':' | ':=') expression ';'
     // expression ';'

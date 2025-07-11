@@ -133,13 +133,14 @@ int main() {
     )";
 
     std::string hithink_source = R"(
-        Zero : 0;
-        DIF : EMA(CLOSE,6) - EMA(CLOSE,13);
-        DEA : EMA(DIF,4);
-        macd : 2*(DIF-DEA);
+        //Zero : 0;
+        //DIF : EMA(CLOSE,6) - EMA(CLOSE,13);
+        //DEA : EMA(DIF,4);
+        //macd : 2*(DIF-DEA);
         //主力线:EMA(DIF-MA(REF(DIF,1),1),1)*1.862,colorwhite,LINETHICK1;
         //STICKLINE(MACD>0 AND MACD>=REF(MACD,1),0,MACD,5,0),color0000ff;
         //STICKLINE(MACD>0 AND MACD<REF(MACD,1),0,MACD,5,0),colorffff00;
+        select close > open;
     )";
     /*
          Zero : 0;

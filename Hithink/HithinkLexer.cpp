@@ -1,6 +1,7 @@
 #include "HithinkLexer.h"
 #include <cctype>   // for std::isalpha, std::isdigit, std::isalnum
 #include <string>   // for std::string in makeToken
+#include <string_view> // for std::string_view
 
 HithinkLexer::HithinkLexer(std::string_view source)
     : source_(source), start_(0), current_(0), line_(1) {}
@@ -105,6 +106,11 @@ void HithinkLexer::skipWhitespace() {
 
 Token HithinkLexer::identifier() {
     while (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_') advance();
+    
+    // 检查是否为 'select' 关键字
+    std::string_view text = source_.substr(start_, current_ - start_);
+    if (text == "select") return makeToken(TokenType::SELECT);
+
     // Hithink的函数名和内置变量(如C, O, MA)都作为标识符处理，由Parser或Semantic Analyzer识别
     return makeToken(TokenType::IDENTIFIER);
 }

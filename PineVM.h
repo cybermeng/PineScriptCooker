@@ -155,6 +155,8 @@ public:
      * @param val 要压入的值。
      */
     void push(Value val);
+
+    void pushNumbericValue(double val);
     
     /**
      * @brief 获取当前正在执行的K线柱索引。
