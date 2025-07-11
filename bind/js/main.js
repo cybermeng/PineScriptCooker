@@ -22,6 +22,38 @@ panelToggle.addEventListener('click', () => {
     setTimeout(() => myChart.resize(), 350);
 });
 
+// --- Data Input Drag and Drop ---
+dataInput.addEventListener('dragover', (event) => {
+    event.preventDefault(); // Necessary to allow drop
+    dataInput.classList.add('drag-over');
+});
+
+dataInput.addEventListener('dragleave', () => {
+    dataInput.classList.remove('drag-over');
+});
+
+dataInput.addEventListener('drop', (event) => {
+    event.preventDefault();
+    dataInput.classList.remove('drag-over');
+
+    if (event.dataTransfer.files && event.dataTransfer.files.length > 0) {
+        const file = event.dataTransfer.files[0];
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            dataInput.value = e.target.result;
+        };
+
+        reader.onerror = (e) => {
+            console.error("Error reading file:", e);
+            alert("Error reading the dropped file. See console for details.");
+        };
+
+        reader.readAsText(file);
+    }
+});
+
+
 // --- Data Processing and Charting Logic ---
 
 /**

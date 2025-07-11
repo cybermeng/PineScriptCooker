@@ -17,7 +17,7 @@ set OUTPUT_JS=%OUTPUT_DIR%/pine_vm.js
 set SOURCE_HTML=index.html
 
 :: Emscripten compiler flags. Note: No array syntax in batch.
-set EMCC_FLAGS=-std=c++17 -O3 -fexceptions -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_NAME="createPineVmModule" -s ENVIRONMENT=web -s WASM=1 -s EXPORTED_FUNCTIONS="['_run_pine_calculation', '_malloc', '_free']" -s EXPORTED_RUNTIME_METHODS="['cwrap']"
+set EMCC_FLAGS=-std=c++17 -gsource-map -sSAFE_HEAP=1 -sASSERTIONS=1 -O3 -fexceptions -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s EXPORT_ES6=1 -s EXPORT_NAME="createPineVmModule" -s ENVIRONMENT=web -s WASM=1 -s EXPORTED_FUNCTIONS="['_run_pine_calculation', '_malloc', '_free']" -s EXPORTED_RUNTIME_METHODS="['cwrap']"
 :: --- Build Process ---
 echo --- Starting PineVM WebAssembly Build ---
 

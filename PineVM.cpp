@@ -646,7 +646,110 @@ void PineVM::registerBuiltins() {
 
         return result_series;
     };
+    built_in_funcs["SUM"] = [](PineVM& vm) -> Value {
+        Value length_val = vm.pop();
+        Value source_val = vm.pop();
 
+        int current_bar = vm.getCurrentBarIndex();
+        int length = static_cast<int>(vm.getNumericValue(length_val));
+        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+
+        std::string cache_key = "SUM(" + source_series->name + "~" + std::to_string(length) + ")";
+
+        std::shared_ptr<Series> result_series;
+        if (vm.builtin_func_cache.count(cache_key)) {
+            result_series = vm.builtin_func_cache.at(cache_key);
+        } else {
+            result_series = std::make_shared<Series>();
+            result_series->name = cache_key;
+            vm.builtin_func_cache[cache_key] = result_series;
+        }
+
+        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
+            double sum = 0.0;
+            int count = 0;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    sum += val;
+                    count++;
+                }
+            }
+            double sum_val = (count == length) ? sum : NAN;
+            result_series->setCurrent(current_bar, sum_val);
+        }
+        return result_series;
+    };
+
+    built_in_funcs["COUNT"] = [](PineVM& vm) -> Value {
+        Value condition_val = vm.pop();
+        Value length_val = vm.pop();
+
+        int current_bar = vm.getCurrentBarIndex();
+        int length = static_cast<int>(vm.getNumericValue(length_val));
+        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
+
+        std::string cache_key = "COUNT(" + condition_series->name + "~" + std::to_string(length) + ")";
+
+        std::shared_ptr<Series> result_series;
+        if (vm.builtin_func_cache.count(cache_key)) {
+            result_series = vm.builtin_func_cache.at(cache_key);
+        } else {
+            result_series = std::make_shared<Series>();
+            result_series->name = cache_key;
+            vm.builtin_func_cache[cache_key] = result_series;
+        }
+
+        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
+            int count = 0;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = condition_series->getCurrent(current_bar - i);
+                if (!std::isnan(val) && val != 0.0) { // Assuming non-zero or non-NaN means true
+                    count++;
+                }
+            }
+            result_series->setCurrent(current_bar, static_cast<double>(count));
+        }
+        return result_series;
+    };
+    built_in_funcs["REF"] = [](PineVM& vm) -> Value {
+        Value offset_val = vm.pop();
+        Value source_val = vm.pop();
+
+        int current_bar = vm.getCurrentBarIndex();
+        int offset = static_cast<int>(vm.getNumericValue(offset_val));
+        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+
+        std::string cache_key = "REF(" + source_series->name + "~" + std::to_string(offset) + ")";
+
+        std::shared_ptr<Series> result_series;
+        if (vm.builtin_func_cache.count(cache_key)) {
+            result_series = vm.builtin_func_cache.at(cache_key);
+        } else {
+            result_series = std::make_shared<Series>();
+            result_series->name = cache_key;
+            vm.builtin_func_cache[cache_key] = result_series;
+        }
+
+        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
+            double ref_val = source_series->getCurrent(current_bar - offset);
+            result_series->setCurrent(current_bar, ref_val);
+        }
+        return result_series;
+    };
+    built_in_funcs["IF"] = [](PineVM& vm) -> Value {
+        Value false_val = vm.pop();
+        Value true_val = vm.pop();
+        Value condition_val = vm.pop();
+
+        bool condition = std::get<bool>(condition_val);
+
+        if (condition) {
+            return true_val;
+        } else {
+            return false_val;
+        }
+    };
     built_in_funcs["input.int"] = [](PineVM& vm) -> Value {
          vm.pop();
          Value defval = vm.pop();

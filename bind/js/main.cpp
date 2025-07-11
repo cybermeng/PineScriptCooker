@@ -67,8 +67,6 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE
 // 暴露给JavaScript的主函数
 const char* run_pine_calculation(const char* bytecode_string_c, const char* financial_data_string_c) {
-        std::string bytecode_string(bytecode_string_c);
-        std::string financial_data_string(financial_data_string_c);
 
         // 将std::cout重定向到字符串流以捕获所有输出
         static std::string result_string; // 使用 static 变量来确保其生命周期足够长
@@ -77,6 +75,11 @@ const char* run_pine_calculation(const char* bytecode_string_c, const char* fina
         std::streambuf* old_cerr_buf = std::cerr.rdbuf(output_buffer.rdbuf());
         
         try {
+            std::cout << "\nVM starting ..." << std::endl;
+
+            std::string bytecode_string(bytecode_string_c);
+            std::string financial_data_string(financial_data_string_c);
+            
             // ... (函数内部的 try-catch 块完全保持不变) ...
             int num_bars = 0;
             std::stringstream count_ss(financial_data_string);
@@ -88,18 +91,23 @@ const char* run_pine_calculation(const char* bytecode_string_c, const char* fina
             }
             
             if (num_bars > 0) {
-                std::cout << "\nVM start, bar number:" << num_bars << std::endl;
+                std::cout << "bar number:" << num_bars << std::endl;
                 PineVM vm(num_bars);
                 parse_and_load_data(vm, financial_data_string);
                 vm.loadBytecode(bytecode_string);
-                vm.execute();
+                //vm.execute();
                 vm.printPlottedResults();
 
                 result_string = vm.getPlottedResultsAsString();
             }
+            else {
+                std::cout << "\nVM start failed barnum = 0" << std::endl;
+            }
 
         } catch (const std::exception& e) {
             std::cerr << "\n!!! C++ EXCEPTION CAUGHT !!!\n" << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "\n!!! UNKNOWN C++ EXCEPTION CAUGHT !!!\n" << std::endl;
         }
         
         // 恢复原始的 cout/cerr
