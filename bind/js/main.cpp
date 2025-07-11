@@ -94,6 +94,8 @@ const char* run_pine_calculation(const char* bytecode_string_c, const char* fina
                 vm.loadBytecode(bytecode_string);
                 vm.execute();
                 vm.printPlottedResults();
+
+                result_string = vm.getPlottedResultsAsString();
             }
 
         } catch (const std::exception& e) {
@@ -104,11 +106,8 @@ const char* run_pine_calculation(const char* bytecode_string_c, const char* fina
         std::cout.rdbuf(old_cout_buf);
         std::cerr.rdbuf(old_cerr_buf);
         
-        result_string = output_buffer.str();
+        if(result_string.empty())
+            result_string = output_buffer.str();
         return result_string.c_str(); // 返回一个 C 风格字符串指针
     }
 }
-// emscripten::bind 在这里就不需要了，因为我们用了 extern "C"
-// EMSCRIPTEN_BINDINGS(pine_vm_module) {
-//     emscripten::function("run_pine_calculation", &run_pine_calculation);
-// }

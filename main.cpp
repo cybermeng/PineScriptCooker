@@ -229,11 +229,11 @@ int main() {
             dataSource = std::make_unique<CSVDataSource>(csv_path);
         } else if (ds_type == "j") {
             std::string json_path;
-            std::cout << "Enter JSON file path (default: ./aapl.json): "; // Prompt for JSON path
+            std::cout << "Enter JSON file path (default: ../db/aapl.json): "; // Prompt for JSON path
             std::string user_json_path;
             std::getline(std::cin, user_json_path); // Read JSON path input
             if (user_json_path.empty()) {
-                json_path = "./aapl.json"; // Default value
+                json_path = "../db/aapl.json"; // Default value
             } else {
                 json_path = user_json_path;
             }
@@ -273,7 +273,16 @@ int main() {
         // 打印计算和绘制的结果
         vm.printPlottedResults();
 
-        vm.writePlottedResults("plotted_results.csv");
+        std::string output_csv_path;
+        std::cout << "Enter output CSV file path (default: ../db/result.csv): ";
+        std::string user_output_csv_path;
+        std::getline(std::cin, user_output_csv_path);
+        if (user_output_csv_path.empty()) {
+            output_csv_path = "../db/result.csv";
+        } else {
+            output_csv_path = user_output_csv_path;
+        }
+        vm.writePlottedResultsToFile(output_csv_path);
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;

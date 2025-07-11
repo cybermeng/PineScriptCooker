@@ -173,7 +173,11 @@ public:
      */
     void printPlottedResults() const;
 
-    void writePlottedResults(const std::string& filename) const;
+      // 新的公共接口：写入到文件
+    void writePlottedResultsToFile(const std::string& filename) const;
+
+    // 新的公共接口：获取结果为字符串
+    std::string getPlottedResultsAsString() const;
 
     void registerSeries(const std::string& name, std::shared_ptr<Series> series);
 
@@ -235,4 +239,7 @@ private:
      * @brief 注册所有由C++实现的内置函数 (如 ta.sma, input.int)。
      */
     void registerBuiltins();
+
+    // 私有辅助函数，处理所有写入逻辑
+    void writePlottedResultsToStream(std::ostream& stream) const;
 };

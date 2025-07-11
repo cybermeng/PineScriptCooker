@@ -744,14 +744,9 @@ void PineVM::printPlottedResults() const {
     }
 }
 
-void PineVM::writePlottedResults(const std::string& filename) const {
-    std::ofstream outfile(filename);
-    if (!outfile.is_open()) {
-        std::cerr << "Error: Could not open file " << filename << " for writing." << std::endl;
-        return;
-    }
-
-    // 查找名为 "time" 的序列，并将其作为第一列写入
+// 1. 私有辅助函数 (核心逻辑)
+void PineVM::writePlottedResultsToStream(std::ostream& stream) const {
+    // 查找名为 "time" 的序列
     std::shared_ptr<Series> time_series = nullptr;
     for (const auto& pair : built_in_vars) {
         if (pair.first == "time" && std::holds_alternative<std::shared_ptr<Series>>(pair.second)) {
@@ -763,25 +758,25 @@ void PineVM::writePlottedResults(const std::string& filename) const {
     // 写入CSV头
     bool first_series = true;
     if (time_series) {
-        outfile << "time";
+        stream << "time";
         first_series = false;
     }
     for (const auto& plotted : plotted_series) {
         if (!first_series) {
-            outfile << ",";
+            stream << ",";
         }
-        outfile << plotted.series->name;
+        stream << plotted.series->name;
         first_series = false;
     }
-    outfile << "\n";
+    stream << "\n";
 
     // 写入数据
-    if (!plotted_series.empty()) {
+    if (!plotted_series.empty() || time_series) {
         size_t max_data_points = 0;
+        if (time_series) {
+            max_data_points = time_series->data.size();
+        }
         for (const auto& plotted : plotted_series) {
-            if (time_series && time_series->data.size() > max_data_points) {
-                max_data_points = time_series->data.size();
-            }
             if (plotted.series->data.size() > max_data_points) {
                 max_data_points = plotted.series->data.size();
             }
@@ -791,29 +786,52 @@ void PineVM::writePlottedResults(const std::string& filename) const {
             first_series = true;
             if (time_series) {
                 if (i < time_series->data.size()) {
-                    outfile << std::fixed << std::setprecision(0) << time_series->data[i]; // 时间戳通常不需要小数
-                } else {
-                    outfile << " ";
+                    // 时间戳通常不需要小数，使用 std::fixed 和 setprecision(0)
+                    stream << std::fixed << std::setprecision(0) << time_series->data[i];
                 }
                 first_series = false;
             }
             for (const auto& plotted : plotted_series) {
                 if (!first_series) {
-                    outfile << ",";
+                    stream << ",";
                 }
                 if (i < plotted.series->data.size()) {
-                    outfile << std::fixed << std::setprecision(2) << plotted.series->data[i];
-                } else {
-                    outfile << " "; // 如果数据点不足，留空
+                    // 数据保留两位小数
+                    stream << std::fixed << std::setprecision(2) << plotted.series->data[i];
                 }
                 first_series = false;
             }
-            outfile << "\n";
+            stream << "\n";
         }
     }
-    outfile.close();
+}
+
+// 2. 新的公共接口：写入文件
+void PineVM::writePlottedResultsToFile(const std::string& filename) const {
+    std::ofstream outfile(filename);
+    if (!outfile.is_open()) {
+        std::cerr << "Error: Could not open file " << filename << " for writing." << std::endl;
+        return;
+    }
+
+    // 调用核心逻辑函数
+    writePlottedResultsToStream(outfile);
+
+    outfile.close(); // ofstream 在析构时会自动关闭，但显式关闭也是好习惯
     std::cout << "Plotted results written to " << filename << std::endl;
 }
+
+// 3. 新的公共接口：输出为字符串
+std::string PineVM::getPlottedResultsAsString() const {
+    std::stringstream ss;
+
+    // 调用核心逻辑函数
+    writePlottedResultsToStream(ss);
+
+    // 从 stringstream 获取字符串并返回
+    return ss.str();
+}
+
 /**
  * @brief (内部辅助函数) 为 Bytecode 对象生成一个确定性的校验和。
  * 
