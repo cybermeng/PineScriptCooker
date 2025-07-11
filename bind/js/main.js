@@ -59,7 +59,7 @@ function parseFinancialData(financialData) {
         const high = item['8'];
         klineData.push([open, close, low, high]);
 
-        volumes.push(item['5']); // Key "5" is our volume
+        volumes.push(item['13']); // Key "13" is our volume
         
         // Determine volume bar color: green if close >= open, red otherwise
         volumeColors.push(close >= open ? upColor : downColor);
