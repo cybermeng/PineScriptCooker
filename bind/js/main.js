@@ -296,7 +296,7 @@ createPineVmModule()
         myChart.hideLoading();
         myChart.setOption({ title: { text: 'Ready to Execute', left: 'center', top: 'center' } });
 
-        const runPineCalculationJS = Module.cwrap('run_pine_calculation', 'string', ['string', 'string']);
+        const runPineCalculationJS = Module.cwrap('run_pine_calculation', 'string', ['string', 'number']);
 
         executeButton.addEventListener('click', () => {
             executeButton.disabled = true;
@@ -306,6 +306,7 @@ createPineVmModule()
             setTimeout(() => {
                 let marketData;
                 let indicatorData = null;
+                let dataPtr = 0; // <<<<<< 新增：用于存储内存指针
 
                 try {
                     const financialData = dataInput.value;
@@ -313,8 +314,24 @@ createPineVmModule()
                     
                     try {
                         const bytecode = bytecodeInput.value;
+                        // --- 使用高层API stringToUTF8 进行手动内存管理 ---
+
+                        // 1. 估算所需内存。UTF-8编码一个JS字符最多需要4个字节。
+                        //    为安全起见，我们分配 `financialData.length * 4 + 1` 字节。
+                        //    这有点浪费，但能确保缓冲区足够大。
+                        const maxBytes = (financialData.length * 4) + 1;
+                        dataPtr = Module._malloc(maxBytes);
+                        if (dataPtr === 0) {
+                            throw new Error("Failed to allocate memory in WASM heap for financial data.");
+                        }
+
+                        // 2. 使用 Module.stringToUTF8 将JS字符串直接编码并写入WASM内存。
+                        //    这个函数会处理UTF-8转换和空终止符。
+                        Module.stringToUTF8(financialData, dataPtr, maxBytes);
+
                         const startTime = performance.now();
-                        const wasmResultString = runPineCalculationJS(bytecode, financialData);
+                         // 3. 调用C++函数，传递指针而不是字符串
+                        const wasmResultString = runPineCalculationJS(bytecode, dataPtr);
                         const endTime = performance.now();
                         outputElement.textContent = wasmResultString;
                         console.log(`WASM execution time: ${(endTime - startTime).toFixed(2)} ms`);
@@ -332,6 +349,10 @@ createPineVmModule()
                     myChart.setOption({ title: { text: 'Error: Could not parse financial data.', left: 'center', top: 'center', textStyle: {color: 'red'} } }, true);
                     console.error(criticalError);
                 } finally {
+                    // 4. 释放之前分配的内存，防止内存泄漏
+                    if (dataPtr !== 0) {
+                        Module._free(dataPtr);
+                    }
                     executeButton.disabled = false;
                 }
             }, 10);

@@ -109,7 +109,7 @@ const char* run_pine_calculation(const char* bytecode_string_c, const char* fina
         } catch (...) {
             std::cerr << "\n!!! UNKNOWN C++ EXCEPTION CAUGHT !!!\n" << std::endl;
         }
-        
+       
         // 恢复原始的 cout/cerr
         std::cout.rdbuf(old_cout_buf);
         std::cerr.rdbuf(old_cerr_buf);
