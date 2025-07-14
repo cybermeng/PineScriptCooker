@@ -7,7 +7,7 @@
 #include <sstream> // For std::stringstream
 #include <map> // For opCodeMap in txtToBytecode
 #include <optional> // For std::optional in txtToBytecode
-
+#include <cstdint> // for uint64_t
 
 double Series::getCurrent(int bar_index) {
     if (bar_index >= 0 && bar_index < data.size()) {
@@ -913,6 +913,10 @@ void PineVM::printPlottedResults() const {
 
 // 1. 私有辅助函数 (核心逻辑)
 void PineVM::writePlottedResultsToStream(std::ostream& stream) const {
+    if (plotted_series.empty()) {
+        std::cout << "\n--- No Plotted Results ---" << std::endl;
+        return;
+    }
     // 查找名为 "time" 的序列
     std::shared_ptr<Series> time_series = nullptr;
     for (const auto& pair : built_in_vars) {
@@ -999,6 +1003,56 @@ std::string PineVM::getPlottedResultsAsString() const {
     return ss.str();
 }
 
+typedef uint32_t _checksum_t;
+
+/**
+ * @brief (内部辅助类) 实现32位 FNV-1a 哈希算法，支持流式更新。
+ * FNV-1a 是一种简单且高效的非加密哈希算法，其结果在所有平台上都是确定性的。
+ */
+class FNV1aHash {
+public:
+    /**
+     * @brief 构造函数，用32位FNV偏移基准值初始化哈希。
+     */
+    FNV1aHash() : hash_(FNV_OFFSET_BASIS) {}
+
+    /**
+     * @brief 用一块内存数据更新哈希值。
+     * @param data 指向数据的指针。
+     * @param size 数据的字节大小。
+     */
+    void update(const char* data, size_t size) {
+        for (size_t i = 0; i < size; ++i) {
+            // 核心算法：先异或，再乘质数
+            hash_ ^= static_cast<uint32_t>(data[i]);
+            hash_ *= FNV_PRIME;
+        }
+    }
+
+    /**
+     * @brief 用一个字符串更新哈希值。
+     * @param str 输入的字符串。
+     */
+    void update(const std::string& str) {
+        update(str.data(), str.size());
+    }
+
+    /**
+     * @brief 获取最终的32位哈希值。
+     * @return 32位哈希结果。
+     */
+    _checksum_t finalize() const {
+        return hash_;
+    }
+
+private:
+    // FNV-1a 32位常量
+    static constexpr _checksum_t FNV_PRIME = 0x01000193;        // 16777619
+    static constexpr _checksum_t FNV_OFFSET_BASIS = 0x811c9dc5; // 2166136261
+    
+    _checksum_t hash_;
+};
+
 /**
  * @brief (内部辅助函数) 为 Bytecode 对象生成一个确定性的校验和。
  * 
@@ -1007,9 +1061,9 @@ std::string PineVM::getPlottedResultsAsString() const {
  * 为了确保一致性，两个函数 bytecodeToTxt 和 txtToBytecode 必须使用这个函数。
  * 
  * @param bytecode 要计算校验和的 Bytecode 对象。
- * @return 代表校验和的 size_t 值。
+ * @return 代表校验和的  值。
  */
-size_t _generateChecksum(const Bytecode& bytecode) {
+_checksum_t _generateChecksum(const Bytecode& bytecode) {
     std::stringstream canonical_stream;
 
     // 0. 序列化变量数量 (新增)
@@ -1047,8 +1101,11 @@ size_t _generateChecksum(const Bytecode& bytecode) {
     }
 
     // 4. 计算哈希值
-    std::hash<std::string> hasher;
-    return hasher(canonical_stream.str());
+    FNV1aHash hasher;
+    std::string canonical_string = canonical_stream.str();
+    //std::cout << canonical_string << std::endl;
+    hasher.update(canonical_string);
+    return hasher.finalize();
 }
 
 std::string PineVM::bytecodeToTxt(const Bytecode& bytecode)
@@ -1190,7 +1247,7 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
         {"HALT", OpCode::HALT}
     };
 
-    std::optional<size_t> expected_checksum;
+    std::optional<_checksum_t> expected_checksum;
 
     while (std::getline(ss, line)) {
         // 跳过空行
@@ -1294,7 +1351,7 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
 
             case ParsingSection::VALIDATION: {
                 std::string checksum_label;
-                size_t checksum_value;
+                _checksum_t checksum_value;
                 std::stringstream line_ss(line);
                 line_ss >> checksum_label >> checksum_value;
                 if (checksum_label == "Checksum:") {
@@ -1313,7 +1370,7 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
         throw std::runtime_error("Validation checksum not found in the bytecode text.");
     }
     
-    size_t actual_checksum = _generateChecksum(bytecode);
+    _checksum_t actual_checksum = _generateChecksum(bytecode);
 
     if (actual_checksum != expected_checksum.value()) {
         std::stringstream error_msg;

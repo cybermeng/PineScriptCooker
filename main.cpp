@@ -142,7 +142,7 @@ int main() {
         //主力线:EMA(DIF-MA(REF(DIF,1),1),1)*1.862,colorwhite,LINETHICK1;
         //STICKLINE(MACD>0 AND MACD>=REF(MACD,1),0,MACD,5,0),color0000ff;
         //STICKLINE(MACD>0 AND MACD<REF(MACD,1),0,MACD,5,0),colorffff00;
-        select CROSS(DIF, DEA);
+        //select CROSS(DIF, DEA);
     )";
     /*
          Zero : 0;
