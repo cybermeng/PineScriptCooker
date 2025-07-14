@@ -29,6 +29,7 @@ private:
 
     // 字节码生成辅助函数
     void emitByte(OpCode op);
+    void emitByteForMath(OpCode op);
     void emitByteWithOperand(OpCode op, int operand);
     int addConstant(const Value& value);
     void resolveAndEmitLoad(const Token& name);

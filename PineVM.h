@@ -102,6 +102,7 @@ struct Bytecode {
     std::vector<Instruction> instructions;
     std::vector<Value> constant_pool;
     std::vector<std::string> global_name_pool;
+    int varNum = 0;     //中间变量个数
 };
 
 /**
@@ -156,7 +157,7 @@ public:
      */
     void push(Value val);
 
-    void pushNumbericValue(double val);
+    void pushNumbericValue(double val, int operand);
     
     /**
      * @brief 获取当前正在执行的K线柱索引。
@@ -214,6 +215,7 @@ private:
     const Instruction* ip = nullptr; // 指令指针
     std::vector<Value> stack;        // 操作数栈,
     std::vector<Value> globals;      // 全局变量存储槽
+    std::vector<std::shared_ptr<Series>> vars;        // 中间变量存储槽
 
     // --- 执行上下文 ---
     int total_bars;

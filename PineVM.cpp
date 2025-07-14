@@ -46,6 +46,16 @@ void PineVM::loadBytecode(const std::string& code) {
 
 int PineVM::execute() {
     globals.resize(bytecode.global_name_pool.size());
+
+    vars.clear(); // 清理旧数据
+    vars.reserve(bytecode.varNum); // 预分配内存以提高效率
+     for (int i = 0; i < bytecode.varNum; ++i) {
+        auto temp_series = std::make_shared<Series>();
+        // 为了调试方便，可以给中间变量序列一个名字
+        temp_series->name = "_tmp" + std::to_string(i); 
+        vars.push_back(temp_series);
+    }
+
     plotted_series.clear();
     try
     {
@@ -85,11 +95,31 @@ double PineVM::getNumericValue(const Value& val) {
     }
 }
 
-void PineVM::pushNumbericValue(double val) {
-    //todo
-   push(val);
-}
+void PineVM::pushNumbericValue(double val, int operand) {
+    // 这个函数处理算术/逻辑运算的结果。
+    // 在PineScript中，这些操作通常产生一个新的序列。
+    // 'operand' 参数是编译器分配的中间变量槽的索引，
+    // 用于存储这个新序列。
 
+    // 检查操作数是否是有效的中间变量索引
+    if (operand < 0 || operand >= vars.size()) {
+        // 这是一个严重的字节码错误。如果一个操作需要存储中间结果，
+        // 编译器必须提供一个有效的槽位索引。
+        // 一个简单的回退方案是直接压入double值，但这会破坏序列的连续性。
+        // push(val); // 这是一个不正确的简化方案
+        throw std::runtime_error("Invalid intermediate variable index (" + std::to_string(operand) + ") for arithmetic/logic operation. Max index is " + std::to_string(vars.size() - 1) + ".");
+    }
+
+    // 1. 从预先分配的池中获取中间序列
+    auto& result_series = vars[operand];
+
+    // 2. 为当前K线柱设置计算出的值
+    result_series->setCurrent(bar_index, val);
+
+    // 3. 将这个（现在已更新的）序列的智能指针压入栈中，
+    // 以便后续操作（如另一个算术运算或存储到全局变量）可以使用它。
+    push(result_series);
+}
 
 Value& PineVM::storeGlobal(int operand, const Value& val) {
         // 检查全局变量槽位是否已经是一个Series
@@ -157,21 +187,21 @@ void PineVM::runCurrentBar() {
             case OpCode::GREATER_EQUAL: {
                 double right = getNumericValue(pop());
                 double left = getNumericValue(pop());
-                if (ip->op == OpCode::ADD) push(left + right);
+                if (ip->op == OpCode::ADD) pushNumbericValue(left + right, ip->operand);
                 else if (ip->op == OpCode::DIV) {
                     if (right == 0.0) {
-                        push(NAN);
-                    } else push(left / right);
+                        pushNumbericValue(NAN, ip->operand);
+                    } else pushNumbericValue(left / right, ip->operand);
                 }
-                else if (ip->op == OpCode::SUB) push(left - right);
-                else if (ip->op == OpCode::MUL) push(left * right);
-                else if (ip->op == OpCode::DIV) push(left / right);
-                else if (ip->op == OpCode::LESS) push(left < right);
-                else if (ip->op == OpCode::LESS_EQUAL) push(left <= right);
-                else if (ip->op == OpCode::EQUAL_EQUAL) push(left == right);
-                else if (ip->op == OpCode::BANG_EQUAL) push(left != right);
-                else if (ip->op == OpCode::GREATER) push(left > right);
-                else if (ip->op == OpCode::GREATER_EQUAL) push(left >= right);
+                else if (ip->op == OpCode::SUB) pushNumbericValue(left - right, ip->operand);
+                else if (ip->op == OpCode::MUL) pushNumbericValue(left * right, ip->operand);
+                else if (ip->op == OpCode::DIV) pushNumbericValue(left / right, ip->operand);
+                else if (ip->op == OpCode::LESS) pushNumbericValue(left < right, ip->operand);
+                else if (ip->op == OpCode::LESS_EQUAL) pushNumbericValue(left <= right, ip->operand);
+                else if (ip->op == OpCode::EQUAL_EQUAL) pushNumbericValue(left == right, ip->operand);
+                else if (ip->op == OpCode::BANG_EQUAL) pushNumbericValue(left != right, ip->operand);
+                else if (ip->op == OpCode::GREATER) pushNumbericValue(left > right, ip->operand);
+                else if (ip->op == OpCode::GREATER_EQUAL) pushNumbericValue(left >= right, ip->operand);
                 break;
                 }
             case OpCode::LOAD_GLOBAL: {
@@ -758,6 +788,32 @@ void PineVM::registerBuiltins() {
             return false_val;
         }
     };
+
+    built_in_funcs["CROSS"] = [](PineVM& vm) -> Value {
+        Value val2 = vm.pop();
+        Value val1 = vm.pop();
+
+        double dval1 = vm.getNumericValue(val1);
+        double dval2 = vm.getNumericValue(val2);
+
+        // 获取前一个K线柱的两个序列的值
+        double prev_dval1 = std::get<std::shared_ptr<Series>>(val1)->getCurrent(vm.getCurrentBarIndex() - 1);
+        double prev_dval2 = std::get<std::shared_ptr<Series>>(val2)->getCurrent(vm.getCurrentBarIndex() - 1);
+
+        // 检查是否有NaN值
+        if (std::isnan(dval1) || std::isnan(dval2) || std::isnan(prev_dval1) || std::isnan(prev_dval2)) {
+            return false; // 任何一个值为NaN，则交叉不成立
+        }
+
+        // 判断是否发生交叉
+        // (A > B 且 A[1] <= B[1]) 或 (A < B 且 A[1] >= B[1])
+        bool cross_up = (dval1 > dval2) && (prev_dval1 <= prev_dval2);
+        //bool cross_down = (dval1 < dval2) && (prev_dval1 >= prev_dval2);
+
+        //return cross_up || cross_down;
+        return cross_up;
+    };
+
     built_in_funcs["input.int"] = [](PineVM& vm) -> Value {
          vm.pop();
          Value defval = vm.pop();
@@ -956,6 +1012,9 @@ std::string PineVM::getPlottedResultsAsString() const {
 size_t _generateChecksum(const Bytecode& bytecode) {
     std::stringstream canonical_stream;
 
+    // 0. 序列化变量数量 (新增)
+    canonical_stream << bytecode.varNum << "|";
+
     // 1. 序列化指令
     for (const auto& instr : bytecode.instructions) {
         // 将 OpCode 转换为整数以获得稳定表示
@@ -992,7 +1051,6 @@ size_t _generateChecksum(const Bytecode& bytecode) {
     return hasher(canonical_stream.str());
 }
 
-
 std::string PineVM::bytecodeToTxt(const Bytecode& bytecode)
 {
     std::string result = "--- Bytecode ---\n";
@@ -1008,16 +1066,16 @@ std::string PineVM::bytecodeToTxt(const Bytecode& bytecode)
             case OpCode::POP:
                 result += "POP";
                 break;
-            case OpCode::ADD: result += "ADD"; break;
-            case OpCode::SUB: result += "SUB"; break;
-            case OpCode::MUL: result += "MUL"; break;
-            case OpCode::DIV: result += "DIV"; break;
-            case OpCode::LESS: result += "LESS"; break;
-            case OpCode::LESS_EQUAL: result += "LESS_EQUAL"; break;
-            case OpCode::EQUAL_EQUAL: result += "EQUAL_EQUAL"; break;
-            case OpCode::BANG_EQUAL: result += "BANG_EQUAL"; break;
-            case OpCode::GREATER: result += "GREATER"; break;
-            case OpCode::GREATER_EQUAL: result += "GREATER_EQUAL"; break;
+            case OpCode::ADD: result += "ADD " + std::to_string(instr.operand); break;
+            case OpCode::SUB: result += "SUB " + std::to_string(instr.operand); break;
+            case OpCode::MUL: result += "MUL " + std::to_string(instr.operand); break;
+            case OpCode::DIV: result += "DIV " + std::to_string(instr.operand); break;
+            case OpCode::LESS: result += "LESS " + std::to_string(instr.operand); break;
+            case OpCode::LESS_EQUAL: result += "LESS_EQUAL " + std::to_string(instr.operand); break;
+            case OpCode::EQUAL_EQUAL: result += "EQUAL_EQUAL " + std::to_string(instr.operand); break;
+            case OpCode::BANG_EQUAL: result += "BANG_EQUAL " + std::to_string(instr.operand); break;
+            case OpCode::GREATER: result += "GREATER " + std::to_string(instr.operand); break;
+            case OpCode::GREATER_EQUAL: result += "GREATER_EQUAL " + std::to_string(instr.operand); break;
             case OpCode::LOAD_BUILTIN_VAR:
                 result += "LOAD_BUILTIN_VAR " + std::to_string(instr.operand);
                 break;
@@ -1054,7 +1112,11 @@ std::string PineVM::bytecodeToTxt(const Bytecode& bytecode)
         }
         result += "\n";
     }
- 
+
+    result += "\n--- Variable Number ---\n";
+    result += std::to_string(bytecode.varNum);
+    result += "\n";
+
     result += "\n--- Constant Pool ---\n";
     for (int i = 0; i < bytecode.constant_pool.size(); ++i) {
         result += std::to_string(i) + ": ";
@@ -1095,6 +1157,7 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
     enum class ParsingSection {
         NONE,
         INSTRUCTIONS,
+        VARIABLE_NUMBER, // 新增
         CONSTANTS,
         GLOBALS,
         VALIDATION
@@ -1140,6 +1203,10 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
             currentSection = ParsingSection::INSTRUCTIONS;
             continue;
         }
+        if (line == "--- Variable Number ---") { // 新增
+            currentSection = ParsingSection::VARIABLE_NUMBER;
+            continue;
+        }
         if (line == "--- Constant Pool ---") {
             currentSection = ParsingSection::CONSTANTS;
             continue;
@@ -1159,7 +1226,6 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
                 std::stringstream line_ss(line);
                 std::string index_part, op_str;
                 
-                // 解析 "index: OPCODE [operand]"
                 line_ss >> index_part >> op_str;
                 
                 auto it = opCodeMap.find(op_str);
@@ -1170,17 +1236,24 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
                 Instruction instr;
                 instr.op = it->second;
                 
-                // 尝试读取操作数（如果存在）
                 line_ss >> instr.operand; 
                 
                 bytecode.instructions.push_back(instr);
                 break;
             }
 
+            case ParsingSection::VARIABLE_NUMBER: { // 新增解析逻辑
+                try {
+                    bytecode.varNum = std::stoi(line);
+                } catch (const std::exception& e) {
+                    throw std::runtime_error("Could not parse variable number: " + line);
+                }
+                break;
+            }
+
             case ParsingSection::CONSTANTS: {
-                // 解析 "index: value"
                 size_t colon_pos = line.find(": ");
-                if (colon_pos == std::string::npos) continue; // 跳过格式不正确的行
+                if (colon_pos == std::string::npos) continue; 
                 
                 std::string valueStr = line.substr(colon_pos + 2);
                 Value val;
@@ -1211,9 +1284,8 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
             }
 
             case ParsingSection::GLOBALS: {
-                // 解析 "index: name"
                 size_t colon_pos = line.find(": ");
-                if (colon_pos == std::string::npos) continue; // 跳过格式不正确的行
+                if (colon_pos == std::string::npos) continue;
                 
                 std::string globalName = line.substr(colon_pos + 2);
                 bytecode.global_name_pool.push_back(globalName);
@@ -1232,7 +1304,6 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
             }
 
             case ParsingSection::NONE:
-                // 在任何部分之前忽略所有行
                 break;
         }
     }
@@ -1243,13 +1314,14 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
     }
     
     size_t actual_checksum = _generateChecksum(bytecode);
-/*
+
     if (actual_checksum != expected_checksum.value()) {
-        std::cerr << actual_checksum << std::endl;
-        std::cerr << expected_checksum.value() << std::endl;
-        throw std::runtime_error("Checksum mismatch! The bytecode text is corrupted or has been tampered with.");
+        std::stringstream error_msg;
+        error_msg << "Checksum mismatch! The bytecode text is corrupted or has been tampered with.\n"
+                  << "Expected: " << expected_checksum.value() << "\n"
+                  << "Actual:   " << actual_checksum;
+        throw std::runtime_error(error_msg.str());
     }
-    */
-    // 校验通过，返回结果
+    
     return bytecode;
 }

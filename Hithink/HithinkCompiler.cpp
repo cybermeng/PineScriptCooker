@@ -67,16 +67,16 @@ void HithinkCompiler::visit(HithinkBinaryExpression& node) {
     node.right->accept(*this);
 
     switch (node.op.type) {
-        case TokenType::PLUS: emitByte(OpCode::ADD); break;
-        case TokenType::MINUS: emitByte(OpCode::SUB); break;
-        case TokenType::STAR: emitByte(OpCode::MUL); break;
-        case TokenType::SLASH: emitByte(OpCode::DIV); break;
-        case TokenType::GREATER: emitByte(OpCode::GREATER); break;
-        case TokenType::GREATER_EQUAL: emitByte(OpCode::GREATER_EQUAL); break;
-        case TokenType::LESS: emitByte(OpCode::LESS); break;
-        case TokenType::LESS_EQUAL: emitByte(OpCode::LESS_EQUAL); break;
-        case TokenType::EQUAL: emitByte(OpCode::EQUAL_EQUAL); break;
-        case TokenType::BANG_EQUAL: emitByte(OpCode::BANG_EQUAL); break;
+        case TokenType::PLUS: emitByteForMath(OpCode::ADD); break;
+        case TokenType::MINUS: emitByteForMath(OpCode::SUB); break;
+        case TokenType::STAR: emitByteForMath(OpCode::MUL); break;
+        case TokenType::SLASH: emitByteForMath(OpCode::DIV); break;
+        case TokenType::GREATER: emitByteForMath(OpCode::GREATER); break;
+        case TokenType::GREATER_EQUAL: emitByteForMath(OpCode::GREATER_EQUAL); break;
+        case TokenType::LESS: emitByteForMath(OpCode::LESS); break;
+        case TokenType::LESS_EQUAL: emitByteForMath(OpCode::LESS_EQUAL); break;
+        case TokenType::EQUAL: emitByteForMath(OpCode::EQUAL_EQUAL); break;
+        case TokenType::BANG_EQUAL: emitByteForMath(OpCode::BANG_EQUAL); break;
         default: throw std::runtime_error("Unknown binary operator.");
     }
 }
@@ -143,6 +143,10 @@ void HithinkCompiler::visit(HithinkVariableExpression& node) {
 
 void HithinkCompiler::emitByte(OpCode op) {
     bytecode.instructions.push_back({op});
+}
+
+void HithinkCompiler::emitByteForMath(OpCode op) {
+    bytecode.instructions.push_back({op, bytecode.varNum++});
 }
 
 void HithinkCompiler::emitByteWithOperand(OpCode op, int operand) {
