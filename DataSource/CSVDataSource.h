@@ -1,7 +1,7 @@
 #pragma once
 
-#include "DataSource.h"
-#include "duckdb.h"
+#include "../DataSource.h"
+#include "../duckdb.h"
 #include <string>
 #include <memory>
 

@@ -3,8 +3,7 @@
 #include <vector>
 #include <variant>
 #include <memory>
-#include "PineVM.h" // 复用上一节定义的 OpCode, Value, Bytecode 等
-
+#include "VMCommon.h" // For Value, Series, OpCode, Bytecode
 
 enum class TokenType {
     // Single-character tokens.

@@ -3,6 +3,20 @@
 #include <string>   // for std::string in makeToken
 #include <string_view> // for std::string_view
 
+// 检查一个字符是否可以作为标识符的开头
+// 允许：ASCII字母, 下划线, 或任何多字节字符 (如中文)
+static inline bool isIdentifierStart(char c) {
+    unsigned char uc = static_cast<unsigned char>(c);
+    return std::isalpha(uc) || uc == '_' || (uc & 0x80); // 检查最高位是否为1，表示非ASCII字符
+}
+
+// 检查一个字符是否可以作为标识符的组成部分
+// 允许：ASCII字母/数字, 下划线, 或任何多字节字符
+static inline bool isIdentifierChar(char c) {
+    unsigned char uc = static_cast<unsigned char>(c);
+    return std::isalnum(uc) || uc == '_' || (uc & 0x80); // 检查最高位是否为1，表示非ASCII字符
+}
+
 HithinkLexer::HithinkLexer(std::string_view source)
     : source_(source), start_(0), current_(0), line_(1) {}
 
@@ -14,7 +28,7 @@ Token HithinkLexer::scanToken() {
 
     char c = advance();
 
-    if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') return identifier();
+    if (isIdentifierStart(c)) return identifier();
     if (std::isdigit(static_cast<unsigned char>(c))) return number();
 
     switch (c) {
@@ -88,16 +102,19 @@ void HithinkLexer::skipWhitespace() {
                 }
                 if (!isAtEnd()) advance(); // Skip '}'
                 break;
-             case '/':
-                if (peek() == '/') {
-                    // A // comment goes until the end of the line.
+            case '/':
+                // 检查是否为 "//" 注释
+                if (peekNext() == '/') {
+                    // 是注释，消耗掉这一行的所有字符
                     while (peek() != '\n' && !isAtEnd()) {
                         advance();
                     }
-                    break; // Go back to the loop to skip the newline or EOF
+                    // break 以便外层循环可以处理换行符或文件结尾
+                    break;
+                } else {
+                    // 是除法运算符，不是注释。停止跳过空白，让 scanToken() 来处理它。
+                    return;
                 }
-                // If it's not a // comment, fall through to default.
-                break;
            default:
                 return;
         }
@@ -105,7 +122,7 @@ void HithinkLexer::skipWhitespace() {
 }
 
 Token HithinkLexer::identifier() {
-    while (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_') advance();
+    while (isIdentifierChar(peek())) advance();
     
     // 检查是否为 'select' 关键字
     std::string_view text = source_.substr(start_, current_ - start_);

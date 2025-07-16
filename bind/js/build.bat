@@ -5,7 +5,7 @@ setlocal
 
 :: --- Configuration ---
 :: C++ source files to compile
-set SOURCES=main.cpp ../../PineVM.cpp
+set SOURCES=main.cpp ../../PineVM.cpp ../../Hithink/HithinkCompiler.cpp
 
 :: Output directory for build artifacts
 set OUTPUT_DIR=public
@@ -34,27 +34,27 @@ if %errorlevel% neq 0 (
 
 :: 1. Create the output directory if it doesn't exist
 echo.
-echo => Creating output directory: %OUTPUT_DIR%
+::echo => Creating output directory: %OUTPUT_DIR%
 if not exist "%OUTPUT_DIR%" (
     mkdir "%OUTPUT_DIR%"
 )
 
 :: 2. Compile C++ sources to JavaScript and WebAssembly
 echo.
-echo => Compiling C++ sources...
+::echo => Compiling C++ sources...
 emcc %EMCC_FLAGS% %SOURCES% -o "%OUTPUT_JS%"
 if %errorlevel% neq 0 (
     echo.
     echo ERROR: Compilation failed.
     exit /b 1
 )
-echo => Compilation successful! Generated:
+::echo => Compilation successful! Generated:
 echo    - %OUTPUT_JS%
 echo    - %OUTPUT_JS:.js=.wasm%
 
 :: 3. Copy support files to the output directory
 echo.
-echo => Copying support files to %OUTPUT_DIR%
+::echo => Copying support files to %OUTPUT_DIR%
 copy "%SOURCE_HTML%" "%OUTPUT_DIR%\" >nul
 copy "main.js" "%OUTPUT_DIR%\" >nul
 

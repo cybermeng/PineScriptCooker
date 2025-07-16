@@ -111,10 +111,94 @@ void disassembleChunk(const Bytecode& bytecode, const std::string& name) {
         }
     }
 }
-int main() {
+int main(int argc, char* argv[]) {
+    
+    std::string filename;
+    if (argc > 1) {
+        for (int i = 1; i < argc; ++i) {
+            std::string arg = argv[i];
+            if (arg == "-f" && i + 1 < argc) {
+                filename = argv[++i];
+            }
+        }
+    }
+
+    std::string source_code;
+    std::string selected_language_from_file = "h"; // Default to Hithink if reading from file
+
+    if (!filename.empty()) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Error: Could not open file " << filename << std::endl;
+            return 1;
+        }
+
+        // Try to infer language from file extension
+        size_t dot_pos = filename.rfind('.');
+        if (dot_pos != std::string::npos) {
+            std::string ext = filename.substr(dot_pos + 1);
+            if (ext == "pine") {
+                selected_language_from_file = "p";
+            } else if (ext == "el") {
+                selected_language_from_file = "e";
+            } else if (ext == "hithink" || ext == "tdx") { // Assuming .tdx for Hithink
+                selected_language_from_file = "h";
+            }
+        }
+        std::cout << "Compiling from file: " << filename << " (inferred language: " << selected_language_from_file << ")" << std::endl;
+        
+        std::string language_source;
+
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        // 按行分割source_code
+        std::string line;
+        int all = 0, ok = 0, fail = 0;
+        while (std::getline(buffer, line)) {
+            language_source = line;
+            all++;
+            Bytecode bytecode;
+        
+            try {
+                if (selected_language_from_file == "p" || selected_language_from_file == "pine") {
+                    std::cout << language_source << std::endl;
+                    PineCompiler compiler;
+                    bytecode = compiler.compile(language_source);
+                } else if (selected_language_from_file == "h" || selected_language_from_file == "hithink") {
+                    std::cout << language_source << std::endl;
+                    HithinkCompiler compiler;
+                    bytecode = compiler.compile(language_source);
+                    if (compiler.hadError()) {
+                        throw std::runtime_error("Hithink compilation failed.");
+                    }
+                } else if (selected_language_from_file == "e" || selected_language_from_file == "easylanguage") {
+                    std::cout << language_source << std::endl;
+                    EasyLanguageParser parser(language_source);
+                    std::vector<std::unique_ptr<ELStatement>> el_ast = parser.parse();
+                    EasyLanguageCompiler el_compiler;
+                    bytecode = el_compiler.compile(el_ast);
+                } else {
+                    throw std::runtime_error("Invalid language selected. Please choose 'pine', 'easylanguage', or 'hithink'.");
+                }
+
+
+            } catch (const std::exception& e) {
+                std::cerr << "Error: " << e.what() << std::endl;
+                fail++;
+                continue;
+            }
+            ok ++;
+            disassembleChunk(bytecode, "Compiled Script");
+        }
+
+        std::cout << "all:" << all << " ok:" << ok << " fail:" << fail << std::endl;
+        
+        return 0;
+    }
+
     std::string pine_source = R"(
         ma_length = input.int(14, "MA Length")
-        ma = ta.sma(close, ma_length)
+        ma = (ta.sma(close, ma_length) + close) / 2;
         rsi = ta.rsi(close, 14)
         plot(rsi, color.green)
         plot(ma, color.red)
@@ -135,7 +219,13 @@ int main() {
     )";
 
     std::string hithink_source = R"(
-        //Zero : 0;
+        aa=min(o,c);
+        bb=abs(o-c);
+        //select count(( h-aa>3*bb and 3*(aa-l)<bb and bb>0 and c>ma(c,5) and c>ma(c,10) and c>ma(c,20)),1)>=1;
+        select count(aa>bb and bb>1)>=1;
+    )";
+    /*
+         //Zero : 0;
         DIF : EMA(CLOSE,6) - EMA(CLOSE,13);
         DEA : EMA(DIF,4);
         macd : 2*(DIF-DEA);
@@ -143,7 +233,7 @@ int main() {
         //STICKLINE(MACD>0 AND MACD>=REF(MACD,1),0,MACD,5,0),color0000ff;
         //STICKLINE(MACD>0 AND MACD<REF(MACD,1),0,MACD,5,0),colorffff00;
         //select CROSS(DIF, DEA);
-    )";
+   */
     /*
          Zero : 0;
         DIF : EMA(CLOSE,6) - EMA(CLOSE,13);

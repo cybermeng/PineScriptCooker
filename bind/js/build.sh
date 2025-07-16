@@ -33,13 +33,16 @@ EMCC_FLAGS=(
     -O3
     # 启用 C++ 异常处理，这是捕获 std::runtime_error 的关键
     -fexceptions
+    -gsource-map
+    -s SAFE_HEAP=1
+    -s ASSERTIONS=1
     -s ALLOW_MEMORY_GROWTH=1
     -s MODULARIZE=1
     -s EXPORT_ES6=1
     -s EXPORT_NAME="createPineVmModule"
     -s ENVIRONMENT=web
     -s WASM=1
-    -s EXPORTED_FUNCTIONS="['_run_pine_calculation', '_malloc', '_free']"
+    -s EXPORTED_FUNCTIONS="['_run_pine_calculation', '_malloc', '_free', '_realloc', 'stringToUTF8']"
     -s EXPORTED_RUNTIME_METHODS="['cwrap']"
 )
 
