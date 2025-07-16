@@ -86,64 +86,74 @@ void HithinkParser::synchronize() {
         advance();
     }
 }
+void HithinkParser::consumeStatementTerminator() {
+    // 情况1：显式的分号。消费它并返回。
+    if (match(TokenType::SEMICOLON)) {
+        return;
+    }
 
-// =======================================================================
-// vvvvvvvvvvvvvv         核心修改：重构的 statement() 函数         vvvvvvvvvvvvvv
-// =======================================================================
+    // 情况2：文件结尾。这是一个合法的语句结尾。不消费 EOF。
+    if (check(TokenType::END_OF_FILE)) {
+        return;
+    }
 
-// 移除了 assignmentOrExpressionStatement 函数，其逻辑被完全整合到这里。
-// 移除了对 lexer_.peekNextToken() 的依赖。
+    // 情况3：换行符。如果当前词元的行号大于上一个词元的行号，
+    // 说明它们之间至少有一个换行符。这也是合法的语句结尾。
+    // `previous_` 是我们刚刚解析完的语句的最后一个词元。
+    if (current_.line > previous_.line) {
+        return;
+    }
+
+    // 如果以上情况都不是，说明用户可能在同一行写了多个语句而没有用分号分隔。
+    // 这是一个语法错误。
+    error(current_, "Expect ';' or a newline after the statement.");
+}
+
 std::unique_ptr<HithinkStatement> HithinkParser::statement() {
-    // 首先处理 SELECT 语句，因为它由一个明确的关键字开头
     if (match(TokenType::SELECT)) {
         Token selectKeyword = previous_;
         auto condition = expression();
         if (!condition) {
-            return nullptr; // expression() 已经报告了错误
+            return nullptr;
         }
-        consume(TokenType::SEMICOLON, "Expect ';' after select condition.");
+        // *** 修改点 1 ***
+        // consume(TokenType::SEMICOLON, "Expect ';' after select condition.");
+        consumeStatementTerminator(); // 使用新的、更灵活的终止符检查
 
         Token nameToken = {TokenType::IDENTIFIER, "select", selectKeyword.line};
         return std::make_unique<HithinkAssignmentStatement>(nameToken, std::move(condition), true);
     }
 
-    // “先解析，后决策” 策略：
-    // 1. 将语句的开头部分当作一个完整的表达式来解析。
-    //    对于 "pbx1: ...", expression() 会解析 "pbx1" 并返回一个 VariableExpression。
-    //    对于 "(a+b)/c;", expression() 会解析整个 "(a+b)/c" 表达式。
     auto expr = expression();
     if (!expr) {
-        // 如果连一个表达式都解析不出来，说明有严重的语法错误，直接返回。
         return nullptr;
     }
 
-    // 2. 检查紧跟在刚才解析的表达式后面的词元是什么。
     if (match(TokenType::COLON) || match(TokenType::COLON_EQUAL)) {
-        // 如果是 ':' 或 ':=', 那么这一定是一个赋值语句。
         Token assign_op = previous_;
         bool isOutput = assign_op.type == TokenType::COLON;
 
-        // 验证赋值目标（我们刚刚解析的 expr）是否合法。它必须是一个变量。
         if (auto* varExpr = dynamic_cast<HithinkVariableExpression*>(expr.get())) {
-            // 类型转换成功，说明赋值目标合法。
             Token name = varExpr->name;
-
-            // 现在解析赋值运算符右边的表达式。
             auto value = expression();
             if (!value) {
-                return nullptr; // RHS 解析失败
+                return nullptr;
             }
             
-            consume(TokenType::SEMICOLON, "Expect ';' after assignment value.");
+            // *** 修改点 2 ***
+            // consume(TokenType::SEMICOLON, "Expect ';' after assignment value.");
+            consumeStatementTerminator(); // 使用新的、更灵活的终止符检查
+
             return std::make_unique<HithinkAssignmentStatement>(name, std::move(value), isOutput);
         } else {
-            // 类型转换失败，说明赋值目标不合法 (例如 " (a+b): 1; ")。
             error(assign_op, "Invalid assignment target.");
             return nullptr;
         }
     } else {
-        // 如果表达式后面不是赋值运算符，那它就是一个表达式语句。
-        consume(TokenType::SEMICOLON, "Expect ';' after expression statement.");
+        // *** 修改点 3 ***
+        // consume(TokenType::SEMICOLON, "Expect ';' after expression statement.");
+        consumeStatementTerminator(); // 使用新的、更灵活的终止符检查
+        
         return std::make_unique<HithinkExpressionStatement>(std::move(expr));
     }
 }

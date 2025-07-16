@@ -36,8 +36,7 @@ private:
 
     // 语法规则对应的解析方法
     std::unique_ptr<HithinkStatement> statement();
-    std::unique_ptr<HithinkStatement> assignmentOrExpressionStatement();
-
+    void consumeStatementTerminator();
     std::unique_ptr<HithinkExpression> expression();
     // 新增：解析逻辑运算符 (OR, AND)
     std::unique_ptr<HithinkExpression> logic_or();
