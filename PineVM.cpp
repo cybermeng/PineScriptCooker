@@ -90,6 +90,8 @@ double PineVM::getNumericValue(const Value& val) {
         return *p;
     } else if (auto* p = std::get_if<std::shared_ptr<Series>>(&val)) {
         return (*p)->getCurrent(bar_index);
+    }if (std::holds_alternative<std::monostate>(val)){
+        return NAN;            
     } else {
         throw std::runtime_error("Unsupported operand type for numeric operation.");
     }
@@ -184,7 +186,9 @@ void PineVM::runCurrentBar() {
             case OpCode::EQUAL_EQUAL:
             case OpCode::BANG_EQUAL:
             case OpCode::GREATER:
-            case OpCode::GREATER_EQUAL: {
+            case OpCode::GREATER_EQUAL:
+            case OpCode::LOGICAL_AND:
+            case OpCode::LOGICAL_OR: {
                 double right = getNumericValue(pop());
                 double left = getNumericValue(pop());
                 if (ip->op == OpCode::ADD) pushNumbericValue(left + right, ip->operand);
@@ -202,6 +206,16 @@ void PineVM::runCurrentBar() {
                 else if (ip->op == OpCode::BANG_EQUAL) pushNumbericValue(left != right, ip->operand);
                 else if (ip->op == OpCode::GREATER) pushNumbericValue(left > right, ip->operand);
                 else if (ip->op == OpCode::GREATER_EQUAL) pushNumbericValue(left >= right, ip->operand);
+                else if (ip->op == OpCode::LOGICAL_AND) {
+                    // 在Hithink中, 非0且非NaN为true, 结果为1.0或0.0
+                    bool result = (left != 0.0 && !std::isnan(left)) && (right != 0.0 && !std::isnan(right));
+                    pushNumbericValue(result ? 1.0 : 0.0, ip->operand);
+                }
+                else if (ip->op == OpCode::LOGICAL_OR) {
+                    // 在Hithink中, 非0且非NaN为true, 结果为1.0或0.0
+                    bool result = (left != 0.0 && !std::isnan(left)) || (right != 0.0 && !std::isnan(right));
+                    pushNumbericValue(result ? 1.0 : 0.0, ip->operand);
+                }
                 break;
                 }
             case OpCode::LOAD_GLOBAL: {
@@ -359,7 +373,7 @@ void PineVM::registerBuiltins() {
         return result_series;
     };
     
-    built_in_funcs["EMA"] = built_in_funcs["ta.ema"] = [](PineVM& vm) -> Value {
+    built_in_funcs["ema"] = built_in_funcs["ta.ema"] = [](PineVM& vm) -> Value {
         Value length_val = vm.pop();
         Value source_val = vm.pop();
         
@@ -503,7 +517,7 @@ void PineVM::registerBuiltins() {
         return rsi_series;
     };
     
-    built_in_funcs["MA"] = [](PineVM& vm) -> Value {
+    built_in_funcs["ma"] = [](PineVM& vm) -> Value {
         // Hithink/TDX SMA函数有三个参数: SMA(X,N,M)
         // X: 源数据, N: 周期, M: 权重 (通常为1, 表示简单移动平均)
         Value weight_val = vm.pop(); // M
@@ -544,7 +558,7 @@ void PineVM::registerBuiltins() {
 
         return result_series;
     };
-    built_in_funcs["MAX"] = [](PineVM& vm) -> Value {
+    built_in_funcs["max"] = [](PineVM& vm) -> Value {
         Value val2 = vm.pop();
         Value val1 = vm.pop();
 
@@ -556,7 +570,7 @@ void PineVM::registerBuiltins() {
         }
         return std::max(dval1, dval2);
     };
-    built_in_funcs["MIN"] = [](PineVM& vm) -> Value {
+    built_in_funcs["min"] = [](PineVM& vm) -> Value {
         Value val2 = vm.pop();
         Value val1 = vm.pop();
 
@@ -568,7 +582,15 @@ void PineVM::registerBuiltins() {
         }
         return std::min(dval1, dval2);
     };
-    built_in_funcs["LLV"] = [](PineVM& vm) -> Value {
+    built_in_funcs["abs"] = [](PineVM& vm) -> Value {
+        Value val = vm.pop();
+        double dval = vm.getNumericValue(val);
+        if (std::isnan(dval)) {
+            return NAN;
+        }
+        return std::abs(dval);
+    };
+    built_in_funcs["llv"] = [](PineVM& vm) -> Value {
         Value length_val = vm.pop();
         Value source_val = vm.pop();
 
@@ -606,7 +628,7 @@ void PineVM::registerBuiltins() {
         return result_series;
     };
 
-    built_in_funcs["HHV"] = [](PineVM& vm) -> Value {
+    built_in_funcs["hhv"] = [](PineVM& vm) -> Value {
         Value length_val = vm.pop();
         Value source_val = vm.pop();
 
@@ -643,7 +665,7 @@ void PineVM::registerBuiltins() {
         }
         return result_series;
     };
-    built_in_funcs["SMA"] = [](PineVM& vm) -> Value {
+    built_in_funcs["sma"] = [](PineVM& vm) -> Value {
          // Hithink/TDX SMA函数有三个参数: SMA(X,N,M)
         // X: 源数据, N: 周期, M: 权重 (通常为1, 表示简单移动平均)
         Value weight_val = vm.pop(); // M
@@ -684,7 +706,7 @@ void PineVM::registerBuiltins() {
 
         return result_series;
     };
-    built_in_funcs["SUM"] = [](PineVM& vm) -> Value {
+    built_in_funcs["sum"] = [](PineVM& vm) -> Value {
         Value length_val = vm.pop();
         Value source_val = vm.pop();
 
@@ -719,7 +741,7 @@ void PineVM::registerBuiltins() {
         return result_series;
     };
 
-    built_in_funcs["COUNT"] = [](PineVM& vm) -> Value {
+    built_in_funcs["count"] = [](PineVM& vm) -> Value {
         Value length_val = vm.pop();
         Value condition_val = vm.pop();
 
@@ -750,7 +772,7 @@ void PineVM::registerBuiltins() {
         }
         return result_series;
     };
-    built_in_funcs["REF"] = [](PineVM& vm) -> Value {
+    built_in_funcs["ref"] = [](PineVM& vm) -> Value {
         Value offset_val = vm.pop();
         Value source_val = vm.pop();
 
@@ -775,7 +797,7 @@ void PineVM::registerBuiltins() {
         }
         return result_series;
     };
-    built_in_funcs["IF"] = [](PineVM& vm) -> Value {
+    built_in_funcs["if"] = [](PineVM& vm) -> Value {
         Value false_val = vm.pop();
         Value true_val = vm.pop();
         Value condition_val = vm.pop();
@@ -789,7 +811,7 @@ void PineVM::registerBuiltins() {
         }
     };
 
-    built_in_funcs["CROSS"] = [](PineVM& vm) -> Value {
+    built_in_funcs["cross"] = [](PineVM& vm) -> Value {
         Value val2 = vm.pop();
         Value val1 = vm.pop();
 
@@ -1133,6 +1155,8 @@ std::string PineVM::bytecodeToTxt(const Bytecode& bytecode)
             case OpCode::BANG_EQUAL: result += "BANG_EQUAL " + std::to_string(instr.operand); break;
             case OpCode::GREATER: result += "GREATER " + std::to_string(instr.operand); break;
             case OpCode::GREATER_EQUAL: result += "GREATER_EQUAL " + std::to_string(instr.operand); break;
+            case OpCode::LOGICAL_AND: result += "LOGICAL_AND " + std::to_string(instr.operand); break;
+            case OpCode::LOGICAL_OR: result += "LOGICAL_OR " + std::to_string(instr.operand); break;
             case OpCode::LOAD_BUILTIN_VAR:
                 result += "LOAD_BUILTIN_VAR " + std::to_string(instr.operand);
                 break;
@@ -1235,6 +1259,8 @@ Bytecode PineVM::txtToBytecode(const std::string& txt)
         {"BANG_EQUAL", OpCode::BANG_EQUAL},
         {"GREATER", OpCode::GREATER},
         {"GREATER_EQUAL", OpCode::GREATER_EQUAL},
+        {"LOGICAL_AND", OpCode::LOGICAL_AND},
+        {"LOGICAL_OR", OpCode::LOGICAL_OR},
         {"LOAD_BUILTIN_VAR", OpCode::LOAD_BUILTIN_VAR},
         {"LOAD_GLOBAL", OpCode::LOAD_GLOBAL},
         {"STORE_GLOBAL", OpCode::STORE_GLOBAL},

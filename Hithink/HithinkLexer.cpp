@@ -1,7 +1,8 @@
 #include "HithinkLexer.h"
-#include <cctype>   // for std::isalpha, std::isdigit, std::isalnum
+#include <cctype>   // for std::isalpha, std::isdigit, std::isalnum, std::toupper
 #include <string>   // for std::string in makeToken
 #include <string_view> // for std::string_view
+#include <algorithm> // for std::transform
 
 // 检查一个字符是否可以作为标识符的开头
 // 允许：ASCII字母, 下划线, 或任何多字节字符 (如中文)
@@ -124,9 +125,17 @@ void HithinkLexer::skipWhitespace() {
 Token HithinkLexer::identifier() {
     while (isIdentifierChar(peek())) advance();
     
-    // 检查是否为 'select' 关键字
     std::string_view text = source_.substr(start_, current_ - start_);
-    if (text == "select") return makeToken(TokenType::SELECT);
+    
+    // 为了不区分大小写地处理关键字
+    std::string upper_text;
+    upper_text.resize(text.length());
+    std::transform(text.begin(), text.end(), upper_text.begin(),
+                   [](unsigned char c){ return std::toupper(c); });
+
+    if (upper_text == "SELECT") return makeToken(TokenType::SELECT);
+    if (upper_text == "AND") return makeToken(TokenType::AND);
+    if (upper_text == "OR") return makeToken(TokenType::OR);
 
     // Hithink的函数名和内置变量(如C, O, MA)都作为标识符处理，由Parser或Semantic Analyzer识别
     return makeToken(TokenType::IDENTIFIER);

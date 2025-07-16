@@ -149,8 +149,36 @@ std::unique_ptr<HithinkStatement> HithinkParser::statement() {
 }
 
 std::unique_ptr<HithinkExpression> HithinkParser::expression() {
-    // 表达式解析的唯一入口，从最低优先级的比较开始。
-    return comparison();
+    // 表达式解析的唯一入口，从最低优先级的逻辑OR开始。
+    return logic_or();
+}
+
+// 新增：解析逻辑 OR 运算符
+std::unique_ptr<HithinkExpression> HithinkParser::logic_or() {
+    auto expr = logic_and(); // 操作数是更高优先级的 logic_and
+    if (!expr) return nullptr;
+
+    while (match(TokenType::OR)) {
+        Token op = previous_;
+        auto right = logic_and(); // 右操作数也是 logic_and
+        if (!right) return nullptr;
+        expr = std::make_unique<HithinkBinaryExpression>(std::move(expr), op, std::move(right));
+    }
+    return expr;
+}
+
+// 新增：解析逻辑 AND 运算符
+std::unique_ptr<HithinkExpression> HithinkParser::logic_and() {
+    auto expr = comparison(); // 操作数是更高优先级的 comparison
+    if (!expr) return nullptr;
+
+    while (match(TokenType::AND)) {
+        Token op = previous_;
+        auto right = comparison(); // 右操作数也是 comparison
+        if (!right) return nullptr;
+        expr = std::make_unique<HithinkBinaryExpression>(std::move(expr), op, std::move(right));
+    }
+    return expr;
 }
 
 // 解析比较运算符 (>, >=, <, <=, ==, !=)

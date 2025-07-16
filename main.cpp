@@ -221,8 +221,7 @@ int main(int argc, char* argv[]) {
     std::string hithink_source = R"(
         aa=min(o,c);
         bb=abs(o-c);
-        //select count(( h-aa>3*bb and 3*(aa-l)<bb and bb>0 and c>ma(c,5) and c>ma(c,10) and c>ma(c,20)),1)>=1;
-        select count(aa>bb and bb>1)>=1;
+        select count(( h-aa>3*bb and 3*(aa-l)<bb and bb>0 and c>ma(c,5) and c>ma(c,10) and c>ma(c,20)),1)>=1
     )";
     /*
          //Zero : 0;

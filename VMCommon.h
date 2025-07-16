@@ -32,6 +32,9 @@ enum class OpCode {
     BANG_EQUAL,
     GREATER,
     GREATER_EQUAL,
+
+    LOGICAL_AND,
+    LOGICAL_OR,
     
     // 变量操作
     LOAD_BUILTIN_VAR,   // 加载一个内置变量 (如 'close')

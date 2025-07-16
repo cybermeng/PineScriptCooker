@@ -77,6 +77,8 @@ void HithinkCompiler::visit(HithinkBinaryExpression& node) {
         case TokenType::LESS_EQUAL: emitByteForMath(OpCode::LESS_EQUAL); break;
         case TokenType::EQUAL: emitByteForMath(OpCode::EQUAL_EQUAL); break;
         case TokenType::BANG_EQUAL: emitByteForMath(OpCode::BANG_EQUAL); break;
+        case TokenType::AND: emitByteForMath(OpCode::LOGICAL_AND); break;
+        case TokenType::OR: emitByteForMath(OpCode::LOGICAL_OR); break;
         default: throw std::runtime_error("Unknown binary operator.");
     }
 }
@@ -97,8 +99,7 @@ void HithinkCompiler::visit(HithinkFunctionCallExpression& node) {
         // 3. 编译绘图语句 (plot(price, text))
         node.arguments[2]->accept(*this); // text (plot name)
         node.arguments[1]->accept(*this); // price (series)
-        int plotNameIndex = addConstant(builtin_mappings.at("DRAWTEXT")); // "plot"
-        emitByteWithOperand(OpCode::PUSH_CONST, plotNameIndex);
+        int plotNameIndex = addConstant(builtin_mappings.at("drawtext")); // "plot"
         emitByteWithOperand(OpCode::CALL_PLOT, 3); // CALL_PLOT (plot_name, series, color), always 3 args
 
         // 4. 回填跳转指令
@@ -112,6 +113,9 @@ void HithinkCompiler::visit(HithinkFunctionCallExpression& node) {
     }
 
     std::string funcName = node.name.lexeme;
+    // 将函数名转换为小写，因为PineVM的内置函数名是小写的
+    std::transform(funcName.begin(), funcName.end(), funcName.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
     if (builtin_mappings.count(funcName)) {
         funcName = builtin_mappings.at(funcName); // 使用映射
     }

@@ -39,8 +39,10 @@ private:
     std::unique_ptr<HithinkStatement> assignmentOrExpressionStatement();
 
     std::unique_ptr<HithinkExpression> expression();
-    // Hithink/TDX的逻辑运算通常通过函数(如AND,OR)或比较运算符组合实现
-    // 因此我们的表达式解析直接从比较运算符的优先级开始
+    // 新增：解析逻辑运算符 (OR, AND)
+    std::unique_ptr<HithinkExpression> logic_or();
+    std::unique_ptr<HithinkExpression> logic_and();
+    // 解析比较运算符
     std::unique_ptr<HithinkExpression> comparison();
     std::unique_ptr<HithinkExpression> term();
     std::unique_ptr<HithinkExpression> factor();
