@@ -135,6 +135,7 @@ private:
     Value& storeGlobal(int operand, const Value& val);
     
     double getNumericValue(const Value& val);
+    bool getBoolValue(const Value& val);
     /**
      * @brief 注册所有由C++实现的内置函数 (如 ta.sma, input.int)。
      */

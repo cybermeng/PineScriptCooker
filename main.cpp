@@ -219,15 +219,10 @@ int main(int argc, char* argv[]) {
     )";
 
     std::string hithink_source = R"(
-        lc:ref(close,1);;
-        aa:abs(high-lc);
-        bb:abs(low-lc);
-        cc:abs(high-ref(low,1));
-        dd:abs(lc-ref(open,1));
-        rr:if(aa>bb and aa>cc,aa+bb/2+dd/4,if(bb>cc and bb>aa,bb+aa/2+dd/4,cc+dd/4));
-        xx:(close-lc+(close-open)/2+lc-ref(open,1));
-        si:16*xx/rr*max(aa,bb);asi值:sum(si,26);; 
-        select count(( asi值=hhv(asi值,5日)),1)>=1
+        adtm值=if(c>0,c/o,if(stm==sbm,0,(stm-sbm)/sbm));
+        maadtm值=ma(adtm值,8);
+        idxval=adtm值;
+        select count((maadtm值<ref(maadtm值,1) and hhv(maadtm值,3)=hhv(maadtm值,10)),1)>=1
         
         )";
     /*

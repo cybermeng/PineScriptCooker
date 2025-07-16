@@ -88,13 +88,33 @@ Value PineVM::pop() {
 double PineVM::getNumericValue(const Value& val) {
     if (auto* p = std::get_if<double>(&val)) {
         return *p;
-    } else if (auto* p = std::get_if<std::shared_ptr<Series>>(&val)) {
-        return (*p)->getCurrent(bar_index);
-    }if (std::holds_alternative<std::monostate>(val)){
-        return NAN;            
-    } else {
-        throw std::runtime_error("Unsupported operand type for numeric operation.");
     }
+    if (auto* p = std::get_if<std::shared_ptr<Series>>(&val)) {
+        return *p ? (*p)->getCurrent(bar_index) : NAN;
+    }
+    if (std::holds_alternative<bool>(val)){
+        return static_cast<double>(std::get<bool>(val));            
+    }
+    if (std::holds_alternative<std::monostate>(val)){
+        return NAN;            
+    }
+    throw std::runtime_error("Unsupported operand type for numeric operation.");
+ }
+
+bool PineVM::getBoolValue(const Value& val) {
+    if (auto* p = std::get_if<bool>(&val)) {
+        return *p;
+    }
+    if (auto* p = std::get_if<std::shared_ptr<Series>>(&val)) {
+        return *p ? static_cast<bool>((*p)->getCurrent(bar_index)) : NAN;
+    }
+    if (std::holds_alternative<double>(val)){
+        return static_cast<bool>(std::get<double>(val));            
+    }
+    if (std::holds_alternative<std::monostate>(val)){
+        return NAN;            
+    }
+    throw std::runtime_error("Unsupported operand type for bool operation.");
 }
 
 void PineVM::pushNumbericValue(double val, int operand) {
@@ -518,44 +538,45 @@ void PineVM::registerBuiltins() {
     };
     
     built_in_funcs["ma"] = [](PineVM& vm) -> Value {
-        // Hithink/TDX SMA函数有三个参数: SMA(X,N,M)
-        // X: 源数据, N: 周期, M: 权重 (通常为1, 表示简单移动平均)
-        Value weight_val = vm.pop(); // M
         Value length_val = vm.pop();
         Value source_val = vm.pop();
         
         int current_bar = vm.getCurrentBarIndex();
         int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        // 基于函数和参数创建唯一的缓存键，以支持状态保持
-        std::string cache_key = "MA(" + source_series->name + "~" + std::to_string(length) + ")";
 
         std::shared_ptr<Series> result_series;
-        if (vm.builtin_func_cache.count(cache_key)) {
-            result_series = vm.builtin_func_cache.at(cache_key);
-        } else {
-            result_series = std::make_shared<Series>();
-            result_series->name = cache_key;
-            vm.builtin_func_cache[cache_key] = result_series;
-        }
-        
-        // 仅当尚未为当前K线计算时才计算
-        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
-            double sum = 0.0;
-            int count = 0;
-            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
-                double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val)) {
-                    sum += val;
-                    count++;
-                }
+
+        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
+        if(p) {
+            auto source_series = *p;
+
+            // 基于函数和参数创建唯一的缓存键，以支持状态保持
+            std::string cache_key = "MA(" + source_series->name + "~" + std::to_string(length) + ")";
+
+            if (vm.builtin_func_cache.count(cache_key)) {
+                result_series = vm.builtin_func_cache.at(cache_key);
+            } else {
+                result_series = std::make_shared<Series>();
+                result_series->name = cache_key;
+                vm.builtin_func_cache[cache_key] = result_series;
             }
             
-            double ma_val = (count == length)? sum / count : NAN;
-            result_series->setCurrent(current_bar, ma_val);
+            // 仅当尚未为当前K线计算时才计算
+            if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar])) {
+                double sum = 0.0;
+                int count = 0;
+                for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                    double val = source_series->getCurrent(current_bar - i);
+                    if (!std::isnan(val)) {
+                        sum += val;
+                        count++;
+                    }
+                }
+                
+                double ma_val = (count == length)? sum / count : NAN;
+                result_series->setCurrent(current_bar, ma_val);
+            }
         }
-
         return result_series;
     };
     built_in_funcs["max"] = [](PineVM& vm) -> Value {
@@ -594,13 +615,18 @@ void PineVM::registerBuiltins() {
         Value length_val = vm.pop();
         Value source_val = vm.pop();
 
+         std::shared_ptr<Series> result_series;
+
+        auto* p = std::get_if<std::shared_ptr<Series>>(&source_val);
+        if (!p) {
+            return result_series;
+        }
+        auto source_series = *p;
         int current_bar = vm.getCurrentBarIndex();
         int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
+ 
         std::string cache_key = "LLV(" + source_series->name + "~" + std::to_string(length) + ")";
 
-        std::shared_ptr<Series> result_series;
         if (vm.builtin_func_cache.count(cache_key)) {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
@@ -632,13 +658,18 @@ void PineVM::registerBuiltins() {
         Value length_val = vm.pop();
         Value source_val = vm.pop();
 
+         std::shared_ptr<Series> result_series;
+
+        auto* p = std::get_if<std::shared_ptr<Series>>(&source_val);
+        if (!p) {
+            return result_series;
+        }
+        auto source_series = *p;
         int current_bar = vm.getCurrentBarIndex();
         int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
+ 
         std::string cache_key = "HHV(" + source_series->name + "~" + std::to_string(length) + ")";
 
-        std::shared_ptr<Series> result_series;
         if (vm.builtin_func_cache.count(cache_key)) {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
@@ -775,14 +806,18 @@ void PineVM::registerBuiltins() {
     built_in_funcs["ref"] = [](PineVM& vm) -> Value {
         Value offset_val = vm.pop();
         Value source_val = vm.pop();
+        std::shared_ptr<Series> result_series;
 
+        auto* p = std::get_if<std::shared_ptr<Series>>(&source_val);
+        if (!p) {
+            return result_series;
+        }
+        auto source_series = *p;
         int current_bar = vm.getCurrentBarIndex();
         int offset = static_cast<int>(vm.getNumericValue(offset_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
 
         std::string cache_key = "REF(" + source_series->name + "~" + std::to_string(offset) + ")";
 
-        std::shared_ptr<Series> result_series;
         if (vm.builtin_func_cache.count(cache_key)) {
             result_series = vm.builtin_func_cache.at(cache_key);
         } else {
@@ -802,7 +837,7 @@ void PineVM::registerBuiltins() {
         Value true_val = vm.pop();
         Value condition_val = vm.pop();
 
-        bool condition = std::get<bool>(condition_val);
+        bool condition = vm.getBoolValue(condition_val);
 
         if (condition) {
             return true_val;

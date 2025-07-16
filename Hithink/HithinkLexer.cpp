@@ -50,6 +50,11 @@ Token HithinkLexer::scanToken() {
         case '>':
             return makeToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER);
         case '=':
+            // 支持 == 和 = 都作为相等判断符号。
+            // match('=') 会在存在第二个'='时消耗它。
+            // 无论如何，都返回EQUAL类型。makeToken会根据current_指针
+            // 正确地生成 "=" 或 "==" 的文本。
+            match('=');
             return makeToken(TokenType::EQUAL);
         case '\'': return string();
     }
