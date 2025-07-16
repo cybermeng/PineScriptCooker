@@ -12,6 +12,7 @@ struct HithinkAstNode;
 struct HithinkStatement;
 struct HithinkExpression;
 struct HithinkAstVisitor; // 前向声明访问者
+struct HithinkEmptyStatement; // 空语句，例如单独的分号
 
 struct HithinkAssignmentStatement;
 struct HithinkExpressionStatement;
@@ -33,6 +34,7 @@ struct HithinkAstVisitor {
     virtual void visit(HithinkLiteralExpression& node) = 0;
     virtual void visit(HithinkUnaryExpression& node) = 0;
     virtual void visit(HithinkVariableExpression& node) = 0;
+    virtual void visit(HithinkEmptyStatement& stmt) = 0;
 };
 
 // 所有 Hithink AST 节点的基类
@@ -48,6 +50,9 @@ struct HithinkStatement : HithinkAstNode {};
 struct HithinkExpression : HithinkAstNode {};
 
 // --- 具体的语句节点 ---
+struct HithinkEmptyStatement : HithinkStatement {
+    void accept(HithinkAstVisitor& visitor) override { visitor.visit(*this); }
+   };
 
 // 赋值语句节点, 用于 `MA5: MA(C, 5);` 或 `V1 := C > O;`
 struct HithinkAssignmentStatement : HithinkStatement {

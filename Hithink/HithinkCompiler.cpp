@@ -45,6 +45,11 @@ Bytecode HithinkCompiler::compile(std::string_view source) {
     return bytecode;
 }
 
+void HithinkCompiler::visit(HithinkEmptyStatement& stmt) {
+    // 空语句不需要生成任何字节码
+    // 编译器会简单地跳过它
+}
+
 void HithinkCompiler::visit(HithinkAssignmentStatement& node) {
     node.value->accept(*this);
     if (node.isOutput) {

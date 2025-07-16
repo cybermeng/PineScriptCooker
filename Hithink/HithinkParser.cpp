@@ -8,14 +8,20 @@ HithinkParser::HithinkParser(std::string_view source) : lexer_(source), hadError
 
 std::vector<std::unique_ptr<HithinkStatement>> HithinkParser::parse() {
     std::vector<std::unique_ptr<HithinkStatement>> statements;
+    
+    // The loop is now much simpler. It just keeps parsing statements
+    // until the end of the file. Empty statements (;) are handled by `statement()`.
     while (!check(TokenType::END_OF_FILE)) {
         auto stmt = statement();
         if (stmt) {
             statements.push_back(std::move(stmt));
         } else if (hadError_) {
-            // 如果解析语句时出错，尝试同步到下一条语句的开头
             synchronize();
         }
+        // If statement() returns nullptr without an error, it might be due to a
+        // recoverable issue where we just want to skip to the next token.
+        // The current implementation of statement() should always return a node
+        // or signal an error.
     }
     return statements;
 }
@@ -110,6 +116,12 @@ void HithinkParser::consumeStatementTerminator() {
 }
 
 std::unique_ptr<HithinkStatement> HithinkParser::statement() {
+    // An empty statement is just a single semicolon.
+    //
+    if (match(TokenType::SEMICOLON)) {
+        return std::make_unique<HithinkEmptyStatement>();
+    }
+    
     if (match(TokenType::SELECT)) {
         Token selectKeyword = previous_;
         auto condition = expression();

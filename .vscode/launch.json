@@ -7,8 +7,8 @@
             "request": "launch",
             // 关键：指向 CMake 构建任务生成的可执行文件
             "program": "${workspaceFolder}/build/PineVM.exe",
-            "args": ["-f", "../../us.hithink"],
-            //"args": [],
+            //"args": ["-f", "../../us.hithink"],
+            "args": [],
             "stopAtEntry": false,
             // 关键：将工作目录设置为可执行文件所在的目录，以便能找到 duckdb.dll
             "cwd": "${workspaceFolder}/build",

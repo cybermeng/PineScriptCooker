@@ -219,10 +219,17 @@ int main(int argc, char* argv[]) {
     )";
 
     std::string hithink_source = R"(
-        aa=min(o,c);
-        bb=abs(o-c);
-        select count(( h-aa>3*bb and 3*(aa-l)<bb and bb>0 and c>ma(c,5) and c>ma(c,10) and c>ma(c,20)),1)>=1
-    )";
+        lc:ref(close,1);;
+        aa:abs(high-lc);
+        bb:abs(low-lc);
+        cc:abs(high-ref(low,1));
+        dd:abs(lc-ref(open,1));
+        rr:if(aa>bb and aa>cc,aa+bb/2+dd/4,if(bb>cc and bb>aa,bb+aa/2+dd/4,cc+dd/4));
+        xx:(close-lc+(close-open)/2+lc-ref(open,1));
+        si:16*xx/rr*max(aa,bb);asi值:sum(si,26);; 
+        select count(( asi值=hhv(asi值,5日)),1)>=1
+        
+        )";
     /*
          //Zero : 0;
         DIF : EMA(CLOSE,6) - EMA(CLOSE,13);

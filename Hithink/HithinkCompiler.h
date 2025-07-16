@@ -19,6 +19,7 @@ public:
 
 private:
     // HithinkAstVisitor 方法，用于遍历 AST
+    void visit(HithinkEmptyStatement& stmt) override;
     void visit(HithinkAssignmentStatement& node) override;
     void visit(HithinkExpressionStatement& node) override;
     void visit(HithinkBinaryExpression& node) override;
