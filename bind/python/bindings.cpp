@@ -21,7 +21,8 @@ PYBIND11_MODULE(pine_vm_core, m) {
         // 绑定构造函数
         .def(py::init<>())
         // 将 C++ 的 compile_to_str 方法在 Python 中暴露为 compile
-        .def("compile", &HithinkCompiler::compile_to_str, "Compiles Hithink script to bytecode string.");
+        .def("compile", &HithinkCompiler::compile_to_str, "Compiles Hithink script to bytecode string.")
+        .def("hadError", &HithinkCompiler::hadError, "Checks if the last compilation had errors.");
 
     // 绑定 PineVM 类
     py::class_<PineVM>(m, "PineVM")
