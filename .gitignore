@@ -1,2 +1,4 @@
 build/
 db/result.csv
+bind/python/pine_vm.egg-info/
+bind/python/pine_vm/__pycache__/

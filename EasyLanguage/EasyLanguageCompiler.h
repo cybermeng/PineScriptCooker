@@ -9,6 +9,7 @@ class EasyLanguageCompiler : public ELAstVisitor {
 public:
     EasyLanguageCompiler();
     Bytecode compile(const std::vector<std::unique_ptr<ELStatement>>& statements);
+    std::string compile_to_str(std::string_view source);
 
 private:
     // ELAstVisitor methods

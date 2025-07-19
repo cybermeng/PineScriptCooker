@@ -45,6 +45,15 @@ Bytecode HithinkCompiler::compile(std::string_view source) {
     return bytecode;
 }
 
+std::string HithinkCompiler::compile_to_str(std::string_view source)
+{
+    Bytecode compiled_bytecode = compile(source);
+    if (hadError()) {
+        return "Compilation failed.";
+    }
+    return bytecodeToTxt(compiled_bytecode);
+}
+
 void HithinkCompiler::visit(HithinkEmptyStatement& stmt) {
     // 空语句不需要生成任何字节码
     // 编译器会简单地跳过它

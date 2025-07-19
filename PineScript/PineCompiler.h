@@ -8,6 +8,7 @@ class PineCompiler : public AstVisitor, public ExprVisitor {
 public:
     PineCompiler();
     Bytecode compile(const std::string& source);
+    std::string compile_to_str(const std::string& source);
 
 private:
     // AstVisitor methods

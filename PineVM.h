@@ -79,7 +79,7 @@ public:
     std::string getPlottedResultsAsString() const;
 
     void registerSeries(const std::string& name, std::shared_ptr<Series> series);
-
+ 
     /**
      * @brief 获取一个已注册的序列。
      * @param name 序列的名称 (例如 "open", "close").
@@ -95,9 +95,6 @@ public:
         }
         return nullptr;
     }
-
-    static std::string bytecodeToTxt(const Bytecode& bytecode);
-    static Bytecode txtToBytecode(const std::string& txt);
 private:
     /**
      * @using BuiltinFunction
@@ -118,7 +115,7 @@ private:
     int bar_index;
 
     // --- 内置环境 ---
-    std::map<std::string, Value> built_in_vars;
+    std::map<std::string, Value> built_in_vars;     //用于存储内置数据，开高低收成交量
     std::map<std::string, BuiltinFunction> built_in_funcs;
     std::map<std::string, std::shared_ptr<Series>> builtin_func_cache;
 

@@ -113,3 +113,6 @@ struct PlottedSeries {
     std::shared_ptr<Series> series;
     std::string color;
 };
+
+std::string bytecodeToTxt(const Bytecode& bytecode);
+Bytecode txtToBytecode(const std::string& txt);

@@ -14,6 +14,7 @@ public:
     HithinkCompiler();
 
     Bytecode compile(std::string_view source);
+    std::string compile_to_str(std::string_view source);
 
     bool hadError() const;
 

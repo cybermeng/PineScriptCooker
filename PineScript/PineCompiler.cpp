@@ -17,6 +17,11 @@ Bytecode PineCompiler::compile(const std::string& source) {
     return bytecode;
 }
 
+std::string PineCompiler::compile_to_str(const std::string& source)
+{
+    Bytecode compiled_bytecode = compile(source);
+    return bytecodeToTxt(compiled_bytecode);
+}
 
 // --- 访问者实现 ---
 

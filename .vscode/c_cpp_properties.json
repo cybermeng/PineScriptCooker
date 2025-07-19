@@ -5,7 +5,8 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "${workspaceFolder}/EasyLanguage",
-                "${workspaceFolder}/PineScript"
+                "${workspaceFolder}/PineScript",
+                "${workspaceFolder}/Hithink"
             ],
             "defines": [
                 "_DEBUG",

@@ -1,0 +1,13 @@
+# This file tells pip what it needs to install BEFORE it can even run setup.py
+[build-system]
+# List the build-time dependencies here.
+# pybind11 is needed to run setup.py and find headers.
+# numpy is needed because our C++ code uses py::array_t, which requires NumPy C headers.
+requires = [
+    "setuptools>=61.0",
+    "wheel",
+    "pybind11>=2.10",
+    "numpy"
+]
+# This tells pip to use setuptools as the build backend.
+build-backend = "setuptools.build_meta"

@@ -26,6 +26,8 @@ set(SOURCES
     DataSource/JsonDataSource.cpp
     DataSource/CSVDataSource.cpp
     PineVM.cpp
+    VMCommon.cpp
+
     PineScript/PineCompiler.cpp
     PineScript/PineParser.cpp
     PineScript/PineLexer.cpp
