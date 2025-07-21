@@ -16,6 +16,8 @@ const std::unordered_map<std::string, std::string> HithinkCompiler::builtin_mapp
     {"L", "low"},
     {"VOL", "volume"},
     {"V", "volume"},
+    {"DATE", "time"},
+    {"TIME", "time"},
     // 将 DRAWTEXT 映射到一个绘图函数。为简单起见，我们使用 plot。
     // VM 的 plot 函数是 `plot(series, title, color)`
     // DRAWTEXT 是 `DRAWTEXT(COND, PRICE, TEXT)`。我们可以将其映射到 plot(PRICE, TEXT)。
@@ -183,7 +185,7 @@ void HithinkCompiler::resolveAndEmitLoad(const Token& name) {
     }
 
     // 1. 尝试作为内置变量加载 (例如 'close')
-    if (varName == "close" || varName == "high" || varName == "low" || varName == "open" || varName == "volume") {
+    if (varName == "close" || varName == "high" || varName == "low" || varName == "open" || varName == "volume" || varName == "time") {
         int constIndex = addConstant(varName);
         emitByteWithOperand(OpCode::LOAD_BUILTIN_VAR, constIndex);
         return;

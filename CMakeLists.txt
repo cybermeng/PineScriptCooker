@@ -58,33 +58,71 @@ add_executable(PineVM ${SOURCES})
 target_include_directories(PineVM PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # -----------------------------------------------------------------------------
-# 链接外部库 (DuckDB)
+# 链接外部库 (DuckDB) - 跨平台优化版本
 # -----------------------------------------------------------------------------
 
-# 指定 DuckDB 库文件的路径。
-# 我们假设 duckdb.lib 和 duckdb.dll 位于项目的根目录。
-set(DUCKDB_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/duckdb.lib)
-set(DUCKDB_DLL ${CMAKE_CURRENT_SOURCE_DIR}/duckdb.dll)
+# 我们使用 Imported Target 的方式来处理 DuckDB 库，这是现代 CMake 的推荐做法。
+# 它将库的实际文件路径抽象为一个目标，使得链接代码平台无关。
+add_library(duckdb SHARED IMPORTED GLOBAL)
 
-# 检查库文件是否存在，如果不存在则给出错误提示。
-if(NOT EXISTS ${DUCKDB_LIBRARY})
-    message(FATAL_ERROR "DuckDB library not found at ${DUCKDB_LIBRARY}")
+# 根据不同的操作系统，设置 duckdb 目标的不同属性。
+if(WIN32)
+    # 在 Windows 上，我们需要动态链接库 (.dll) 和导入库 (.lib)
+    set(DUCKDB_SHARED_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/duckdb.dll")
+    set(DUCKDB_IMPORT_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/duckdb.lib")
+
+    # 检查文件是否存在
+    if(NOT EXISTS "${DUCKDB_SHARED_LIB_PATH}" OR NOT EXISTS "${DUCKDB_IMPORT_LIB_PATH}")
+        message(FATAL_ERROR "DuckDB 库文件 (duckdb.dll/duckdb.lib) 未在项目根目录找到。")
+    endif()
+
+    # 设置 Imported Target 的属性
+    set_target_properties(duckdb PROPERTIES
+        IMPORTED_LOCATION "${DUCKDB_SHARED_LIB_PATH}"
+        IMPORTED_IMPLIB "${DUCKDB_IMPORT_LIB_PATH}"
+    )
+
+elseif(UNIX AND NOT APPLE)
+    # 在 Linux 上，我们只需要共享对象文件 (.so)
+    set(DUCKDB_SHARED_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libduckdb.so")
+
+    if(NOT EXISTS "${DUCKDB_SHARED_LIB_PATH}")
+        message(FATAL_ERROR "DuckDB 库文件 (libduckdb.so) 未在项目根目录找到。")
+    endif()
+
+    set_target_properties(duckdb PROPERTIES
+        IMPORTED_LOCATION "${DUCKDB_SHARED_LIB_PATH}"
+    )
+
+elseif(APPLE)
+    # 在 macOS 上，我们只需要动态库文件 (.dylib)
+    set(DUCKDB_SHARED_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/libduckdb.dylib")
+
+    if(NOT EXISTS "${DUCKDB_SHARED_LIB_PATH}")
+        message(FATAL_ERROR "DuckDB 库文件 (libduckdb.dylib) 未在项目根目录找到。")
+    endif()
+
+    set_target_properties(duckdb PROPERTIES
+        IMPORTED_LOCATION "${DUCKDB_SHARED_LIB_PATH}"
+    )
+else()
+    message(FATAL_ERROR "不支持的操作系统平台。")
 endif()
-if(NOT EXISTS ${DUCKDB_DLL})
-    message(FATAL_ERROR "DuckDB DLL not found at ${DUCKDB_DLL}")
-endif()
+
 
 # 将 DuckDB 库链接到我们的可执行文件。
-target_link_libraries(PineVM PRIVATE ${DUCKDB_LIBRARY})
+# 因为我们使用了 Imported Target，所以这里只需要写目标名 "duckdb" 即可，CMake 会自动处理。
+target_link_libraries(PineVM PRIVATE duckdb)
 
-# 添加一个构建后命令，将 duckdb.dll 复制到可执行文件所在的目录。
-# 这对于在 Windows 上运行程序是必需的。
+# 添加一个构建后命令，将 DuckDB 的动态库复制到可执行文件所在的目录。
+# 这对于在所有平台上方便地运行程序都是必需的。
+# ${DUCKDB_SHARED_LIB_PATH} 变量已经在上面的 if/else 块中被正确设置。
 add_custom_command(
     TARGET PineVM POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
-    "${DUCKDB_DLL}"
-    "$<TARGET_FILE_DIR:PineVM>"
-    COMMENT "Copying duckdb.dll to build directory")
+        "${DUCKDB_SHARED_LIB_PATH}"
+        "$<TARGET_FILE_DIR:PineVM>"
+    COMMENT "Copying DuckDB shared library to build directory")
 
 # 打印一条消息，方便用户知道配置已完成。
 message(STATUS "配置完成。现在你可以构建 'PineVM' 目标了。")
