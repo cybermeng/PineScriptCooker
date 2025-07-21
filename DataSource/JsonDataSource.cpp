@@ -25,8 +25,8 @@ void JsonDataSource::initialize() {
         throw std::runtime_error("Failed to connect to DuckDB database.");
     }
 
-    // 1. Get row count
-    std::string count_query = "SELECT count(*) FROM read_json_auto('" + file_path + "')";
+    // 1. Get row count from the newline-delimited JSON file.
+    std::string count_query = "SELECT count(*) FROM read_json_auto('" + file_path + "', format='newline_delimited')";
     duckdb_result count_result;
     if (duckdb_query(con, count_query.c_str(), &count_result) != DuckDBSuccess) {
         std::string error_msg = "DuckDB query failed: " + std::string(duckdb_result_error(&count_result));
@@ -40,8 +40,26 @@ void JsonDataSource::initialize() {
     num_bars = duckdb_value_int64(&count_result, 0, 0);
     duckdb_destroy_result(&count_result);
 
-    // 2. Create a table from the JSON for later use
-    std::string create_table_query = "CREATE TABLE market_data AS SELECT * FROM read_json_auto('" + file_path + "')";
+    // 2. Create a clean, structured table from the complex JSON source.
+    // This query does all the heavy lifting:
+    //  - Reads the file as newline-delimited JSON.
+    //  - Accesses the nested time value using `time."$date"`. Note the quotes around "$date".
+    //  - Casts the ISO 8601 date string to a proper TIMESTAMP.
+    //  - Selects the data columns by their quoted numeric names ("7", "8", etc.).
+    //  - Casts the data columns to DOUBLE to ensure correct type.
+    //  - Renames all columns to standard names (time, open, high, etc.) for easy access later.
+    // Using a raw string literal R"(...)" makes the SQL much cleaner to write in C++.
+    std::string create_table_query = R"(
+        CREATE TABLE market_data AS SELECT
+            CAST(time."$date" AS TIMESTAMP) AS time,
+            CAST("7" AS DOUBLE) AS open,
+            CAST("8" AS DOUBLE) AS high,
+            CAST("9" AS DOUBLE) AS low,
+            CAST("11" AS DOUBLE) AS close,
+            CAST("13" AS DOUBLE) AS volume
+        FROM read_json_auto(')" + file_path + R"(', format='newline_delimited')
+    )";
+
     duckdb_result create_result;
     if (duckdb_query(con, create_table_query.c_str(), &create_result) != DuckDBSuccess) {
         std::string error_msg = "Failed to create market_data table from JSON: " + std::string(duckdb_result_error(&create_result));
@@ -49,24 +67,22 @@ void JsonDataSource::initialize() {
         throw std::runtime_error(error_msg);
     }
     duckdb_destroy_result(&create_result);
-    
 }
 
 void JsonDataSource::loadData(PineVM& vm) {
     duckdb_result result;
-    // 修改查询以使用带引号的数字列名，匹配 amzn.json 和 aapl.json 等文件的格式。
-    // DuckDB的read_json_auto会将这些键作为列名。
-    // 我们使用 AS 来重命名它们，以便VM的其余部分可以按名称 ("open", "high", etc.) 找到它们。
-    // 注意：这假设了JSON文件中的列名是 "7", "8", "9", "11", "13"。
-    std::string query = R"(SELECT trade_date AS time, "7" AS open, "8" AS high, "9" AS low, "11" AS close, "13" AS volume FROM market_data ORDER BY "trade_date" ASC)";
+    // Because initialize() created a clean table, this query is simple and standard.
+    // It reads from the 'market_data' table which now has standard column names and types.
+    std::string query = "SELECT epoch(time), strftime(time, '%Y%m%d'), open, high, low, close, volume FROM market_data ORDER BY time ASC";
+    
     if (duckdb_query(con, query.c_str(), &result) != DuckDBSuccess) {
         std::string error_msg = "Failed to query market_data table: " + std::string(duckdb_result_error(&result));
         duckdb_destroy_result(&result);
         throw std::runtime_error(error_msg);
     }
 
-    // 在加载数据之前，确保VM中存在这些序列
     vm.registerSeries("time", std::make_shared<Series>());
+    vm.registerSeries("date", std::make_shared<Series>());
     vm.registerSeries("open", std::make_shared<Series>());
     vm.registerSeries("high", std::make_shared<Series>());
     vm.registerSeries("low", std::make_shared<Series>());
@@ -74,24 +90,27 @@ void JsonDataSource::loadData(PineVM& vm) {
     vm.registerSeries("volume", std::make_shared<Series>());
 
     auto* time_series = vm.getSeries("time");
+    auto* date_series = vm.getSeries("date");
     auto* open_series = vm.getSeries("open");
     auto* high_series = vm.getSeries("high");
     auto* low_series = vm.getSeries("low");
     auto* close_series = vm.getSeries("close");
     auto* volume_series = vm.getSeries("volume");
 
-    if (!time_series || !open_series || !high_series || !low_series || !close_series || !volume_series) {
+    if (!time_series || !date_series || !open_series || !high_series || !low_series || !close_series || !volume_series) {
         duckdb_destroy_result(&result);
         throw std::runtime_error("One or more required series (open, high, low, close, volume) not found in PineVM.");
     }
 
-    for (idx_t r = 0; r < num_bars; ++r) {
-        time_series->data.push_back(duckdb_value_double(&result, 0, r));
-        open_series->data.push_back(duckdb_value_double(&result, 1, r));
-        high_series->data.push_back(duckdb_value_double(&result, 2, r));
-        low_series->data.push_back(duckdb_value_double(&result, 3, r));
-        close_series->data.push_back(duckdb_value_double(&result, 4, r));
-        volume_series->data.push_back(duckdb_value_double(&result, 5, r));
+    idx_t row_count = duckdb_row_count(&result);
+    for (idx_t r = 0; r < row_count; ++r) {
+        time_series->data.push_back(duckdb_value_double(&result, 0, r)); // epoch(time)
+        date_series->data.push_back(duckdb_value_double(&result, 1, r));
+        open_series->data.push_back(duckdb_value_double(&result, 2, r));
+        high_series->data.push_back(duckdb_value_double(&result, 3, r));
+        low_series->data.push_back(duckdb_value_double(&result, 4, r));
+        close_series->data.push_back(duckdb_value_double(&result, 5, r));
+        volume_series->data.push_back(duckdb_value_double(&result, 6, r));
     }
 
     duckdb_destroy_result(&result);

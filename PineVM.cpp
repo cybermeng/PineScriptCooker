@@ -947,8 +947,15 @@ void PineVM::printPlottedResults() const {
             if (std::isnan(val)) {
                 std::cout << "nan";
             } else {
-                long long date_int = static_cast<long long>(val);
-                std::cout << date_int;
+                //long long date_int = static_cast<long long>(val);
+                //std::cout << date_int;
+                // 将Unix时间戳转换为YYYYMMDD格式
+                time_t rawtime = static_cast<time_t>(val);
+                struct tm* dt;
+                char buffer[80];
+                dt = localtime(&rawtime);
+                strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", dt);
+                std::cout << buffer;
             }
         };
 
@@ -1058,8 +1065,13 @@ void PineVM::writePlottedResultsToStream(std::ostream& stream) const {
             first_series = true;
             if (time_series) {
                 if (i < time_series->data.size()) {
-                    // 时间戳通常不需要小数，使用 std::fixed 和 setprecision(0)
-                    stream << std::fixed << std::setprecision(0) << time_series->data[i];
+                    // 将Unix时间戳转换为YYYYMMDD格式
+                    time_t rawtime = static_cast<time_t>(time_series->data[i]);
+                    struct tm* dt;
+                    char buffer[80];
+                    dt = localtime(&rawtime);
+                    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", dt);
+                    stream << std::fixed << buffer;
                 }
                 first_series = false;
             }
