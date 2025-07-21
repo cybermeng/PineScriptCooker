@@ -104,46 +104,73 @@
                 <h2>1. PineVM Bytecode</h2>
                 <textarea id="bytecodeInput">--- Bytecode ---
 0: LOAD_BUILTIN_VAR 0
-1: PUSH_CONST 1
-2: CALL_BUILTIN_FUNC 2
-3: LOAD_BUILTIN_VAR 3
-4: PUSH_CONST 4
-5: CALL_BUILTIN_FUNC 5
-6: SUB 0
-7: STORE_AND_PLOT_GLOBAL 0
-8: LOAD_GLOBAL 0
-9: PUSH_CONST 6
-10: CALL_BUILTIN_FUNC 7
-11: STORE_AND_PLOT_GLOBAL 1
-12: PUSH_CONST 8
-13: LOAD_GLOBAL 0
-14: LOAD_GLOBAL 1
-15: SUB 1
-16: MUL 2
-17: STORE_AND_PLOT_GLOBAL 2
-18: HALT
+1: LOAD_BUILTIN_VAR 1
+2: PUSH_CONST 2
+3: CALL_BUILTIN_FUNC 3
+4: SUB 0
+5: LOAD_BUILTIN_VAR 4
+6: PUSH_CONST 5
+7: CALL_BUILTIN_FUNC 6
+8: LOAD_BUILTIN_VAR 7
+9: PUSH_CONST 8
+10: CALL_BUILTIN_FUNC 9
+11: SUB 1
+12: DIV 2
+13: PUSH_CONST 10
+14: MUL 3
+15: STORE_GLOBAL 0
+16: LOAD_GLOBAL 0
+17: PUSH_CONST 11
+18: PUSH_CONST 12
+19: CALL_BUILTIN_FUNC 13
+20: STORE_AND_PLOT_GLOBAL 1
+21: LOAD_GLOBAL 1
+22: PUSH_CONST 14
+23: PUSH_CONST 15
+24: CALL_BUILTIN_FUNC 16
+25: STORE_AND_PLOT_GLOBAL 2
+26: PUSH_CONST 17
+27: LOAD_GLOBAL 1
+28: MUL 4
+29: PUSH_CONST 18
+30: LOAD_GLOBAL 2
+31: MUL 5
+32: SUB 6
+33: STORE_AND_PLOT_GLOBAL 3
+34: HALT
 
 --- Variable Number ---
-3
+7
 
 --- Constant Pool ---
 0: "close"
-1: 6.000000
-2: "EMA"
-3: "close"
-4: 13.000000
-5: "EMA"
-6: 4.000000
-7: "EMA"
-8: 2.000000
+1: "low"
+2: 9.000000
+3: "llv"
+4: "high"
+5: 9.000000
+6: "hhv"
+7: "low"
+8: 9.000000
+9: "llv"
+10: 100.000000
+11: 3.000000
+12: 1.000000
+13: "sma"
+14: 3.000000
+15: 1.000000
+16: "sma"
+17: 3.000000
+18: 2.000000
 
 --- Global Name Pool ---
-0: DIF
-1: DEA
-2: macd
+0: RSV
+1: K
+2: D
+3: J
 
 --- Validation ---
-Checksum: 2612350577</textarea>
+Checksum: 4144766355</textarea>
                 
                 <h2>2. Financial Time Series Data</h2>
                 <p style="font-size: 0.9em; color: #555; margin-bottom: 5px; margin-top: -5px;">Manually edit data below, or drag & drop a data file here.</p>
