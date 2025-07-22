@@ -10,6 +10,9 @@ const outputElement = document.getElementById('output');
 const controlPanel = document.getElementById('control-panel');
 const panelToggle = document.getElementById('panel-toggle');
 const chartDom = document.getElementById('chart-main');
+// 新增的UI元素
+const formulaInput = document.getElementById('formulaInput');
+const compileButton = document.getElementById('compileButton');
 
 // --- ECharts Initialization ---
 let myChart = echarts.init(chartDom);
@@ -57,20 +60,42 @@ dataInput.addEventListener('drop', (event) => {
 // --- Data Processing and Charting Logic ---
 
 /**
- * Parses raw financial data (JSON lines) into a format for ECharts.
+ * Parses raw financial data (JSON lines, JSON array, or sequential objects) 
+ * into a format for ECharts.
  * Sorts data by date ascending and extracts K-line, volume, and dates.
- * @param {string} financialData - String of newline-separated JSON objects.
+ * @param {string} financialData - String of financial data.
  * @returns {{dates: string[], kline: number[][], volumes: number[], volumeColors: string[], code: string}}
  */
 function parseFinancialData(financialData) {
     const upColor = '#00da3c';
     const downColor = '#ec0000';
-
-    const lines = financialData.trim().split('\n');
-    if (lines.length === 0 || lines[0].trim() === '') {
+    
+    const trimmedData = financialData.trim();
+    if (trimmedData === '') {
         throw new Error("Input data is empty.");
     }
-    const data = lines.map(line => JSON.parse(line));
+
+    let data;
+    try {
+        // First, try to parse it as a standard JSON array. This is the most common format.
+        if (trimmedData.startsWith('[') && trimmedData.endsWith(']')) {
+            data = JSON.parse(trimmedData);
+        } else {
+            // Handle JSON Lines or sequential pretty-printed objects.
+            // This is the key fix: wrap with brackets and add commas between objects.
+            // The regex `/\}\s*\{/g` finds a closing brace `}`, followed by optional whitespace,
+            // followed by an opening brace `{`, and replaces it with `},{`.
+            const arrayString = '[' + trimmedData.replace(/}\s*\{/g, '},{') + ']';
+            data = JSON.parse(arrayString);
+        }
+    } catch (e) {
+        console.error("Failed to parse financial data as JSON.", e, "Raw data:", financialData);
+        throw new Error(`Invalid JSON format in K-line data. Check console for details. Original error: ${e.message}`);
+    }
+
+    if (!Array.isArray(data) || data.length === 0) {
+        throw new Error("Parsed financial data is not a non-empty array.");
+    }
     
     // Sort by date ascending to ensure correct calculations
     data.sort((a, b) => a.trade_date - b.trade_date);
@@ -293,12 +318,49 @@ createPineVmModule()
         statusElement.textContent = 'WebAssembly Module Loaded!';
         statusElement.style.color = 'green';
         executeButton.disabled = false;
+        compileButton.disabled = false;
         myChart.hideLoading();
         myChart.setOption({ title: { text: 'Ready to Execute', left: 'center', top: 'center' } });
 
         const runPineCalculationJS = Module.cwrap('run_pine_calculation', 'string', ['string', 'number']);
+        const pineCompilerJS = Module.cwrap('pine_compiler', 'string', ['string']);
 
+        // --- New: Compile Button Logic ---
+        compileButton.addEventListener('click', () => {
+            compileButton.disabled = true;
+            executeButton.disabled = true; // Also disable run button during compile
+            bytecodeInput.value = "Compiling...";
+            outputElement.textContent = 'Compiling script...';
+
+            setTimeout(() => {
+                try {
+                    const formula = formulaInput.value;
+                    if (!formula.trim()) {
+                        throw new Error("Formula is empty.");
+                    }
+                    const startTime = performance.now();
+                    const bytecodeResult = pineCompilerJS(formula);
+                    const endTime = performance.now();
+
+                    if (bytecodeResult.startsWith("Error:")) {
+                        throw new Error(bytecodeResult);
+                    }
+                    bytecodeInput.value = bytecodeResult;
+                    outputElement.textContent = `Compilation successful in ${(endTime - startTime).toFixed(2)} ms. Ready to run.`;
+                } catch (compileError) {
+                    bytecodeInput.value = `// Compilation Failed`;
+                    outputElement.textContent = `Compilation Failed: ${compileError.message}`;
+                    console.error("Compilation error:", compileError);
+                } finally {
+                    compileButton.disabled = false;
+                    executeButton.disabled = false;
+                }
+            }, 10);
+        });
+
+        // --- Modified: Execute Button Logic ---
         executeButton.addEventListener('click', () => {
+            compileButton.disabled = true; // Disable compile while running
             executeButton.disabled = true;
             outputElement.textContent = 'Processing...';
             myChart.showLoading();
@@ -306,7 +368,7 @@ createPineVmModule()
             setTimeout(() => {
                 let marketData;
                 let indicatorData = null;
-                let dataPtr = 0; // <<<<<< 新增：用于存储内存指针
+                let dataPtr = 0;
 
                 try {
                     const financialData = dataInput.value;
@@ -314,25 +376,18 @@ createPineVmModule()
                     
                     try {
                         const bytecode = bytecodeInput.value;
-                        // --- 使用高层API stringToUTF8 进行手动内存管理 ---
-
-                        // 1. 估算所需内存。UTF-8编码一个JS字符最多需要4个字节。
-                        //    为安全起见，我们分配 `financialData.length * 4 + 1` 字节。
-                        //    这有点浪费，但能确保缓冲区足够大。
                         const maxBytes = (financialData.length * 4) + 1;
                         dataPtr = Module._malloc(maxBytes);
                         if (dataPtr === 0) {
                             throw new Error("Failed to allocate memory in WASM heap for financial data.");
                         }
 
-                        // 2. 使用 Module.stringToUTF8 将JS字符串直接编码并写入WASM内存。
-                        //    这个函数会处理UTF-8转换和空终止符。
                         Module.stringToUTF8(financialData, dataPtr, maxBytes);
 
                         const startTime = performance.now();
-                         // 3. 调用C++函数，传递指针而不是字符串
                         const wasmResultString = runPineCalculationJS(bytecode, dataPtr);
                         const endTime = performance.now();
+                        
                         outputElement.textContent = wasmResultString;
                         console.log(`WASM execution time: ${(endTime - startTime).toFixed(2)} ms`);
                         indicatorData = parseWasmResult(wasmResultString);
@@ -349,10 +404,10 @@ createPineVmModule()
                     myChart.setOption({ title: { text: 'Error: Could not parse financial data.', left: 'center', top: 'center', textStyle: {color: 'red'} } }, true);
                     console.error(criticalError);
                 } finally {
-                    // 4. 释放之前分配的内存，防止内存泄漏
                     if (dataPtr !== 0) {
                         Module._free(dataPtr);
                     }
+                    compileButton.disabled = false;
                     executeButton.disabled = false;
                 }
             }, 10);
@@ -365,5 +420,5 @@ createPineVmModule()
         myChart.setOption({ title: { text: 'WASM Load Failed', left: 'center', top: 'center', textStyle: {color: 'red'} } });
         console.error("WASM Loading Error:", error);
     });
-
+        
 window.addEventListener('resize', () => myChart.resize());

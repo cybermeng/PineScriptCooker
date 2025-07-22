@@ -5,7 +5,7 @@ setlocal
 
 :: --- Configuration ---
 :: C++ source files to compile
-set SOURCES=main.cpp ../../PineVM.cpp ../../Hithink/HithinkCompiler.cpp ../../VMCommon.cpp
+set SOURCES=main.cpp ../../PineVM.cpp ../../Hithink/HithinkCompiler.cpp ../../VMCommon.cpp ../../Hithink/HithinkParser.cpp ../../Hithink/HithinkLexer.cpp
 
 :: Output directory for build artifacts
 set OUTPUT_DIR=public

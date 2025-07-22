@@ -1,0 +1,145 @@
+:root {
+    --panel-width: 400px;
+    --border-color: #ccc;
+    --background-color: #f8f9fa;
+    --button-bg: #007bff;
+    --button-hover-bg: #0056b3;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    overflow: hidden;
+}
+
+.main-container {
+    display: flex;
+    width: 100%;
+    height: 100vh;
+}
+
+#control-panel {
+    position: relative;
+    width: var(--panel-width);
+    flex-shrink: 0;
+    background-color: var(--background-color);
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    transition: all 0.3s ease-in-out;
+    overflow-y: auto;
+}
+
+#control-panel.collapsed {
+    width: 0;
+    padding: 0;
+    border-right: none;
+    overflow: hidden;
+}
+
+.panel-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: calc(var(--panel-width) - 30px);
+}
+
+#panel-toggle {
+    position: absolute;
+    top: 50%;
+    right: -21px;
+    transform: translateY(-50%);
+    width: 20px;
+    height: 50px;
+    border: 1px solid var(--border-color);
+    border-left: none;
+    background-color: var(--background-color);
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0;
+    z-index: 10;
+    border-radius: 0 5px 5px 0;
+}
+
+#control-panel.collapsed #panel-toggle {
+    right: -20px;
+}
+
+#chart-container {
+    flex-grow: 1;
+    height: 100%;
+    padding: 10px;
+}
+
+#chart-main {
+    width: 100%;
+    height: 100%;
+}
+
+label {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    resize: vertical;
+}
+
+#dataInput.drag-over {
+    border-color: var(--button-bg);
+    box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
+}
+
+button {
+    padding: 10px 15px;
+    background-color: var(--button-bg);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.2s;
+}
+
+button:hover:not(:disabled) {
+    background-color: var(--button-hover-bg);
+}
+
+button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
+
+#status {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background: #e9ecef;
+}
+
+#output {
+    flex-grow: 1;
+    background: #333;
+    color: #eee;
+    padding: 10px;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 12px;
+    overflow-y: auto;
+    min-height: 50px;
+}

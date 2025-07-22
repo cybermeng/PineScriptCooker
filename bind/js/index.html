@@ -1,180 +1,31 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PineVM WebAssembly Executor & Charting</title>
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-    <style>
-        :root {
-            --panel-width: 450px;
-            --panel-bg: #f8f9fa;
-            --border-color: #dee2e6;
-            --primary-color: #007bff;
-            --primary-hover: #0056b3;
-            --text-color: #333;
-        }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; background-color: #f4f4f9; color: var(--text-color); overflow: hidden; }
-        .main-container { display: flex; height: 100vh; }
-        
-        #control-panel {
-            width: var(--panel-width);
-            height: 100%;
-            background-color: var(--panel-bg);
-            border-right: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            transition: width 0.3s ease, padding 0.3s ease;
-            overflow: hidden;
-            position: relative;
-        }
-        #panel-content {
-            padding: 20px;
-            overflow-y: auto;
-            flex-grow: 1;
-        }
-        #control-panel.collapsed {
-            width: 0;
-            padding: 0;
-        }
-        #control-panel.collapsed #panel-content {
-            display: none;
-        }
-
-        #panel-toggle {
-            position: absolute;
-            top: 50%;
-            right: -16px;
-            transform: translateY(-50%);
-            width: 16px;
-            height: 60px;
-            background-color: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            border-left: none;
-            border-radius: 0 5px 5px 0;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            color: var(--primary-color);
-            z-index: 10;
-        }
-        #panel-toggle:hover {
-            background-color: #e9ecef;
-        }
-
-        #chart-area {
-            flex-grow: 1;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-        }
-        #chart-main {
-            width: 100%;
-            height: 100%;
-        }
-
-        h1, h2 { color: #0056b3; margin-top: 0; }
-        h1 { margin-bottom: 20px; }
-        h2 { font-size: 1.2em; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; margin-bottom: 10px; }
-
-        textarea, pre { width: 100%; box-sizing: border-box; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-family: "Courier New", Courier, monospace; font-size: 12px; background-color: #fff; }
-        textarea { resize: vertical; transition: border-color 0.2s, box-shadow 0.2s; }
-        #bytecodeInput { height: 200px; }
-        #dataInput { height: 150px; }
-        #dataInput.drag-over {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 8px rgba(0, 123, 255, 0.5);
-        }
-        #output { height: 120px; white-space: pre-wrap; word-wrap: break-word; background-color: #282c34; color: #abb2bf; overflow-y: auto; }
-        button { display: block; width: 100%; padding: 12px; margin-top: 15px; font-size: 16px; font-weight: bold; color: #fff; background-color: var(--primary-color); border: none; border-radius: 4px; cursor: pointer; transition: background-color 0.3s; }
-        button:hover:not(:disabled) { background-color: var(--primary-hover); }
-        button:disabled { background-color: #cccccc; cursor: not-allowed; }
-        .status-loader { padding: 20px; text-align: center; font-size: 16px; color: #555; }
-    </style>
+    <title>Pine Script WASM Runner</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="main-container">
+        <!-- 左侧控制面板 -->
         <div id="control-panel">
-            <div id="panel-content">
-                <h1>PineVM Executor</h1>
-                <div id="status" class="status-loader">Loading WebAssembly Module...</div>
-                
-                <h2>1. PineVM Bytecode</h2>
-                <textarea id="bytecodeInput">--- Bytecode ---
-0: LOAD_BUILTIN_VAR 0
-1: LOAD_BUILTIN_VAR 1
-2: PUSH_CONST 2
-3: CALL_BUILTIN_FUNC 3
-4: SUB 0
-5: LOAD_BUILTIN_VAR 4
-6: PUSH_CONST 5
-7: CALL_BUILTIN_FUNC 6
-8: LOAD_BUILTIN_VAR 7
-9: PUSH_CONST 8
-10: CALL_BUILTIN_FUNC 9
-11: SUB 1
-12: DIV 2
-13: PUSH_CONST 10
-14: MUL 3
-15: STORE_GLOBAL 0
-16: LOAD_GLOBAL 0
-17: PUSH_CONST 11
-18: PUSH_CONST 12
-19: CALL_BUILTIN_FUNC 13
-20: STORE_AND_PLOT_GLOBAL 1
-21: LOAD_GLOBAL 1
-22: PUSH_CONST 14
-23: PUSH_CONST 15
-24: CALL_BUILTIN_FUNC 16
-25: STORE_AND_PLOT_GLOBAL 2
-26: PUSH_CONST 17
-27: LOAD_GLOBAL 1
-28: MUL 4
-29: PUSH_CONST 18
-30: LOAD_GLOBAL 2
-31: MUL 5
-32: SUB 6
-33: STORE_AND_PLOT_GLOBAL 3
-34: HALT
+            <button id="panel-toggle"><</button>
+            <div class="panel-content">
+                <h2>控制面板</h2>
 
---- Variable Number ---
-7
+                <label for="formulaInput">1. 输入公式代码</label>
+                <textarea id="formulaInput" rows="5">RSV:=(CLOSE-LLV(LOW,9))/(HHV(HIGH,9)-LLV(LOW,9))*100;
+K:SMA(RSV,3,1);
+D:SMA(K,3,1);
+J:3*K-2*D;</textarea>
+                <button id="compileButton" disabled>编译</button>
 
---- Constant Pool ---
-0: "close"
-1: "low"
-2: 9.000000
-3: "llv"
-4: "high"
-5: 9.000000
-6: "hhv"
-7: "low"
-8: 9.000000
-9: "llv"
-10: 100.000000
-11: 3.000000
-12: 1.000000
-13: "sma"
-14: 3.000000
-15: 1.000000
-16: "sma"
-17: 3.000000
-18: 2.000000
+                <label for="bytecodeInput">2. Bytecode (编译后生成)</label>
+                <textarea id="bytecodeInput" rows="8" placeholder="点击“编译”按钮生成Bytecode..."></textarea>
 
---- Global Name Pool ---
-0: RSV
-1: K
-2: D
-3: J
-
---- Validation ---
-Checksum: 4144766355</textarea>
-                
-                <h2>2. Financial Time Series Data</h2>
-                <p style="font-size: 0.9em; color: #555; margin-bottom: 5px; margin-top: -5px;">Manually edit data below, or drag & drop a data file here.</p>
-                <textarea id="dataInput">{"code":"AAPL","trade_date":20241224,"7":255.49,"8":258.21,"9":255.29,"11":258.2,"13":118558400}
+                <label for="dataInput">3. 输入K线数据 (JSON Lines)</label>
+                <textarea id="dataInput" rows="10" placeholder="拖放或粘贴JSON Lines格式的K线数据...">{"code":"AAPL","trade_date":20241224,"7":255.49,"8":258.21,"9":255.29,"11":258.2,"13":118558400}
 {"code":"AAPL","trade_date":20241220,"7":248.04,"8":255.0,"9":245.69,"11":254.49,"13":120404400}
 {"code":"AAPL","trade_date":20241226,"7":258.19,"8":260.1,"9":257.63,"11":259.02,"13":93349600}
 {"code":"AAPL","trade_date":20241227,"7":257.83,"8":258.7,"9":253.06,"11":255.59,"13":104454400}
@@ -218,22 +69,25 @@ Checksum: 4144766355</textarea>
 {"code":"AAPL","trade_date":20250225,"7":248.0,"8":250.0,"9":244.91,"11":247.04,"13":84688400}
 {"code":"AAPL","trade_date":20250226,"7":244.33,"8":244.98,"9":239.13,"11":240.36,"13":108316800}
 {"code":"AAPL","trade_date":20250227,"7":239.41,"8":242.46,"9":237.06,"11":237.3,"13":124804400}
-{"code":"AAPL","trade_date":20250228,"7":236.95,"8":242.09,"9":230.2,"11":241.84,"13":163312800}
-</textarea>
+{"code":"AAPL","trade_date":20250228,"7":236.95,"8":242.09,"9":230.2,"11":241.84,"13":163312800}</textarea>
+                
+                <button id="executeButton" disabled>运行 & 绘图</button>
 
-                <h2>3. Execute & View Results</h2>
-                <button id="executeButton" disabled>Execute & Render Chart</button>
-                <pre id="output">Raw WASM output will appear here...</pre>
-
+                <label for="output">信息显示</label>
+                <div id="status">正在加载 WebAssembly 模块...</div>
+                <pre id="output">请先编译代码，然后运行。</pre>
             </div>
-            <div id="panel-toggle" title="Toggle Panel"><</div>
         </div>
 
-        <div id="chart-area">
+        <!-- 右侧图表区域 -->
+        <div id="chart-container">
             <div id="chart-main"></div>
         </div>
     </div>
 
+    <!-- 引入 ECharts 库 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <!-- 引入主逻辑脚本 -->
     <script type="module" src="main.js"></script>
 </body>
 </html>

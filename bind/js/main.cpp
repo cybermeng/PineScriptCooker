@@ -7,6 +7,8 @@
 #include <emscripten/bind.h>
 
 #include "../../PineVM.h"
+#include "../../Hithink/HithinkCompiler.h"
+
 
 // 从单行"JSON"中提取值的辅助函数 (非鲁棒)
 double extract_json_double(const std::string& line, const std::string& key) {
@@ -60,6 +62,37 @@ void parse_and_load_data(PineVM& vm, const std::string& data_string) {
         low_series->data.push_back(extract_json_double(line, "\"9\":"));
         close_series->data.push_back(extract_json_double(line, "\"11\":"));
         volume_series->data.push_back(extract_json_double(line, "\"13\":"));
+    }
+}
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE
+// 暴露给JavaScript的主函数
+const char* pine_compiler(const char* source_code) {
+    // 将std::cout重定向到字符串流以捕获所有输出
+    static std::string bytecode_string; // 使用 static 变量来确保其生命周期足够长
+    std::stringstream output_buffer;
+    std::streambuf* old_cout_buf = std::cout.rdbuf(output_buffer.rdbuf());
+    std::streambuf* old_cerr_buf = std::cerr.rdbuf(output_buffer.rdbuf());
+
+    try {
+            HithinkCompiler compiler;
+            bytecode_string = compiler.compile_to_str(source_code);
+            if (compiler.hadError()) {
+                throw std::runtime_error("Hithink compilation failed.");
+            }
+        } catch (const std::exception& e) {
+            std::cerr << "\n!!! C++ EXCEPTION CAUGHT !!!\n" << e.what() << std::endl;
+        } catch (...) {
+            std::cerr << "\n!!! UNKNOWN C++ EXCEPTION CAUGHT !!!\n" << std::endl;
+        }
+       
+        // 恢复原始的 cout/cerr
+        std::cout.rdbuf(old_cout_buf);
+        std::cerr.rdbuf(old_cerr_buf);
+        
+        if(bytecode_string.empty())
+            bytecode_string = output_buffer.str();
+        return bytecode_string.c_str(); // 返回一个 C 风格字符串指针
     }
 }
 

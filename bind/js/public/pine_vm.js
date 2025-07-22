@@ -4150,6 +4150,8 @@ function checkIncomingModuleAPI() {
 // Imports from the Wasm binary.
 var ___cxa_free_exception = makeInvalidEarlyAccess("___cxa_free_exception");
 
+var _pine_compiler = Module["_pine_compiler"] = makeInvalidEarlyAccess("_pine_compiler");
+
 var _run_pine_calculation = Module["_run_pine_calculation"] = makeInvalidEarlyAccess("_run_pine_calculation");
 
 var _fflush = makeInvalidEarlyAccess("_fflush");
@@ -4196,6 +4198,7 @@ var ___cxa_get_exception_ptr = makeInvalidEarlyAccess("___cxa_get_exception_ptr"
 
 function assignWasmExports(wasmExports) {
   ___cxa_free_exception = createExportWrapper("__cxa_free_exception", 1);
+  Module["_pine_compiler"] = _pine_compiler = createExportWrapper("pine_compiler", 1);
   Module["_run_pine_calculation"] = _run_pine_calculation = createExportWrapper("run_pine_calculation", 2);
   _fflush = createExportWrapper("fflush", 1);
   _strerror = createExportWrapper("strerror", 1);
