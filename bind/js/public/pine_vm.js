@@ -1071,6 +1071,19 @@ function __localtime_js(time, tmPtr) {
   SAFE_HEAP_STORE(HEAP32, (((tmPtr) + (32)) >> 2), dst);
 }
 
+var __timegm_js = function(tmPtr) {
+  var ret = (() => {
+    var time = Date.UTC(SAFE_HEAP_LOAD(HEAP32, (((tmPtr) + (20)) >> 2)) + 1900, SAFE_HEAP_LOAD(HEAP32, (((tmPtr) + (16)) >> 2)), SAFE_HEAP_LOAD(HEAP32, (((tmPtr) + (12)) >> 2)), SAFE_HEAP_LOAD(HEAP32, (((tmPtr) + (8)) >> 2)), SAFE_HEAP_LOAD(HEAP32, (((tmPtr) + (4)) >> 2)), SAFE_HEAP_LOAD(HEAP32, ((tmPtr) >> 2)), 0);
+    var date = new Date(time);
+    SAFE_HEAP_STORE(HEAP32, (((tmPtr) + (24)) >> 2), date.getUTCDay());
+    var start = Date.UTC(date.getUTCFullYear(), 0, 1, 0, 0, 0, 0);
+    var yday = ((date.getTime() - start) / (1e3 * 60 * 60 * 24)) | 0;
+    SAFE_HEAP_STORE(HEAP32, (((tmPtr) + (28)) >> 2), yday);
+    return date.getTime() / 1e3;
+  })();
+  return BigInt(ret);
+};
+
 var stringToUTF8Array = (str, heap, outIdx, maxBytesToWrite) => {
   assert(typeof str === "string", `stringToUTF8Array expects a string (got ${typeof str})`);
   // Parameter maxBytesToWrite is not optional. Negative values, 0, null,
@@ -4236,6 +4249,7 @@ var wasmImports = {
   /** @export */ __resumeException: ___resumeException,
   /** @export */ _abort_js: __abort_js,
   /** @export */ _localtime_js: __localtime_js,
+  /** @export */ _timegm_js: __timegm_js,
   /** @export */ _tzset_js: __tzset_js,
   /** @export */ alignfault,
   /** @export */ emscripten_resize_heap: _emscripten_resize_heap,
@@ -4261,6 +4275,7 @@ var wasmImports = {
   /** @export */ invoke_iiiiiiiiiii,
   /** @export */ invoke_iiiiiiiiiiii,
   /** @export */ invoke_iiiiiiiiiiiii,
+  /** @export */ invoke_ji,
   /** @export */ invoke_jiiii,
   /** @export */ invoke_v,
   /** @export */ invoke_vi,
@@ -4279,10 +4294,32 @@ var wasmImports = {
 
 var wasmExports = await createWasm();
 
+function invoke_viii(index, a1, a2, a3) {
+  var sp = stackSave();
+  try {
+    getWasmTableEntry(index)(a1, a2, a3);
+  } catch (e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
 function invoke_dii(index, a1, a2) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)(a1, a2);
+  } catch (e) {
+    stackRestore(sp);
+    if (!(e instanceof EmscriptenEH)) throw e;
+    _setThrew(1, 0);
+  }
+}
+
+function invoke_iiii(index, a1, a2, a3) {
+  var sp = stackSave();
+  try {
+    return getWasmTableEntry(index)(a1, a2, a3);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -4301,7 +4338,7 @@ function invoke_v(index) {
   }
 }
 
-function invoke_ii(index, a1) {
+function invoke_ji(index, a1) {
   var sp = stackSave();
   try {
     return getWasmTableEntry(index)(a1);
@@ -4309,13 +4346,14 @@ function invoke_ii(index, a1) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
     _setThrew(1, 0);
+    return 0n;
   }
 }
 
-function invoke_viii(index, a1, a2, a3) {
+function invoke_ii(index, a1) {
   var sp = stackSave();
   try {
-    getWasmTableEntry(index)(a1, a2, a3);
+    return getWasmTableEntry(index)(a1);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;
@@ -4338,17 +4376,6 @@ function invoke_vii(index, a1, a2) {
   var sp = stackSave();
   try {
     getWasmTableEntry(index)(a1, a2);
-  } catch (e) {
-    stackRestore(sp);
-    if (!(e instanceof EmscriptenEH)) throw e;
-    _setThrew(1, 0);
-  }
-}
-
-function invoke_iiii(index, a1, a2, a3) {
-  var sp = stackSave();
-  try {
-    return getWasmTableEntry(index)(a1, a2, a3);
   } catch (e) {
     stackRestore(sp);
     if (!(e instanceof EmscriptenEH)) throw e;

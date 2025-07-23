@@ -9,29 +9,54 @@
 #include "../../PineVM.h"
 #include "../../Hithink/HithinkCompiler.h"
 
+std::string extract_json_str(const std::string& line, const std::string& key) {
+    size_t key_pos = line.find(key);
+    if (key_pos == std::string::npos) return "";
+    size_t colon_pos = line.find(':', key_pos);
+    if (colon_pos == std::string::npos) return "";
+    size_t value_start = colon_pos + 1;
+    size_t value_end = line.find_first_of(",}", value_start);
+    if (value_end == std::string::npos) return "";
+
+    return line.substr(value_start, value_end - value_start);
+}
 
 // 从单行"JSON"中提取值的辅助函数 (非鲁棒)
 double extract_json_double(const std::string& line, const std::string& key) {
-    size_t key_pos = line.find(key);
-    if (key_pos == std::string::npos) return NAN;
-    size_t colon_pos = line.find(':', key_pos);
-    if (colon_pos == std::string::npos) return NAN;
-    size_t value_start = colon_pos + 1;
-    size_t value_end = line.find_first_of(",}", value_start);
-    if (value_end == std::string::npos) return NAN;
-
-    std::string val_str = line.substr(value_start, value_end - value_start);
     try {
-        return std::stod(val_str);
+        return std::stod(extract_json_str(line, key));
     } catch (...) {
         return NAN;
     }
+}
+
+double extract_json_timestamp(const std::string& line, const std::string& key) {
+    try {
+            std::string time_str = extract_json_str(line, key);
+            // 假设时间戳是YYYYMMDD格式的整数
+            // 将YYYYMMDD格式的整数日期转换为Unix时间戳
+            std::tm t{};
+            t.tm_year = std::stoi(time_str.substr(0, 4)) - 1900;
+            t.tm_mon = std::stoi(time_str.substr(4, 2)) - 1;
+            t.tm_mday = std::stoi(time_str.substr(6, 2));
+            // 设置时区为UTC，避免本地时区影响
+            // _mkgmtime is POSIX, _mktime64 is MSVC specific
+#ifdef _MSC_VER
+            return static_cast<double>(_mktime64(&t));
+#else
+            return static_cast<double>(timegm(&t));
+#endif
+        } catch (...) {
+            return NAN; // 或者其他错误指示
+        }
+        
 }
 
 // 解析金融数据字符串并将其加载到VM中
 void parse_and_load_data(PineVM& vm, const std::string& data_string) {
     // 注册VM中需要的序列
     vm.registerSeries("time", std::make_shared<Series>());
+    vm.registerSeries("date", std::make_shared<Series>());
     vm.registerSeries("open", std::make_shared<Series>());
     vm.registerSeries("high", std::make_shared<Series>());
     vm.registerSeries("low", std::make_shared<Series>());
@@ -40,6 +65,7 @@ void parse_and_load_data(PineVM& vm, const std::string& data_string) {
 
     // 获取指向序列的指针以便快速访问
     auto* time_series = vm.getSeries("time");
+    auto* date_series = vm.getSeries("date");
     auto* open_series = vm.getSeries("open");
     auto* high_series = vm.getSeries("high");
     auto* low_series = vm.getSeries("low");
@@ -56,7 +82,10 @@ void parse_and_load_data(PineVM& vm, const std::string& data_string) {
         if (line.empty() || line.find("{") == std::string::npos) continue;
 
         // "7": open, "8": high, "9": low, "11": close, "13": volume
-        time_series->data.push_back(extract_json_double(line, "\"trade_date\":"));
+        double time = extract_json_timestamp(line, "\"trade_date\":");
+
+        time_series->data.push_back(extract_json_timestamp(line, "\"trade_date\":"));
+        date_series->data.push_back(extract_json_double(line, "\"trade_date\":"));
         open_series->data.push_back(extract_json_double(line, "\"7\":"));
         high_series->data.push_back(extract_json_double(line, "\"8\":"));
         low_series->data.push_back(extract_json_double(line, "\"9\":"));
@@ -125,10 +154,10 @@ const char* run_pine_calculation(const char* bytecode_string_c, const char* fina
             
             if (num_bars > 0) {
                 std::cout << "bar number:" << num_bars << std::endl;
-                PineVM vm(num_bars);
+                PineVM vm();
                 parse_and_load_data(vm, financial_data_string);
                 vm.loadBytecode(bytecode_string);
-                vm.execute();
+                vm.execute(num_bars);
                 vm.printPlottedResults();
 
                 result_string = vm.getPlottedResultsAsString();

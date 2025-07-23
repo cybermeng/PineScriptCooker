@@ -242,7 +242,7 @@ int main(int argc, char* argv[]) {
         }
 
         // --- 初始化 VM 并注册数据 ---
-        PineVM vm(dataSource->getNumBars());
+        PineVM vm;
         dataSource->loadData(vm);
 
         // --- 3. 初始化并测量 VM 执行时间 ---
@@ -250,7 +250,7 @@ int main(int argc, char* argv[]) {
 
         std::cout << "\n--- Executing VM ---" << dataSource->getNumBars() << " bars ---" << std::endl;
         vm.loadBytecode(bytecode_str);
-        int result = vm.execute();
+        int result = vm.execute(dataSource->getNumBars());
 
         auto end_time = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);

@@ -1,3 +1,5 @@
+// --- PineVM.h (修改后) ---
+
 #pragma once
 
 #include <vector>
@@ -16,29 +18,38 @@
 
 /**
  * @class PineVM
- * @brief 一个用于执行 PineScript 字节码的堆栈式虚拟机。
+ * @brief 一个用于执行 PineScript 字节码的堆栈式虚拟机，支持全量和增量计算。
  */
 class PineVM {
 public:
     /**
-     * @brief PineVM 的构造函数
-     * @param total_bars 要模拟的历史K线柱总数
+     * @brief PineVM 的构造函数。
      */
-    PineVM(int total_bars);
+    PineVM(); // 不再需要 total_bars
     ~PineVM();
 
     /**
-     * @brief 加载要执行的字节码。
-     * @param 
+     * @brief 加载要执行的字节码，并重置VM状态，为新的计算做准备。
+     * @param code 字节码的文本表示。
      */
     void loadBytecode(const std::string& code);
     
     /**
-     * @brief 执行已加载的字节码，遍历所有历史K线柱。
+     * @brief 执行已加载的字节码，从当前 bar_index 计算到 new_total_bars。
+     *        可用于批量初始计算和后续的增量计算。
+     * @param new_total_bars 目标要计算到的总K线柱数量。
+     * @return 0表示成功, 非0表示失败。
+     * @example
+     *   // 首次批量计算1000根K线
+     *   vm.execute(1000);
+     * 
+     *   // 推送了1根新的K线数据后，进行增量计算
+     *   // (假设用户已更新了 "close", "open" 等序列的第1000个索引的数据)
+     *   vm.execute(1001); // 这次只会计算 bar_index = 1000
      */
-    int execute();
+    int execute(int new_total_bars);
 
-    // --- 公共API，主要供内置函数回调使用 ---
+    // --- 公共API，主要供内置函数回调和数据更新使用 ---
     
     /**
      * @brief 从操作数栈中弹出一个值。
@@ -72,23 +83,18 @@ public:
      */
     void printPlottedResults() const;
 
-      // 新的公共接口：写入到文件
     void writePlottedResultsToFile(const std::string& filename) const;
-
-    // 新的公共接口：获取结果为字符串
     std::string getPlottedResultsAsString() const;
-
     void registerSeries(const std::string& name, std::shared_ptr<Series> series);
  
     /**
-     * @brief 获取一个已注册的序列。
-     * @param name 序列的名称 (例如 "open", "close").
+     * @brief 获取一个已注册的序列。这是更新输入数据的关键接口。
+     * @param name 序列的名称 (例如 "open", "close")。
      * @return Series* 指向序列对象的原始指针，如果未找到则返回 nullptr。
      */
     Series* getSeries(const std::string& name) {
         auto it = built_in_vars.find(name);
         if (it != built_in_vars.end()) {
-            // 尝试将 Value 转换为 std::shared_ptr<Series>
             if (std::holds_alternative<std::shared_ptr<Series>>(it->second)) {
                 return std::get<std::shared_ptr<Series>>(it->second).get();
             }
@@ -96,11 +102,6 @@ public:
         return nullptr;
     }
 private:
-    /**
-     * @using BuiltinFunction
-     * @brief 定义了内置C++函数的函数签名。
-     * @return Value 函数的计算结果。
-     */
     using BuiltinFunction = std::function<Value(PineVM&)>;
 
     // --- 内部状态 ---
@@ -111,33 +112,22 @@ private:
     std::vector<std::shared_ptr<Series>> vars;        // 中间变量存储槽
 
     // --- 执行上下文 ---
-    int total_bars;
-    int bar_index;
+    int total_bars; // 当前已知的总K线数
+    int bar_index;  // 下一个要计算的K线索引
 
     // --- 内置环境 ---
-    std::map<std::string, Value> built_in_vars;     //用于存储内置数据，开高低收成交量
+    std::map<std::string, Value> built_in_vars;
     std::map<std::string, BuiltinFunction> built_in_funcs;
     std::map<std::string, std::shared_ptr<Series>> builtin_func_cache;
 
     // --- 结果存储 ---
-    std::vector<PlottedSeries> plotted_series; // 用于存储 plot() 调用的结果
+    std::vector<PlottedSeries> plotted_series;
 
     // --- 私有辅助函数 ---
-
-    /**
-     * @brief 执行当前K线柱(bar_index)的字节码。
-     */
     void runCurrentBar();
-
     Value& storeGlobal(int operand, const Value& val);
-    
     double getNumericValue(const Value& val);
     bool getBoolValue(const Value& val);
-    /**
-     * @brief 注册所有由C++实现的内置函数 (如 ta.sma, input.int)。
-     */
     void registerBuiltins();
-
-    // 私有辅助函数，处理所有写入逻辑
     void writePlottedResultsToStream(std::ostream& stream) const;
 };

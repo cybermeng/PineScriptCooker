@@ -46,15 +46,24 @@ except FileNotFoundError:
 if 'volume' not in data_df.columns:
     data_df['volume'] = 0
 
-# 将 time 列转换为 Hithink/通达信期望的 YYYYMMDD 整数格式
-# 这行代码与你的mock数据处理逻辑完全相同
-data_df['time_int'] = data_df['time'].dt.strftime('%Y%m%d').astype(int)
+# 将 time 列转换为Unix Timestamp
+#data_df['time_int'] = pd.to_datetime(data_df['time'], format='%Y%m%d').astype(int)
+data_df['time_int'] = (pd.to_datetime(data_df['time']).astype(int) // 10**9)
+
+# YYYYMMDD 整数格式
+data_df['date_int'] = data_df['time'].dt.strftime('%Y%m%d').astype(int)
+
+print("\n转换后的数据类型:")
+print(data_df.dtypes)
+print("\n转换后的 DataFrame:")
+print(data_df)
 
 # 将 DataFrame 转换为 C++ 后端期望的字典格式
 # 注意：key 必须是小写，以匹配 VM 中的内置变量名
 # 我们的编译器会将 Hithink 的大写 'CLOSE' 映射为小写的 'close'
 input_data_dict = {
     'time': data_df['time_int'].tolist(),
+    'date': data_df['date_int'].tolist(),
     'open': data_df['open'].tolist(),
     'high': data_df['high'].tolist(),
     'low': data_df['low'].tolist(),

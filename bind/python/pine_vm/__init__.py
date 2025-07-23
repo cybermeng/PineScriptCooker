@@ -49,7 +49,7 @@ def run(bytecode: str, data: Dict[str, List[float]]) -> pd.DataFrame:
         return pd.DataFrame() # 如果没有数据，返回空的 DataFrame
 
     # 2. 创建 PineVM 实例
-    vm = pine_vm_core.PineVM(total_bars)
+    vm = pine_vm_core.PineVM()
 
     # 3. 注册所有输入序列
     for name, series_list in data.items():
@@ -61,7 +61,7 @@ def run(bytecode: str, data: Dict[str, List[float]]) -> pd.DataFrame:
 
     # 4. 加载并执行字节码
     vm.load_bytecode(bytecode)
-    exit_code = vm.execute()
+    exit_code = vm.execute(total_bars)
     if exit_code != 0:
         raise RuntimeError("VM execution failed.")
 
