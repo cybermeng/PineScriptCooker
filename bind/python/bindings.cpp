@@ -26,8 +26,8 @@ PYBIND11_MODULE(pine_vm_core, m) {
 
     // 绑定 PineVM 类
     py::class_<PineVM>(m, "PineVM")
-        // 绑定构造函数 PineVM(int total_bars)
-        .def(py::init<int>())
+        // 绑定构造函数 PineVM()
+        .def(py::init<>())
         .def("load_bytecode", &PineVM::loadBytecode, "Loads bytecode for execution.")
         .def("execute", &PineVM::execute, "Executes the loaded bytecode.")
         .def("get_plotted_results_as_string", &PineVM::getPlottedResultsAsString, "Gets plotted results as a CSV formatted string.")

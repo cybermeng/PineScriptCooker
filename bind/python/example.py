@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from pine_vm import compile, run
 
 # 1. 定义 Hithink/Pine 脚本代码
@@ -90,11 +89,6 @@ try:
     print("Result DataFrame (last 10 rows):")
     print(result_df.tail(10))
 
-    # 将结果与原始数据合并，方便绘图
-    # 确保索引对齐
-    result_df.index = data_df.index[-len(result_df):]
-    full_df = data_df.join(result_df)
-
 except RuntimeError as e:
     print(f"VM execution failed: {e}")
     exit()
@@ -102,39 +96,3 @@ except Exception as e:
     print(f"An unexpected error occurred during execution: {e}")
     exit()
 
-
-# 5. 打印结果进行验证
-print("\n--- 4. Plotting results for verification ---")
-if 'MA20_OUTPUT' not in full_df.columns:
-    print("Warning: 'MA20_OUTPUT' not found in results. Skipping plot.")
-else:
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 10), sharex=True, gridspec_kw={'height_ratios': [3, 1]})
-    fig.suptitle('Test Case Verification: CLOSE vs SMA(20) and Cross Signal', fontsize=16)
-
-    # 上图：收盘价和计算出的 SMA
-    ax1.plot(full_df['time'], full_df['close'], label='Close Price', color='blue', alpha=0.8)
-    ax1.plot(full_df['time'], full_df['MA20_OUTPUT'], label='MA(20) from PineVM', color='orange', linestyle='--')
-    ax1.set_title('Price and Moving Average')
-    ax1.set_ylabel('Price')
-    ax1.legend()
-    ax1.grid(True)
-
-    # 下图：交叉信号
-    # 找到信号为1的点
-    cross_up_points = full_df[full_df['CROSS_SIGNAL'] == 1]
-    ax2.plot(full_df['time'], full_df['CROSS_SIGNAL'], label='Cross Signal (0 or 1)', color='gray', alpha=0.5, drawstyle='steps-post')
-    # 在交叉点上绘制红色圆圈，以便清晰看到
-    if not cross_up_points.empty:
-        ax1.scatter(cross_up_points['time'], cross_up_points['close'], color='red', s=100, zorder=5, label='Cross Up Signal')
-        ax2.scatter(cross_up_points['time'], cross_up_points['CROSS_SIGNAL'], color='red', s=100, zorder=5)
-
-    ax1.legend() # 再次调用以包含 scatter 的标签
-    ax2.set_title('CROSS_SIGNAL Output')
-    ax2.set_xlabel('Date')
-    ax2.set_ylabel('Signal Value')
-    ax2.set_yticks([0, 1])
-    ax2.grid(True)
-
-    plt.tight_layout(rect=[0, 0, 1, 0.96])
-    print("Displaying plot. Close the plot window to exit.")
-    plt.show()    

@@ -3,20 +3,17 @@ import numpy as np
 import io
 from typing import List, Dict, Any
 
-# 导入我们用 C++ 编译的模块
-# 假设 setup.py 将模块安装在 pine_vm 包内
-from . import pine_vm_core
+# Note: We have removed 'from . import pine_vm_core' from the top level
+# to break the circular import cycle during package initialization.
 
 def compile(code: str) -> str:
     """
     Compiles Hithink/Pine Script code using the C++ backend.
-
-    Args:
-        code (str): The script code to compile.
-
-    Returns:
-        str: The compiled bytecode as a string.
     """
+    # Import the C++ module locally, inside the function.
+    # This delays the import until after the 'pine_vm' package is fully initialized.
+    from . import pine_vm_core
+
     # 1. 创建 HithinkCompiler 的实例
     compiler = pine_vm_core.HithinkCompiler()
     # 2. 调用其 compile 方法
@@ -38,6 +35,9 @@ def run(bytecode: str, data: Dict[str, List[float]]) -> pd.DataFrame:
     Returns:
         pd.DataFrame: A pandas DataFrame containing the output series from the script execution.
     """
+    # Import the C++ module locally here as well.
+    from . import pine_vm_core
+
     if not data:
         raise ValueError("Input data cannot be empty.")
 
