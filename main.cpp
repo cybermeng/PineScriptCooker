@@ -12,8 +12,62 @@
 #include "EasyLanguage/EasyLanguageLexer.h"
 #include "EasyLanguage/EasyLanguageParser.h"
 #include "EasyLanguage/EasyLanguageCompiler.h"
-#include "Hithink/HithinkAST.h" // For HithinkStatement definition
 #include "Hithink/HithinkCompiler.h"
+#include <thread>         // for std::thread
+#include <mutex>          // for std::mutex and std::unique_lock
+#include <condition_variable> // for std::condition_variable
+#include <chrono>         // for std::chrono::milliseconds
+#include <atomic>         // for std::atomic<bool>
+
+// --- 全局共享资源和同步工具 ---
+std::mutex data_mutex;              // 互斥锁，保护共享数据
+std::condition_variable cv;         // 条件变量，用于线程间通信
+std::atomic<bool> shutdown_flag{false}; // 原子布尔值，用于安全地停止生产者线程
+int bars_produced = 0;              // 记录生产者已经生产了多少根K线 (受互斥锁保护)
+
+// 辅助函数：向共享的Series中添加一个数据点 (线程安全)
+int load_and_set_data_point(PineVM& vm) {
+    int index = vm.getCurrentBarIndex() + 1;
+    // 假设这是从某个实时数据源获取的数据
+    double open = 100.0 + index;
+    double high = open + 5.0;
+    double low = open - 2.0;
+    double close = open + 2.0;
+    time_t timestamp = 1672531200 + index * 3600; // 模拟小时线
+
+    vm.getSeries("open")->setCurrent(index, open);
+    vm.getSeries("high")->setCurrent(index, high);
+    vm.getSeries("low")->setCurrent(index, low);
+    vm.getSeries("close")->setCurrent(index, close);
+    vm.getSeries("time")->setCurrent(index, timestamp);
+
+    return index;
+}
+
+// 生产者线程函数：模拟实时数据推送
+void data_producer(PineVM& vm) {
+    std::cout << "[Producer] Thread started." << std::endl;
+    
+    while (!shutdown_flag) {
+        // 1. 模拟数据到达的间隔
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+
+        {
+            // 2. 锁定互斥锁以安全地修改共享数据
+            std::lock_guard<std::mutex> lock(data_mutex);
+            
+            // 3. 生成并设置新的K线数据
+            bars_produced = load_and_set_data_point(vm);
+            
+            std::cout << "[Producer] Pushed bar #" << bars_produced << std::endl;
+        } // 互斥锁在此处自动释放
+
+        // 4. 通知等待的消费者线程
+        cv.notify_one();
+    }
+    
+    std::cout << "[Producer] Thread shutting down." << std::endl;
+}
 
 int main(int argc, char* argv[]) {
     
@@ -249,7 +303,10 @@ int main(int argc, char* argv[]) {
         auto start_time = std::chrono::high_resolution_clock::now();
 
         std::cout << "\n--- Executing VM ---" << dataSource->getNumBars() << " bars ---" << std::endl;
-        vm.loadBytecode(bytecode_str);
+        {
+            std::lock_guard<std::mutex> lock(data_mutex); // 保护初始数据加载
+            vm.loadBytecode(bytecode_str);
+        }
         int result = vm.execute(dataSource->getNumBars());
 
         auto end_time = std::chrono::high_resolution_clock::now();
@@ -275,6 +332,67 @@ int main(int argc, char* argv[]) {
             output_csv_path = user_output_csv_path;
         }
         vm.writePlottedResultsToFile(output_csv_path);
+
+        // === 启动生产者线程，进入增量计算模式 ===
+        std::cout << "\n\n--- [Main] Starting real-time simulation ---" << std::endl;
+        std::thread producer_thread(data_producer, std::ref(vm));
+
+        // === 4. 消费者循环（在主线程中） ===
+        std::cout << "[Main/Consumer] Waiting for new bars. Press Enter to stop simulation.\n" << std::endl;
+        std::thread input_thread([]{
+            std::cin.get(); // 等待用户输入
+            shutdown_flag = true; // 设置关闭标志
+            cv.notify_all(); // 唤醒可能在等待的消费者线程以使其能检查关闭标志
+        });
+        input_thread.detach(); // 分离输入线程，让它在后台运行
+
+        while(!shutdown_flag) {
+            std::unique_lock<std::mutex> lock(data_mutex);
+            
+            // 等待条件：直到有新的bar被生产出来 或 收到关闭信号
+            cv.wait(lock, [&]{ 
+                return bars_produced > vm.getCurrentBarIndex() || shutdown_flag; 
+            });
+
+            // 如果被唤醒是因为要关闭，则退出循环
+            if (shutdown_flag) {
+                break;
+            }
+
+            // 记录需要处理到哪个bar
+            int target_bars = bars_produced;
+            
+            // 提前释放锁，让生产者可以继续工作，而VM在进行计算
+            lock.unlock(); 
+
+            // 执行增量计算
+            std::cout << "[Main/Consumer] Woke up. Executing up to bar #" << target_bars - 1 << "..." << std::endl;
+            vm.execute(target_bars);
+
+            // (可选) 打印最新的结果
+            // vm.printPlottedResults(); 
+            // 打印最后一个值来观察变化
+            const auto& results = vm.getPlottedSeries();
+            if (!results.empty()) {
+                const auto& data = results[0].series->data;
+                if (!data.empty()) {
+                    std::cout << "[Main/Consumer] Latest value: " << data.back() << std::endl << std::endl;
+                }
+            }
+        }
+        
+        // === 清理和收尾 ===
+        std::cout << "\n--- [Main] Shutting down simulation ---" << std::endl;
+        
+        // 等待生产者线程结束
+        if (producer_thread.joinable()) {
+            producer_thread.join();
+        }
+        
+        std::cout << "\n\n--- [Main] Final Results ---" << std::endl;
+        vm.printPlottedResults();
+        vm.writePlottedResultsToFile("final_threaded_results.csv");
+
 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
