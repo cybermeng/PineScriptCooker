@@ -9,6 +9,7 @@ PineScriptCooker is a high-performance, modular backtesting and scripting engine
 -   **Modular Compiler Design**: Utilizes the classic Lexer -> Parser -> AST -> Code Generator pipeline for each language, making it easy to extend or improve.
 -   **Pluggable Data Sources**: An abstracted data layer (`DataSource`) supports different data inputs, including in-memory mock data for testing and CSV files for real market data.
 -   **High-Performance Data Handling**: Leverages the DuckDB library for fast, in-process analytical queries on CSV files.
+-   **Strong portability**: Support exporting to javascript and python environments.
 
 ## Architecture
 
@@ -54,14 +55,16 @@ graph TD
 
     subgraph "数据准备<br> (Data Preparation)"
         direction LR
+        Main -- "创建" --> PushSources["数据源 (PushSource)"]
+        PushSources -.推送数据.-> PineVM
         Main -- "创建" --> DataSources["数据源 (DataSource)"]
-        DataSources -- "加载数据到" --> PineVM
+        DataSources -- "加载数据" --> PineVM
     end
 
     subgraph "执行阶段<br> (Execution Backend)"
         direction LR
         style PineVM fill:#9f9,stroke:#333,stroke-width:2px
-        Bytecode -- "加载指令到" --> PineVM["PineVM<br>(虚拟机)"]
+        Bytecode -- "加载指令" --> PineVM["PineVM<br>(虚拟机)"]
         PineVM -- "执行字节码" --> Result["执行结果<br>(指标序列)"]
     end
 
