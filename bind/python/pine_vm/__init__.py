@@ -78,8 +78,8 @@ def run(bytecode: str, data: Dict[str, List[float]]) -> pd.DataFrame:
     result_df = pd.read_csv(io.StringIO(result_csv_string))
 
     # 如果有 'time' 列，通常我们希望它作为索引
-    if 'time' in result_df.columns:
-        result_df['time'] = pd.to_datetime(result_df['time'].astype(str), format='%Y%m%d', errors='coerce')
-        result_df.set_index('time', inplace=True)
+    #if 'time' in result_df.columns:
+    #    result_df['time'] = pd.to_datetime(result_df['time'].astype(str), format='%Y%m%d', errors='coerce')
+    #    result_df.set_index('time', inplace=True)
 
     return result_df

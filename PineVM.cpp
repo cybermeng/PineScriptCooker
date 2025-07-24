@@ -1763,11 +1763,16 @@ void PineVM::printPlottedResults() const
                 // std::cout << date_int;
                 //  将Unix时间戳转换为YYYYMMDD格式
                 time_t rawtime = static_cast<time_t>(val);
-                struct tm *dt;
-                char buffer[80];
-                dt = localtime(&rawtime);
-                strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", dt);
-                std::cout << buffer;
+                struct tm dt;
+                // 依然需要使用线程安全的 localtime_r 或 localtime_s
+                #ifdef _WIN32
+                    localtime_s(&dt, &rawtime);
+                #else
+                    localtime_r(&rawtime, &dt);
+                #endif
+
+                // 使用 put_time 更符合 C++ 风格，但底层转换仍依赖 C-API
+                std::cout << std::put_time(&dt, "%Y-%m-%d %H:%M:%S");
             }
         };
 
@@ -1912,17 +1917,20 @@ void PineVM::writePlottedResultsToStream(std::ostream &stream, int precision) co
             {
                 if (i < time_series->data.size())
                 {
-                    char buffer[80] = {};
-                    // 将Unix时间戳转换为YYYYMMDD格式
                     time_t rawtime = static_cast<time_t>(time_series->data[i]);
                     if (rawtime > 0)
                     {
-                        struct tm *dt;
-                        dt = localtime(&rawtime);
-                        if(dt)
-                            strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", dt);
+                        struct tm dt;
+                        // 依然需要使用线程安全的 localtime_r 或 localtime_s
+                        #ifdef _WIN32
+                            localtime_s(&dt, &rawtime);
+                        #else
+                            localtime_r(&rawtime, &dt);
+                        #endif
+
+                        // 使用 put_time 更符合 C++ 风格，但底层转换仍依赖 C-API
+                        stream << std::put_time(&dt, "%Y-%m-%d %H:%M:%S");
                     }
-                    stream << std::fixed << buffer;
                 }
                 first_series = false;
             }
