@@ -4,8 +4,8 @@
 #include <stdexcept>
 
 // 包含我们需要导出的 C++ 类的头文件
-#include "HithinkCompiler.h"
-#include "PineVM.h"
+#include "../../Hithink/HithinkCompiler.h"
+#include "../../PineVM.h"
 
 // 辅助函数，用于将 Java 的 jstring 转换为 C++ 的 std::string
 std::string jstringToStdString(JNIEnv *env, jstring jStr) {

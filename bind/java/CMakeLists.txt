@@ -16,6 +16,8 @@ add_library(pinevm_jni SHARED
     ../../PineVM.cpp
     ../../VMCommon.cpp
     ../../Hithink/HithinkCompiler.cpp
+    ../../Hithink/HithinkLexer.cpp
+    ../../Hithink/HithinkParser.cpp
     jniexport.cpp
 )
 
