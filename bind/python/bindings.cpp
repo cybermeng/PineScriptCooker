@@ -30,6 +30,7 @@ PYBIND11_MODULE(pine_vm_core, m) {
         .def(py::init<>())
         .def("load_bytecode", &PineVM::loadBytecode, "Loads bytecode for execution.")
         .def("execute", &PineVM::execute, "Executes the loaded bytecode.")
+        .def("error_message", &PineVM::getLastErrorMessage, "Gets the last error message.")
         .def("get_plotted_results_as_string", &PineVM::getPlottedResultsAsString, "Gets plotted results as a CSV formatted string.")
         
         // **修正的核心部分**

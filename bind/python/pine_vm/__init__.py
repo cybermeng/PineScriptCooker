@@ -63,7 +63,7 @@ def run(bytecode: str, data: Dict[str, List[float]]) -> pd.DataFrame:
     vm.load_bytecode(bytecode)
     exit_code = vm.execute(total_bars)
     if exit_code != 0:
-        raise RuntimeError("VM execution failed.")
+        raise RuntimeError("VM execution failed: " + vm.error_message())
 
     # 5. 获取结果并解析
     # C++ 端返回一个 CSV 格式的字符串

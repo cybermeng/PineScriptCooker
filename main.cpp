@@ -176,10 +176,7 @@ int main(int argc, char* argv[]) {
     )";
 
     std::string hithink_source = R"(
-         RSV:=(CLOSE-LLV(LOW,9))/(HHV(HIGH,9)-LLV(LOW,9))*100;
-        K:SMA(RSV,3,1);
-        D:SMA(K,3,1);
-        J:3*K-2*D;
+        TE:CROSS(OPEN, 4);
 )";
         /*
         MA5:MA(CLOSE,5);
@@ -316,7 +313,7 @@ int main(int argc, char* argv[]) {
         std::cout << "VM execution took: " << duration.count() << " milliseconds" << std::endl;
 
         if(result != 0) {
-            std::cerr << "VM execution failed." << std::endl;
+            std::cerr << "VM execution failed: " << vm.getLastErrorMessage() << std::endl;
             return 1;
         }
         // 打印计算和绘制的结果
@@ -333,67 +330,71 @@ int main(int argc, char* argv[]) {
         }
         vm.writePlottedResultsToFile(output_csv_path);
 
-        // === 启动生产者线程，进入增量计算模式 ===
-        std::cout << "\n\n--- [Main] Starting real-time simulation ---" << std::endl;
-        std::thread producer_thread(data_producer, std::ref(vm));
+        std::string push_csv_path;
+        std::cout << "Enter push CSV file path : ";
+        std::getline(std::cin, push_csv_path);
+        if (!push_csv_path.empty()) {
+            // === 启动生产者线程，进入增量计算模式 ===
+            std::cout << "\n\n--- [Main] Starting real-time simulation ---" << std::endl;
+            std::thread producer_thread(data_producer, std::ref(vm));
 
-        // === 4. 消费者循环（在主线程中） ===
-        std::cout << "[Main/Consumer] Waiting for new bars. Press Enter to stop simulation.\n" << std::endl;
-        std::thread input_thread([]{
-            std::cin.get(); // 等待用户输入
-            shutdown_flag = true; // 设置关闭标志
-            cv.notify_all(); // 唤醒可能在等待的消费者线程以使其能检查关闭标志
-        });
-        input_thread.detach(); // 分离输入线程，让它在后台运行
-
-        while(!shutdown_flag) {
-            std::unique_lock<std::mutex> lock(data_mutex);
-            
-            // 等待条件：直到有新的bar被生产出来 或 收到关闭信号
-            cv.wait(lock, [&]{ 
-                return bars_produced > vm.getCurrentBarIndex() || shutdown_flag; 
+            // === 4. 消费者循环（在主线程中） ===
+            std::cout << "[Main/Consumer] Waiting for new bars. Press Enter to stop simulation.\n" << std::endl;
+            std::thread input_thread([]{
+                std::cin.get(); // 等待用户输入
+                shutdown_flag = true; // 设置关闭标志
+                cv.notify_all(); // 唤醒可能在等待的消费者线程以使其能检查关闭标志
             });
+            input_thread.detach(); // 分离输入线程，让它在后台运行
 
-            // 如果被唤醒是因为要关闭，则退出循环
-            if (shutdown_flag) {
-                break;
-            }
+            while(!shutdown_flag) {
+                std::unique_lock<std::mutex> lock(data_mutex);
+                
+                // 等待条件：直到有新的bar被生产出来 或 收到关闭信号
+                cv.wait(lock, [&]{ 
+                    return bars_produced > vm.getCurrentBarIndex() || shutdown_flag; 
+                });
 
-            // 记录需要处理到哪个bar
-            int target_bars = bars_produced;
-            
-            // 提前释放锁，让生产者可以继续工作，而VM在进行计算
-            lock.unlock(); 
+                // 如果被唤醒是因为要关闭，则退出循环
+                if (shutdown_flag) {
+                    break;
+                }
 
-            // 执行增量计算
-            std::cout << "[Main/Consumer] Woke up. Executing up to bar #" << target_bars - 1 << "..." << std::endl;
-            vm.execute(target_bars);
+                // 记录需要处理到哪个bar
+                int target_bars = bars_produced;
+                
+                // 提前释放锁，让生产者可以继续工作，而VM在进行计算
+                lock.unlock(); 
 
-            // (可选) 打印最新的结果
-            // vm.printPlottedResults(); 
-            // 打印最后一个值来观察变化
-            const auto& results = vm.getPlottedSeries();
-            if (!results.empty()) {
-                const auto& data = results[0].series->data;
-                if (!data.empty()) {
-                    std::cout << "[Main/Consumer] Latest value: " << data.back() << std::endl << std::endl;
+                // 执行增量计算
+                std::cout << "[Main/Consumer] Woke up. Executing up to bar #" << target_bars - 1 << "..." << std::endl;
+                vm.execute(target_bars);
+
+                // (可选) 打印最新的结果
+                // vm.printPlottedResults(); 
+                // 打印最后一个值来观察变化
+                const auto& results = vm.getPlottedSeries();
+                if (!results.empty()) {
+                    const auto& data = results[0].series->data;
+                    if (!data.empty()) {
+                        std::cout << "[Main/Consumer] Latest value: " << data.back() << std::endl << std::endl;
+                    }
                 }
             }
-        }
-        
-        // === 清理和收尾 ===
-        std::cout << "\n--- [Main] Shutting down simulation ---" << std::endl;
-        
-        // 等待生产者线程结束
-        if (producer_thread.joinable()) {
-            producer_thread.join();
-        }
-        
-        std::cout << "\n\n--- [Main] Final Results ---" << std::endl;
-        vm.printPlottedResults();
-        vm.writePlottedResultsToFile("final_threaded_results.csv");
-
-
+            
+            // === 清理和收尾 ===
+            std::cout << "\n--- [Main] Shutting down simulation ---" << std::endl;
+            
+            // 等待生产者线程结束
+            if (producer_thread.joinable()) {
+                producer_thread.join();
+            }
+            
+            std::cout << "\n\n--- [Main] Final Results ---" << std::endl;
+            vm.printPlottedResults();
+            vm.writePlottedResultsToFile("final_threaded_results.csv");
+       }
+ 
     } catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << std::endl;
         return 1;

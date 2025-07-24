@@ -49,6 +49,8 @@ public:
      */
     int execute(int new_total_bars);
 
+    std::string getLastErrorMessage() const { return lastErrorMessage; }
+
     // --- 公共API，主要供内置函数回调和数据更新使用 ---
     
     /**
@@ -83,7 +85,7 @@ public:
      */
     void printPlottedResults() const;
 
-    void writePlottedResultsToFile(const std::string& filename) const;
+    void writePlottedResultsToFile(const std::string& filename, int precision = 3) const;
     std::string getPlottedResultsAsString() const;
     void registerSeries(const std::string& name, std::shared_ptr<Series> series);
  
@@ -106,6 +108,8 @@ private:
 
     // --- 内部状态 ---
     Bytecode bytecode;
+
+    std::string lastErrorMessage;
     const Instruction* ip = nullptr; // 指令指针
     std::vector<Value> stack;        // 操作数栈,
     std::vector<Value> globals;      // 全局变量存储槽
@@ -129,5 +133,5 @@ private:
     double getNumericValue(const Value& val);
     bool getBoolValue(const Value& val);
     void registerBuiltins();
-    void writePlottedResultsToStream(std::ostream& stream) const;
+    void writePlottedResultsToStream(std::ostream& stream, int precision = 3) const;
 };
