@@ -74,6 +74,8 @@ public:
      */
     int getCurrentBarIndex() const { return bar_index; }
 
+    int getTotalBars() const { return total_bars; }
+
     /**
      * @brief 获取所有已绘制的序列及其属性。
      * @return const std::vector<PlottedSeries>& 对已绘制序列向量的常量引用。

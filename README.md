@@ -9,7 +9,7 @@ PineScriptCooker is a high-performance, modular backtesting and scripting engine
 -   **Modular Compiler Design**: Utilizes the classic Lexer -> Parser -> AST -> Code Generator pipeline for each language, making it easy to extend or improve.
 -   **Pluggable Data Sources**: An abstracted data layer (`DataSource`) supports different data inputs, including in-memory mock data for testing and CSV or JSON files for real market data.
 -   **High-Performance Data Handling**: Leverages the DuckDB library for fast, in-process analytical queries on CSV or JSON files.
--   **Strong Portability**: Support exporting to javascript and python environments.
+-   **Strong Portability**: Support exporting to java, javascript and python environments.
 
 ## Architecture
 
