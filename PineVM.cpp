@@ -2314,7 +2314,6 @@ void PineVM::registerBuiltins()
     built_in_funcs["valuewhen"] = [](PineVM &vm) -> Value
     {
         std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value offset_val = vm.pop();
         Value condition_val = vm.pop();
         Value source_val = vm.pop();
 
@@ -2329,7 +2328,7 @@ void PineVM::registerBuiltins()
         auto source_series = *src_p;
         auto condition_series = *cond_p;
         int current_bar = vm.getCurrentBarIndex();
-        int offset = static_cast<int>(vm.getNumericValue(offset_val));
+        int offset = 1;
 
         if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar]))
         {
