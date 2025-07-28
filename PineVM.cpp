@@ -2965,23 +2965,38 @@ void PineVM::registerBuiltins()
     built_in_funcs["last"] = [](PineVM &vm) -> Value
     {
         std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value offset_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
-            return result_series;
-        }
-        auto source_series = *p;
         int current_bar = vm.getCurrentBarIndex();
-        int offset = static_cast<int>(vm.getNumericValue(offset_val));
+        Value val2 = vm.pop();
+        Value val1 = vm.pop();
+        Value condition_val = vm.pop();
+        
+        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
+        //当前bar往前val1到val2的区间内，condition是否一直成立, val1为0表示第一个bar，val2为0表示最近一个bar
+        int start_offset = static_cast<int>(vm.getNumericValue(val1));
+        int end_offset = static_cast<int>(vm.getNumericValue(val2));
+        if(start_offset == 0)
+            start_offset = current_bar;
+        if(end_offset == 0)
+            end_offset = 1;
 
-        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar]))
+        bool all_true_in_range = true;
+        // 遍历从 current_bar - end_offset 到 current_bar - start_offset 的K线
+        for (int i = end_offset; i >= start_offset; --i)
         {
-            double last_val = source_series->getCurrent(current_bar - offset);
-            result_series->setCurrent(current_bar, last_val);
+            int bar_to_check = current_bar - i;
+            if (bar_to_check < 0)
+            {
+                all_true_in_range = false; // 超出数据范围
+                break;
+            }
+            double cond_val = condition_series->getCurrent(bar_to_check);
+            if (std::isnan(cond_val) || cond_val == 0.0)
+            {
+                all_true_in_range = false;
+                break;
+            }
         }
+        result_series->setCurrent(current_bar, static_cast<double>(all_true_in_range));
         return result_series;
     };
     built_in_funcs["longcross"] = [](PineVM &vm) -> Value
