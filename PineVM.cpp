@@ -888,24 +888,22 @@ void PineVM::registerBuiltins()
         int current_bar = vm.getCurrentBarIndex();
         int length = static_cast<int>(vm.getNumericValue(length_val));
         auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
-
-        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar]))
+        // filter(COND, N) 返回 COND 在 N 周期内是否至少有一次为真。
+        // 如果 COND 在 N 周期内（包括当前周期）至少有一次为真，则返回 0.0，否则返回 1.0。
+        bool any_true = false;
+        for (int i = 1; i < length && current_bar - i >= 0; ++i)
         {
-            bool result = false;
-            if (current_bar >= length - 1)
-            { // 确保有足够的历史数据来检查
-                for (int i = 0; i < length; ++i)
-                {
-                    double val = condition_series->getCurrent(current_bar - i);
-                    if (!std::isnan(val) && val != 0.0)
-                    { // 只要有一个为真，则满足
-                        result = true;
-                        break;
-                    }
-                }
+            double val = result_series->getCurrent(current_bar - i);
+            if (!std::isnan(val) && val != 0.0)
+            {
+                any_true = true;
+                break;
             }
-            result_series->setCurrent(current_bar, static_cast<double>(result));
         }
+        if(any_true)
+            result_series->setCurrent(current_bar, static_cast<double>(false));
+        else
+            result_series->setCurrent(current_bar, condition_series->getCurrent(current_bar));
         return result_series;
     };
     built_in_funcs["findhigh"] = [](PineVM &vm) -> Value
