@@ -3503,12 +3503,12 @@ void PineVM::writePlottedResultsToFile(const std::string &filename, int precisio
 }
 
 // 3. 新的公共接口：输出为字符串
-std::string PineVM::getPlottedResultsAsString() const
+std::string PineVM::getPlottedResultsAsString(int precision) const
 {
     std::stringstream ss;
 
     // 调用核心逻辑函数
-    writePlottedResultsToStream(ss);
+    writePlottedResultsToStream(ss, precision);
 
     // 从 stringstream 获取字符串并返回
     return ss.str();

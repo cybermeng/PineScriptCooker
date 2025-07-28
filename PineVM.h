@@ -88,7 +88,9 @@ public:
     void printPlottedResults() const;
 
     void writePlottedResultsToFile(const std::string& filename, int precision = 3) const;
-    std::string getPlottedResultsAsString() const;
+    
+    std::string getPlottedResultsAsString(int precision = 3) const;
+
     void registerSeries(const std::string& name, std::shared_ptr<Series> series);
  
     /**
