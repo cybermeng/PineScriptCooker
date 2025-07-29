@@ -149,9 +149,12 @@ void HithinkCompiler::visit(HithinkUnaryExpression& node) {
     node.right->accept(*this);
     if (node.op.type == TokenType::MINUS) {
         //  0 - x  来实现  -x
+        auto right = bytecode.instructions.back();
+        bytecode.instructions.pop_back();
         int constIndex = addConstant(0.0);
         emitByteWithOperand(OpCode::PUSH_CONST, constIndex);
-        emitByte(OpCode::SUB);
+        bytecode.instructions.push_back(right);
+        emitByteForMath(OpCode::SUB);
     } else {
         throw std::runtime_error("Unsupported unary operator.");
     }

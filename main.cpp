@@ -176,9 +176,7 @@ int main(int argc, char* argv[]) {
     )";
 
     std::string hithink_source = R"(
-        MA5:MA(CLOSE,5);
-        MA10:MA(CLOSE,10);
-        SIG:CROSS(MA5,MA10);
+        TE:LAST(OPEN, 6, 5);
 )";
         /*
         MA5:MA(CLOSE,5);
