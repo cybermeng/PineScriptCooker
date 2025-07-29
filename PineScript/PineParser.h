@@ -1,3 +1,5 @@
+// --- START OF FILE PineParser.h ---
+
 #pragma once
 #include "../CompilerCommon.h"
 #include "PineLexer.h" // For PineLexer class
@@ -25,11 +27,14 @@ private:
     std::unique_ptr<Stmt> assignmentStatement();
     std::unique_ptr<Stmt> expressionStatement();
     std::unique_ptr<Expr> expression();
+    std::unique_ptr<Expr> comparison();
+    // --- 新增函数声明 ---
+    std::unique_ptr<Expr> term();
+    std::unique_ptr<Expr> factor();
+    // --- 结束新增 ---
     std::unique_ptr<Expr> primary();
     std::unique_ptr<Expr> finishCall(std::unique_ptr<Expr> callee);
-    std::unique_ptr<Expr> comparison();
-    bool isExpressionStartToken(TokenType type); // 新增：检查是否能作为表达式的起始词元
-    bool isMemberNameToken(TokenType type);     // 新增：检查是否能作为成员访问的名称词元
-    bool isAssignableToken(TokenType type);     // 新增：检查一个词元是否可以作为赋值的目标
-    // ... 其他解析函数，如 term(), factor() 等
+    bool isExpressionStartToken(TokenType type);
+    bool isMemberNameToken(TokenType type);
+    bool isAssignableToken(TokenType type);
 };
