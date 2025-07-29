@@ -154,11 +154,6 @@ TokenType PineLexer::identifierType() {
     if (text == "true") return TokenType::TRUE;
     if (text == "false") return TokenType::FALSE;
 
-    // PineScript Built-in Variables/Functions (common ones)
-    if (text == "close") return TokenType::CLOSE;
-    if (text == "sma") return TokenType::SMA; // For ta.sma
-    if (text == "rsi") return TokenType::RSI; // For ta.rsi
-
     // PineScript Color Constants (e.g., color.red)
     // The lexer can only identify "color" as a keyword. The parser will handle "color.red" as a member access.
     // However, if we want to pre-tokenize common color names, we could add them here.

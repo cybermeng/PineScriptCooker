@@ -148,9 +148,6 @@ bool PineParser::isExpressionStartToken(TokenType type) {
            type == TokenType::INPUT ||
            type == TokenType::TRUE ||
            type == TokenType::FALSE ||
-           type == TokenType::CLOSE ||
-           type == TokenType::SMA ||
-           type == TokenType::RSI ||
            type == TokenType::PLOT ||
            type == TokenType::PLOTSHAPE ||
            type == TokenType::LEFT_PAREN ||
@@ -162,10 +159,7 @@ bool PineParser::isMemberNameToken(TokenType type) {
            type == TokenType::INT ||
            type == TokenType::FLOAT ||
            type == TokenType::BOOL ||
-           type == TokenType::COLOR ||
-           type == TokenType::SMA ||
-           type == TokenType::RSI ||
-           type == TokenType::CLOSE;
+           type == TokenType::COLOR;
 }
 
 bool PineParser::isAssignableToken(TokenType type) {
@@ -178,8 +172,6 @@ bool PineParser::isAssignableToken(TokenType type) {
         case TokenType::COLOR:
         case TokenType::PLOT:
         case TokenType::PLOTSHAPE:
-        case TokenType::SMA:
-        case TokenType::RSI:
             return true;
         default:
             return false;

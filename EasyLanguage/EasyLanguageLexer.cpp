@@ -169,8 +169,6 @@ TokenType EasyLanguageLexer::identifierType(const std::string& text) {
     if (lowerText == "else") return TokenType::ELSE;
     if (lowerText == "begin") return TokenType::BEGIN;
     if (lowerText == "end") return TokenType::END;
-    if (lowerText == "average") return TokenType::AVERAGE;
-    if (lowerText == "rsi") return TokenType::RSI_EL; // Map EL's RSI to a distinct token type
     return TokenType::IDENTIFIER;
 }
 

@@ -149,16 +149,16 @@ void PineCompiler::visit(BinaryExpr& expr) {
     expr.right->accept(*this); // Compile right operand, push its result
 
     switch (expr.op.type) {
-        case TokenType::GREATER: emitByte(OpCode::GREATER); break;
-        case TokenType::LESS: emitByte(OpCode::LESS); break;
-        case TokenType::LESS_EQUAL: emitByte(OpCode::LESS_EQUAL); break;
-        case TokenType::EQUAL_EQUAL: emitByte(OpCode::EQUAL_EQUAL); break;
-        case TokenType::BANG_EQUAL: emitByte(OpCode::BANG_EQUAL); break;
-        case TokenType::GREATER_EQUAL: emitByte(OpCode::GREATER_EQUAL); break;
-        case TokenType::PLUS: emitByte(OpCode::ADD); break;
-        case TokenType::MINUS: emitByte(OpCode::SUB); break;
-        case TokenType::STAR: emitByte(OpCode::MUL); break;
-        case TokenType::SLASH: emitByte(OpCode::DIV); break;
+        case TokenType::GREATER: emitByteForMath(OpCode::GREATER); break;
+        case TokenType::LESS: emitByteForMath(OpCode::LESS); break;
+        case TokenType::LESS_EQUAL: emitByteForMath(OpCode::LESS_EQUAL); break;
+        case TokenType::EQUAL_EQUAL: emitByteForMath(OpCode::EQUAL_EQUAL); break;
+        case TokenType::BANG_EQUAL: emitByteForMath(OpCode::BANG_EQUAL); break;
+        case TokenType::GREATER_EQUAL: emitByteForMath(OpCode::GREATER_EQUAL); break;
+        case TokenType::PLUS: emitByteForMath(OpCode::ADD); break;
+        case TokenType::MINUS: emitByteForMath(OpCode::SUB); break;
+        case TokenType::STAR: emitByteForMath(OpCode::MUL); break;
+        case TokenType::SLASH: emitByteForMath(OpCode::DIV); break;
         default: // TokenType::EQUAL should not reach here if Parser is correct
             throw std::runtime_error("Unsupported binary operator: " + expr.op.lexeme);
     }
@@ -166,6 +166,10 @@ void PineCompiler::visit(BinaryExpr& expr) {
 
 void PineCompiler::emitByte(OpCode op) {
     bytecode.instructions.push_back({op});
+}
+
+void PineCompiler::emitByteForMath(OpCode op) {
+    bytecode.instructions.push_back({op, bytecode.varNum++});
 }
 
 void PineCompiler::emitByteWithOperand(OpCode op, int operand) {

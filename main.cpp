@@ -320,11 +320,11 @@ int main(int argc, char* argv[]) {
         vm.printPlottedResults();
 
         std::string output_csv_path;
-        std::cout << "Enter output CSV file path (default: ../db/result.csv): ";
+        std::cout << "Enter output CSV file path (default: ./result.csv): ";
         std::string user_output_csv_path;
         std::getline(std::cin, user_output_csv_path);
         if (user_output_csv_path.empty()) {
-            output_csv_path = "../db/result.csv";
+            output_csv_path = "./result.csv";
         } else {
             output_csv_path = user_output_csv_path;
         }

@@ -259,8 +259,6 @@ bool EasyLanguageParser::isAssignableToken(TokenType type) {
     // This list should include all token types that can appear on the left-hand side of an assignment.
     switch (type) {
         case TokenType::IDENTIFIER:
-        case TokenType::SMA: // If lexer misidentifies MySMA as SMA (due to common substring)
-        case TokenType::RSI_EL: // If lexer misidentifies MyRSI as RSI_EL
             // Add other keywords here if they can be assigned to (e.g., Plot1, Value1 etc. if they are not IDENTIFIERs)
             return true;
         default:
@@ -282,7 +280,7 @@ std::unique_ptr<ELExpression> EasyLanguageParser::primary() {
         std::string s = previous.lexeme;
         return std::make_unique<ELLiteralExpression>(s.substr(1, s.length() - 2));
     }
-    if (match(TokenType::IDENTIFIER) || match(TokenType::AVERAGE) || match(TokenType::RSI_EL)) {
+    if (match(TokenType::IDENTIFIER)) {
         return std::make_unique<ELVariableExpression>(previous); // Treat function names as variables initially for call() to handle
     }
     // Add support for parentheses for grouping expressions

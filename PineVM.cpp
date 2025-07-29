@@ -282,46 +282,55 @@ void PineVM::runCurrentBar()
         {
             double right = getNumericValue(pop());
             double left = getNumericValue(pop());
-            if (ip->op == OpCode::ADD)
-                pushNumbericValue(left + right, ip->operand);
-            else if (ip->op == OpCode::DIV)
+            if(!std::isnan(left) && !std::isnan(right))
             {
-                if (right == 0.0)
+                if (ip->op == OpCode::ADD)
                 {
-                    pushNumbericValue(NAN, ip->operand);
+                    pushNumbericValue(left + right, ip->operand);
                 }
-                else
+                else if (ip->op == OpCode::DIV)
+                {
+                    if (right == 0.0)
+                    {
+                        pushNumbericValue(NAN, ip->operand);
+                    }
+                    else
+                        pushNumbericValue(left / right, ip->operand);
+                }
+                else if (ip->op == OpCode::SUB)
+                    pushNumbericValue(left - right, ip->operand);
+                else if (ip->op == OpCode::MUL)
+                    pushNumbericValue(left * right, ip->operand);
+                else if (ip->op == OpCode::DIV)
                     pushNumbericValue(left / right, ip->operand);
+                else if (ip->op == OpCode::LESS)
+                    pushNumbericValue(left < right, ip->operand);
+                else if (ip->op == OpCode::LESS_EQUAL)
+                    pushNumbericValue(left <= right, ip->operand);
+                else if (ip->op == OpCode::EQUAL_EQUAL)
+                    pushNumbericValue(left == right, ip->operand);
+                else if (ip->op == OpCode::BANG_EQUAL)
+                    pushNumbericValue(left != right, ip->operand);
+                else if (ip->op == OpCode::GREATER)
+                    pushNumbericValue(left > right, ip->operand);
+                else if (ip->op == OpCode::GREATER_EQUAL)
+                    pushNumbericValue(left >= right, ip->operand);
+                else if (ip->op == OpCode::LOGICAL_AND)
+                {
+                    // 在Hithink中, 非0且非NaN为true, 结果为1.0或0.0
+                    bool result = (left != 0.0 && right != 0.0);
+                    pushNumbericValue(result ? 1.0 : 0.0, ip->operand);
+                }
+                else if (ip->op == OpCode::LOGICAL_OR)
+                {
+                    // 在Hithink中, 非0且非NaN为true, 结果为1.0或0.0
+                    bool result = (left != 0.0 || right != 0.0);
+                    pushNumbericValue(result ? 1.0 : 0.0, ip->operand);
+                }
             }
-            else if (ip->op == OpCode::SUB)
-                pushNumbericValue(left - right, ip->operand);
-            else if (ip->op == OpCode::MUL)
-                pushNumbericValue(left * right, ip->operand);
-            else if (ip->op == OpCode::DIV)
-                pushNumbericValue(left / right, ip->operand);
-            else if (ip->op == OpCode::LESS)
-                pushNumbericValue(left < right, ip->operand);
-            else if (ip->op == OpCode::LESS_EQUAL)
-                pushNumbericValue(left <= right, ip->operand);
-            else if (ip->op == OpCode::EQUAL_EQUAL)
-                pushNumbericValue(left == right, ip->operand);
-            else if (ip->op == OpCode::BANG_EQUAL)
-                pushNumbericValue(left != right, ip->operand);
-            else if (ip->op == OpCode::GREATER)
-                pushNumbericValue(left > right, ip->operand);
-            else if (ip->op == OpCode::GREATER_EQUAL)
-                pushNumbericValue(left >= right, ip->operand);
-            else if (ip->op == OpCode::LOGICAL_AND)
+            else
             {
-                // 在Hithink中, 非0且非NaN为true, 结果为1.0或0.0
-                bool result = (left != 0.0 && !std::isnan(left)) && (right != 0.0 && !std::isnan(right));
-                pushNumbericValue(result ? 1.0 : 0.0, ip->operand);
-            }
-            else if (ip->op == OpCode::LOGICAL_OR)
-            {
-                // 在Hithink中, 非0且非NaN为true, 结果为1.0或0.0
-                bool result = (left != 0.0 && !std::isnan(left)) || (right != 0.0 && !std::isnan(right));
-                pushNumbericValue(result ? 1.0 : 0.0, ip->operand);
+                pushNumbericValue(NAN, ip->operand);
             }
             break;
         }
@@ -480,7 +489,130 @@ void PineVM::registerSeries(const std::string &name, std::shared_ptr<Series> ser
 }
 
 void PineVM::registerBuiltins()
-{
+{ 
+    built_in_funcs["input.int"] = [](PineVM &vm) -> Value
+    {
+        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
+        int current_bar = vm.getCurrentBarIndex();
+        vm.pop();
+        Value defval = vm.pop();
+        result_series->setCurrent(current_bar, std::get<double>(defval));
+        return result_series;
+    };
+    built_in_funcs["ta.sma"] = [](PineVM &vm) -> Value
+    {
+        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
+        int current_bar = vm.getCurrentBarIndex();
+        Value length_val = vm.pop();
+        Value source_val = vm.pop();
+
+        int length = static_cast<int>(vm.getNumericValue(length_val));
+        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+
+        // ta.sma 的实现
+        // 确保有足够的历史数据来计算SMA
+        if (current_bar < length - 1)
+        {
+            result_series->setCurrent(current_bar, NAN);
+        }
+        else
+        {
+            double sum = 0.0;
+            bool has_nan = false;
+            for (int i = 0; i < length; ++i)
+            {
+                double val = source_series->getCurrent(current_bar - i);
+                if (std::isnan(val))
+                {
+                    has_nan = true;
+                    break;
+                }
+                sum += val;
+            }
+
+            if (has_nan)
+            {
+                result_series->setCurrent(current_bar, NAN);
+            }
+            else
+            {
+                result_series->setCurrent(current_bar, sum / length);
+            }
+        }
+        return result_series;
+    };
+    built_in_funcs["ta.rsi"] = [](PineVM &vm) -> Value
+    {
+        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
+        int current_bar = vm.getCurrentBarIndex();
+        Value length_val = vm.pop();
+        Value source_val = vm.pop();
+
+        int length = static_cast<int>(vm.getNumericValue(length_val));
+        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+
+        // RSI 的计算需要前一天的收盘价来计算涨跌幅
+        // 因此，我们需要至少两天的历史数据才能开始计算 RSI
+        if (current_bar == 0)
+        {
+            result_series->setCurrent(current_bar, NAN);
+            return result_series;
+        }
+
+        // 计算前 length 周期内的平均涨幅 (avg_gain) 和平均跌幅 (avg_loss)
+        double avg_gain = 0.0;
+        double avg_loss = 0.0;
+        int valid_count = 0;
+
+        for (int i = 0; i <= current_bar; ++i)
+        {
+            if (i == 0)
+            { // 第一根K线没有前一日数据，跳过
+                continue;
+            }
+
+            double current_close = source_series->getCurrent(current_bar - i);
+            double prev_close = source_series->getCurrent(current_bar - i + 1);
+
+            if (std::isnan(current_close) || std::isnan(prev_close))
+            {
+                continue;
+            }
+
+            double change = current_close - prev_close;
+            if (change > 0)
+            {
+                avg_gain += change;
+            }
+            else
+            {
+                avg_loss += std::abs(change);
+            }
+            valid_count++;
+
+            if (valid_count >= length)
+            {
+                break; // 收集到足够的数据
+            }
+        }
+
+        if (valid_count < length)
+        {
+            result_series->setCurrent(current_bar, NAN); // 数据不足
+        }
+        else
+        {
+            // 第一次计算RSI，使用简单平均
+            avg_gain /= length;
+            avg_loss /= length;
+
+            double rs = (avg_loss == 0) ? (avg_gain / 1e-10) : (avg_gain / avg_loss); // 避免除以零
+            double rsi = 100.0 - (100.0 / (1.0 + rs));
+            result_series->setCurrent(current_bar, rsi);
+        }
+        return result_series;
+    };
+    /////////////////////////////////////////////////////////////////////////////////////////////
     //引用函数
     built_in_funcs["ama"] = [](PineVM &vm) -> Value
     {
@@ -726,7 +858,7 @@ void PineVM::registerBuiltins()
         result_series->setCurrent(current_bar, dma_val);
         return result_series;
     };
-    built_in_funcs["expma"] = built_in_funcs["ema"] = built_in_funcs["ta.ema"] = [](PineVM &vm) -> Value
+    built_in_funcs["expma"] = built_in_funcs["ema"] = [](PineVM &vm) -> Value
     {
         std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
         Value length_val = vm.pop();
@@ -1462,7 +1594,7 @@ void PineVM::registerBuiltins()
         result_series->setCurrent(current_bar, reversed_val);
         return result_series;
     };
-    built_in_funcs["sma"] = built_in_funcs["ta.sma"] = [](PineVM &vm) -> Value
+    built_in_funcs["sma"] = [](PineVM &vm) -> Value
     {
         std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
         // Hithink/TDX SMA函数有三个参数: SMA(X,N,M)
@@ -2965,122 +3097,6 @@ void PineVM::registerBuiltins()
         return result_series;
     };
 
-    ////
-    built_in_funcs["ta.rsi"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        std::string src_name = source_series->name;
-        std::string rsi_key = "ta.rsi(" + src_name + "~" + std::to_string(length) + ")";
-        std::string gain_key = "__rsi_avg_gain(" + src_name + "~" + std::to_string(length) + ")";
-        std::string loss_key = "__rsi_avg_loss(" + src_name + "~" + std::to_string(length) + ")";
-
-        auto get_or_create = [&](const std::string &key, const std::string &name)
-        {
-            if (vm.builtin_func_cache.count(key))
-                return vm.builtin_func_cache.at(key);
-            auto series = std::make_shared<Series>();
-            series->name = name;
-            vm.builtin_func_cache[key] = series;
-            return series;
-        };
-
-        auto rsi_series = get_or_create(rsi_key, rsi_key);
-        auto gain_series = get_or_create(gain_key, gain_key);
-        auto loss_series = get_or_create(loss_key, loss_key);
-
-        if (current_bar >= rsi_series->data.size() || std::isnan(rsi_series->data[current_bar]))
-        {
-            if (current_bar == 0)
-            {
-                gain_series->setCurrent(current_bar, NAN);
-                loss_series->setCurrent(current_bar, NAN);
-                rsi_series->setCurrent(current_bar, NAN);
-                return rsi_series;
-            }
-
-            double current_source = source_series->getCurrent(current_bar); // 修正：在播种阶段也需要获取当前值
-            double prev_source = source_series->getCurrent(current_bar - 1);
-
-            if (std::isnan(current_source) || std::isnan(prev_source))
-            {
-                gain_series->setCurrent(current_bar, NAN);
-                loss_series->setCurrent(current_bar, NAN);
-                rsi_series->setCurrent(current_bar, NAN);
-                return rsi_series;
-            }
-
-            double change = current_source - prev_source;
-            double current_gain = std::max(0.0, change);
-            double current_loss = std::max(0.0, -change);
-
-            double avg_gain, avg_loss;
-            double prev_avg_gain = gain_series->getCurrent(current_bar - 1);
-
-            if (std::isnan(prev_avg_gain))
-            {
-                // 用简单移动平均为AvgGain/AvgLoss播种
-                double gain_sum = 0.0;
-                double loss_sum = 0.0;
-                int count = 0;
-                for (int i = 0; i < length && current_bar - i > 0; ++i)
-                {
-                    double s1 = source_series->getCurrent(current_bar - i);
-                    double s2 = source_series->getCurrent(current_bar - i - 1);
-                    if (!std::isnan(s1) && !std::isnan(s2))
-                    {
-                        double chg = s1 - s2;
-                        gain_sum += std::max(0.0, chg);
-                        loss_sum += std::max(0.0, -chg);
-                        count++;
-                    }
-                }
-                if (count == length)
-                {
-                    avg_gain = gain_sum / length;
-                    avg_loss = loss_sum / length;
-                }
-                else
-                {
-                    avg_gain = current_gain;                             // 至少用当前值初始化
-                    avg_loss = current_loss > 0 ? current_loss : 0.0001; // 避免除以零
-                }
-            }
-            else
-            {
-                // Wilder's smoothing
-                double prev_avg_loss = loss_series->getCurrent(current_bar - 1);
-                avg_gain = (prev_avg_gain * (length - 1) + current_gain) / length;
-                avg_loss = (prev_avg_loss * (length - 1) + current_loss) / length;
-            }
-
-            gain_series->setCurrent(current_bar, avg_gain);
-            loss_series->setCurrent(current_bar, avg_loss);
-
-            if (std::isnan(avg_gain) || std::isnan(avg_loss))
-            {
-                rsi_series->setCurrent(current_bar, NAN);
-            }
-            else if (avg_loss == 0.0)
-            {
-                rsi_series->setCurrent(current_bar, 100.0);
-            }
-            else
-            {
-                double rs = avg_gain / avg_loss;
-                double rsi = 100.0 - (100.0 / (1.0 + rs));
-                rsi_series->setCurrent(current_bar, rsi);
-            }
-        }
-        return rsi_series;
-    };
-
     built_in_funcs["lv"] = [](PineVM &vm) -> Value
     {
         std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
@@ -3176,16 +3192,6 @@ void PineVM::registerBuiltins()
         return result_series;
     };
 
-
-    built_in_funcs["input.int"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        vm.pop();
-        Value defval = vm.pop();
-        result_series->setCurrent(current_bar, std::get<double>(defval));
-        return result_series;
-    };
 }
 
 void PineVM::printPlottedResults() const

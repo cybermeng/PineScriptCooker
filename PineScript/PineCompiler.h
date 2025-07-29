@@ -24,6 +24,7 @@ private:
     void visit(BinaryExpr& expr) override;
 
     void emitByte(OpCode op);
+    void emitByteForMath(OpCode op);
     void emitByteWithOperand(OpCode op, int operand);
     int addConstant(const Value& value);
     void resolveAndEmitLoad(const Token& name);

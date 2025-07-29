@@ -22,14 +22,9 @@ enum class TokenType {
     INPUT, INT, FLOAT, BOOL, COLOR, PLOT, PLOTSHAPE,
     TRUE, FALSE,
 
-    // PineScript built-in names (can be treated as identifiers, but lexer can help)
-    SMA, RSI, CLOSE,
-    COLOR_CONST, // e.g. color.blue (PineScript specific)
-    SHAPE_CONST, // e.g. shape.xcross (PineScript specific)
-
     // EasyLanguage / Hithink Keywords
     THEN, INPUTS, VARIABLES, BEGIN, END,
-    AVERAGE, RSI_EL, // Distinguishing EL's RSI from Pine's
+
     SELECT, // Hithink select keyword
 
     // General

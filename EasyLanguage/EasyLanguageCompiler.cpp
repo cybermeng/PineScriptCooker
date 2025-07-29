@@ -90,23 +90,6 @@ void EasyLanguageCompiler::visit(ELFunctionCallExpression& node) {
         return; // Handled
     }
 
-    if (node.name.type == TokenType::AVERAGE) {
-        pineVmFuncName = "ta.sma"; // Map EasyLanguage Average to PineVM's ta.sma
-    } else if (node.name.type == TokenType::RSI_EL) {
-        pineVmFuncName = "ta.rsi"; // Map EasyLanguage RSI to PineVM's ta.rsi
-    } else if (node.name.lexeme == "Close") { // Special handling for Close as a function call (e.g., Close[1])
-        // The current PineVM only supports `close` as a variable (current bar).
-        // If EasyLanguage calls Close() with arguments, it implies historical access.
-        // For this simplified compiler, we'll only support `Close` as a variable.
-        // If it's `Close(offset)`, it would require more complex bytecode generation (e.g., push series, push offset, then INDEX_SERIES opcode).
-        // For now, if it's a function call, we'll treat it as an error.
-        throw std::runtime_error("EasyLanguage Compiler Error: Line " + std::to_string(node.name.line) + ": 'Close' as a function call is not supported in this simplified compiler. Use 'Close' as a variable.");
-    }
-    else {
-        // For other functions, assume direct mapping or error
-        throw std::runtime_error("EasyLanguage Compiler Error: Line " + std::to_string(node.name.line) + ": Unsupported EasyLanguage function: " + node.name.lexeme);
-    }
-
     // Push arguments onto the stack in order
     for (const auto& arg : node.arguments) {
         arg->accept(*this);
