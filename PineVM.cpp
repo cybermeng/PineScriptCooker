@@ -534,29 +534,25 @@ void PineVM::registerBuiltins()
     built_in_funcs["barslast"] = [](PineVM &vm) -> Value
     {
         std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value condition_val = vm.pop();
-
         int current_bar = vm.getCurrentBarIndex();
+        // BARSLAST 上一条件成立位置
+        // 上一次条件成立到当前的周期数.
+        // 用法:
+        // BARSLAST(X):上一次X不为0到现在的周期数
+        Value condition_val = vm.pop();
         auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
-        int bars_ago = -1; // -1 表示从未发生或当前K线发生
-        for (int i = 1; i <= current_bar; ++i)
-        { // 从前一个K线开始往前找
+
+        double barslast_val = NAN;
+        for (int i = 0; i <= current_bar; ++i)
+        {
             double val = condition_series->getCurrent(current_bar - i);
             if (!std::isnan(val) && val != 0.0)
             { // 找到第一个非零（true）的K线
-                bars_ago = i;
+                barslast_val = static_cast<double>(i);
                 break;
             }
         }
-        if (bars_ago == -1)
-        { // 如果循环结束仍未找到，检查当前K线
-            double current_val = condition_series->getCurrent(current_bar);
-            if (!std::isnan(current_val) && current_val != 0.0)
-            {
-                bars_ago = 0; // 当前K线满足条件
-            }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(bars_ago - 1));
+        result_series->setCurrent(current_bar, barslast_val);
         return result_series;
     };
     built_in_funcs["barslastcount"] = [](PineVM &vm) -> Value
