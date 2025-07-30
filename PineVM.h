@@ -136,4 +136,7 @@ private:
     bool getBoolValue(const Value& val);
     void registerBuiltins();
     void writePlottedResultsToStream(std::ostream& stream, int precision = 3) const;
+    void printSeriesSummary(const Series& series, std::function<void(double)> print_value) const;
+    std::shared_ptr<Series> findTimeSeries() const;
+    std::vector<std::shared_ptr<Series>> getAllPlottableSeries() const;
 };

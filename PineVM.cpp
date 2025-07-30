@@ -3222,396 +3222,222 @@ void PineVM::registerBuiltins()
     };
 
 }
+/**
+ * @brief 查找并返回 "time" 序列。如果不存在则返回 nullptr。
+ */
+std::shared_ptr<Series> PineVM::findTimeSeries() const {
+    for (const auto &pair : built_in_vars) {
+        if (pair.first == "time" && std::holds_alternative<std::shared_ptr<Series>>(pair.second)) {
+            return std::get<std::shared_ptr<Series>>(pair.second);
+        }
+    }
+    return nullptr;
+}
 
-void PineVM::printPlottedResults() const
-{
-    if (exports.empty())
-    {
+
+/**
+ * @brief 收集所有需要绘制的 Series (在 exports 中声明的)。
+ * 这是核心的重构，将分散在各处的遍历逻辑统一起来。
+ * @return 包含所有可绘制 Series 指针的向量。
+ */
+std::vector<std::shared_ptr<Series>> PineVM::getAllPlottableSeries() const {
+    std::vector<std::shared_ptr<Series>> plottable_series;
+
+    // 1. 从 globals 中收集
+    for (const auto &plotted : globals) {
+        if (std::holds_alternative<std::shared_ptr<Series>>(plotted)) {
+            auto series = std::get<std::shared_ptr<Series>>(plotted);
+            if (exports.count(series->name)) {
+                plottable_series.push_back(series);
+            }
+        }
+    }
+
+    // 2. 从 builtin_func_cache 中收集
+    for (const auto &pair : builtin_func_cache) {
+        if (exports.count(pair.first)) {
+            plottable_series.push_back(pair.second);
+        }
+    }
+
+    return plottable_series;
+}
+
+
+/**
+ * @brief 打印单个 Series 的数据摘要 (前10个和后10个值)。
+ * @param series 要打印的序列。
+ * @param print_value 一个函数，用于定义如何打印单个数据点。
+ */
+void PineVM::printSeriesSummary(const Series& series, std::function<void(double)> print_value) const {
+    const auto &data = series.data;
+    const size_t n = data.size();
+
+    std::cout << "  Data (total " << n << " points): [";
+
+    if (n <= 20) {
+        for (size_t i = 0; i < n; ++i) {
+            if (i > 0) std::cout << ", ";
+            print_value(data[i]);
+        }
+    } else {
+        for (size_t i = 0; i < 10; ++i) {
+            if (i > 0) std::cout << ", ";
+            print_value(data[i]);
+        }
+        std::cout << ", ...";
+        for (size_t i = n - 10; i < n; ++i) {
+            std::cout << ", ";
+            print_value(data[i]);
+        }
+    }
+    std::cout << "]" << std::endl;
+}
+
+
+// --- 重构后的公共接口实现 ---
+
+void PineVM::printPlottedResults() const {
+    if (exports.empty()) {
         std::cout << "\n--- No Plotted Results ---" << std::endl;
         return;
     }
 
-    // 查找名为 "time" 的序列
-    std::shared_ptr<Series> time_series = nullptr;
-    for (const auto &pair : built_in_vars)
-    {
-        if (pair.first == "time" && std::holds_alternative<std::shared_ptr<Series>>(pair.second))
-        {
-            time_series = std::get<std::shared_ptr<Series>>(pair.second);
-            break;
-        }
-    }
-
-    if (time_series)
-    {
+    // 1. 打印时间序列
+    if (auto time_series = findTimeSeries()) {
         std::cout << "\n--- Time Series (前10个和后10个值) ---" << std::endl;
-        const auto &data = time_series->data;
-        const size_t n = data.size();
-
-        auto print_time_value = [](double val)
-        {
-            // 假设时间戳是YYYYMMDD格式的整数，转换为可读的日期
-            if (std::isnan(val))
-            {
+        auto print_time_value = [](double val) {
+            if (std::isnan(val)) {
                 std::cout << "nan";
-            }
-            else
-            {
-                // long long date_int = static_cast<long long>(val);
-                // std::cout << date_int;
-                //  将Unix时间戳转换为YYYYMMDD格式
+            } else {
                 time_t rawtime = static_cast<time_t>(val);
                 struct tm dt;
-                // 依然需要使用线程安全的 localtime_r 或 localtime_s
                 #ifdef _WIN32
                     localtime_s(&dt, &rawtime);
                 #else
                     localtime_r(&rawtime, &dt);
                 #endif
-
-                // 使用 put_time 更符合 C++ 风格，但底层转换仍依赖 C-API
                 std::cout << std::put_time(&dt, "%Y-%m-%d %H:%M:%S");
             }
         };
-
-        std::cout << "  Data (total " << n << " points): [";
-
-        if (n <= 20)
-        {
-            for (size_t i = 0; i < n; ++i)
-            {
-                if (i > 0)
-                    std::cout << ", ";
-                print_time_value(data[i]);
-            }
-        }
-        else
-        {
-            for (size_t i = 0; i < 10; ++i)
-            {
-                if (i > 0)
-                    std::cout << ", ";
-                print_time_value(data[i]);
-            }
-            std::cout << ", ...";
-            for (size_t i = n - 10; i < n; ++i)
-            {
-                std::cout << ", ";
-                print_time_value(data[i]);
-            }
-        }
-        std::cout << "]" << std::endl;
+        printSeriesSummary(*time_series, print_time_value);
     }
+
+    // 2. 打印所有其他可绘制序列
+    std::vector<std::shared_ptr<Series>> all_series = getAllPlottableSeries();
+    if (all_series.empty()) {
+        // 可能只有时间序列，没有其他 plot
+        return;
+    }
+
     std::cout << "\n--- Plotted Results (前10个和后10个值) ---" << std::endl;
-    for (const auto &plotted : globals)
-    {
-        if (std::holds_alternative<std::shared_ptr<Series>>(plotted))
-        {
-            std::shared_ptr<Series> plotted_series = std::get<std::shared_ptr<Series>>(plotted);
-            auto it = exports.find(plotted_series->name);
-            if (it == exports.end())
-            {
-                continue;
-            }
-            std::cout << "Series: " << plotted_series->name  << std::endl;
-
-            const auto &data = plotted_series->data;
-            const size_t n = data.size();
-
-            auto print_value = [](double val)
-            {
-                if (std::isnan(val))
-                {
-                    std::cout << "nan";
-                }
-                else
-                {
-                    std::cout << std::fixed << std::setprecision(3) << val;
-                }
-            };
-
-            std::cout << "  Data (total " << n << " points): [";
-
-            if (n <= 20)
-            {
-                // 如果点数少于等于20，则全部打印
-                for (size_t i = 0; i < n; ++i)
-                {
-                    if (i > 0)
-                        std::cout << ", ";
-                    print_value(data[i]);
-                }
-            }
-            else
-            {
-                // 打印前10个点
-                for (size_t i = 0; i < 10; ++i)
-                {
-                    if (i > 0)
-                        std::cout << ", ";
-                    print_value(data[i]);
-                }
-                std::cout << ", ...";
-                // 打印后10个点
-                for (size_t i = n - 10; i < n; ++i)
-                {
-                    std::cout << ", ";
-                    print_value(data[i]);
-                }
-            }
-            std::cout << "]" << std::endl;
+    auto print_numeric_value = [](double val) {
+        if (std::isnan(val)) {
+            std::cout << "nan";
+        } else {
+            std::cout << std::fixed << std::setprecision(3) << val;
         }
-    }
+    };
 
-    for (const auto &plotted : builtin_func_cache)
-    {
-        auto it = exports.find(plotted.first);
-        if (it == exports.end())
-        {
-            continue;
-        }
-        std::shared_ptr<Series> plotted_series = plotted.second;
-        std::cout << "Series: " << plotted_series->name  << std::endl;
-
-        const auto &data = plotted_series->data;
-        const size_t n = data.size();
-
-        auto print_value = [](double val)
-        {
-            if (std::isnan(val))
-            {
-                std::cout << "nan";
-            }
-            else
-            {
-                std::cout << std::fixed << std::setprecision(3) << val;
-            }
-        };
-
-        std::cout << "  Data (total " << n << " points): [";
-
-        if (n <= 20)
-        {
-            // 如果点数少于等于20，则全部打印
-            for (size_t i = 0; i < n; ++i)
-            {
-                if (i > 0)
-                    std::cout << ", ";
-                print_value(data[i]);
-            }
-        }
-        else
-        {
-            // 打印前10个点
-            for (size_t i = 0; i < 10; ++i)
-            {
-                if (i > 0)
-                    std::cout << ", ";
-                print_value(data[i]);
-            }
-            std::cout << ", ...";
-            // 打印后10个点
-            for (size_t i = n - 10; i < n; ++i)
-            {
-                std::cout << ", ";
-                print_value(data[i]);
-            }
-        }
-        std::cout << "]" << std::endl;
-    
+    for (const auto &series : all_series) {
+        std::cout << "Series: " << series->name << std::endl;
+        printSeriesSummary(*series, print_numeric_value);
     }
 }
 
-// 1. 私有辅助函数 (核心逻辑)
-void PineVM::writePlottedResultsToStream(std::ostream &stream, int precision) const
-{
-    if (exports.empty())
-    {
-        std::cout << "\n--- No Plotted Results ---" << std::endl;
+
+// --- 重构后的私有核心逻辑 (写入流) ---
+
+void PineVM::writePlottedResultsToStream(std::ostream &stream, int precision) const {
+    if (exports.empty()) {
+        // 虽然 print 函数有这个检查，但这里保留以确保独立性
+        // 可以根据需要决定是否输出提示信息
         return;
     }
-    // 查找名为 "time" 的序列
-    std::shared_ptr<Series> time_series = nullptr;
-    for (const auto &pair : built_in_vars)
-    {
-        if (pair.first == "time" && std::holds_alternative<std::shared_ptr<Series>>(pair.second))
-        {
-            time_series = std::get<std::shared_ptr<Series>>(pair.second);
-            break;
-        }
+
+    auto time_series = findTimeSeries();
+    auto plottable_series = getAllPlottableSeries();
+
+    if (!time_series && plottable_series.empty()) {
+        return; // 无任何数据可写
     }
 
-    // 写入CSV头
-    bool first_series = true;
-    if (time_series)
-    {
+    // 1. 写入CSV头
+    bool first_column = true;
+    if (time_series) {
         stream << "time";
-        first_series = false;
+        first_column = false;
     }
-    for (const auto &plotted : globals)
-    {
-        if (std::holds_alternative<std::shared_ptr<Series>>(plotted))
-        {
-            std::shared_ptr<Series> plotted_series = std::get<std::shared_ptr<Series>>(plotted);
-            auto it = exports.find(plotted_series->name);
-            if (it == exports.end())
-            {
-                continue;
-            }
-            if (!first_series)
-            {
-                stream << ",";
-            }
-            stream << plotted_series->name;
-        }
-        first_series = false;
-    }
-    for (const auto &plotted : builtin_func_cache)
-    {
-        auto it = exports.find(plotted.first);
-        if (it == exports.end())
-        {
-            continue;
-        }
-        if (!first_series)
-        {
-            stream << ",";
-        }
-        stream << plotted.first;
-        first_series = false;
+    for (const auto &series : plottable_series) {
+        if (!first_column) stream << ",";
+        stream << series->name;
+        first_column = false;
     }
     stream << "\n";
 
-    // 写入数据
-    size_t max_data_points = 0;
-    if (time_series)
-    {
-        max_data_points = time_series->data.size();
+    // 2. 计算最大行数
+    size_t max_rows = 0;
+    if (time_series) {
+        max_rows = time_series->data.size();
     }
-    for (const auto &plotted : globals)
-    {
-        if (std::holds_alternative<std::shared_ptr<Series>>(plotted))
-        {
-            std::shared_ptr<Series> plotted_series = std::get<std::shared_ptr<Series>>(plotted);
-            auto it = exports.find(plotted_series->name);
-            if (it == exports.end())
-            {
-                continue;
-            }
-            if (plotted_series->data.size() > max_data_points)
-            {
-                max_data_points = plotted_series->data.size();
-            }
-        }
-    }
-    for (const auto &plotted : builtin_func_cache)
-    {
-        std::shared_ptr<Series> plotted_series = plotted.second;
-        auto it = exports.find(plotted.first);
-        if (it == exports.end())
-        {
-            continue;
-        }
-        if (plotted_series->data.size() > max_data_points)
-        {
-            max_data_points = plotted_series->data.size();
-        }
+    for (const auto &series : plottable_series) {
+        max_rows = std::max(max_rows, series->data.size());
     }
 
-    for (size_t i = 0; i < max_data_points; ++i)
-    {
-        first_series = true;
-        if (time_series)
-        {
-            if (i < time_series->data.size())
-            {
-                time_t rawtime = static_cast<time_t>(time_series->data[i]);
-                if (rawtime > 0)
-                {
+    // 3. 逐行写入数据
+    for (size_t i = 0; i < max_rows; ++i) {
+        first_column = true;
+        
+        // 写入时间列
+        if (time_series) {
+            if (i < time_series->data.size()) {
+                double val = time_series->data[i];
+                if (!std::isnan(val) && val > 0) {
+                    time_t rawtime = static_cast<time_t>(val);
                     struct tm dt;
-                    // 依然需要使用线程安全的 localtime_r 或 localtime_s
                     #ifdef _WIN32
                         localtime_s(&dt, &rawtime);
                     #else
                         localtime_r(&rawtime, &dt);
                     #endif
-
-                    // 使用 put_time 更符合 C++ 风格，但底层转换仍依赖 C-API
                     stream << std::put_time(&dt, "%Y-%m-%d %H:%M:%S");
                 }
             }
-            first_series = false;
+            first_column = false;
         }
-        for (const auto &plotted : globals)
-        {
-            if (std::holds_alternative<std::shared_ptr<Series>>(plotted))
-            {
-                std::shared_ptr<Series> plotted_series = std::get<std::shared_ptr<Series>>(plotted);
-                auto it = exports.find(plotted_series->name);
-                if (it == exports.end())
-                {
-                    continue;
+
+        // 写入其他数据列
+        for (const auto &series : plottable_series) {
+            if (!first_column) stream << ",";
+            if (i < series->data.size()) {
+                double val = series->data[i];
+                if (std::isnan(val)) {
+                     stream << "nan";
+                } else {
+                     stream << std::fixed << std::setprecision(precision) << val;
                 }
-                if (!first_series)
-                {
-                    stream << ",";
-                }
-                if (i < plotted_series->data.size())
-                {
-                    // 数据保留N位小数
-                    stream << std::fixed << std::setprecision(precision) << plotted_series->data[i];
-                }
-                first_series = false;
             }
-        }
-        for (const auto &plotted : builtin_func_cache)
-        {
-            std::shared_ptr<Series> plotted_series = plotted.second;
-            auto it = exports.find(plotted.first);
-            if (it == exports.end())
-            {
-                continue;
-            }
-            if (!first_series)
-            {
-                stream << ",";
-            }
-            if (i < plotted_series->data.size())
-            {
-                // 数据保留N位小数
-                stream << std::fixed << std::setprecision(precision) << plotted_series->data[i];
-            }
-            first_series = false;
+            first_column = false;
         }
         stream << "\n";
     }
 }
 
-// 2. 新的公共接口：写入文件
-void PineVM::writePlottedResultsToFile(const std::string &filename, int precision) const
-{
+// --- 其余公共接口 (无需修改，它们已经设计得很好) ---
+
+void PineVM::writePlottedResultsToFile(const std::string &filename, int precision) const {
     std::ofstream outfile(filename);
-    if (!outfile.is_open())
-    {
+    if (!outfile.is_open()) {
         std::cerr << "Error: Could not open file " << filename << " for writing." << std::endl;
         return;
     }
-
-    // 调用核心逻辑函数
     writePlottedResultsToStream(outfile, precision);
-
-    outfile.close(); // ofstream 在析构时会自动关闭，但显式关闭也是好习惯
+    outfile.close();
     std::cout << "Plotted results written to " << filename << std::endl;
 }
 
-// 3. 新的公共接口：输出为字符串
-std::string PineVM::getPlottedResultsAsString(int precision) const
-{
+std::string PineVM::getPlottedResultsAsString(int precision) const {
     std::stringstream ss;
-
-    // 调用核心逻辑函数
     writePlottedResultsToStream(ss, precision);
-
-    // 从 stringstream 获取字符串并返回
     return ss.str();
 }
