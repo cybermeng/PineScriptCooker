@@ -72,13 +72,14 @@ void run_test(const std::string& test_name,
     vm.execute(total_bars);
 
     // 4. 校验结果
-    const auto& results = vm.getPlottedSeries();
+    const auto& results = vm.getGlobalSeries();
     bool found = false;
     for (const auto& plotted : results) {
-        if (plotted.series->name == "RESULT") { // 约定输出变量名为 RESULT
+        std::shared_ptr<Series> plotted_series = std::get<std::shared_ptr<Series>>(plotted);
+        if (plotted_series->name == "RESULT") { // 约定输出变量名为 RESULT
             found = true;
-            if (plotted.series->data.size() > check_bar_index) {
-                double actual_value = plotted.series->data[check_bar_index];
+            if (plotted_series->data.size() > check_bar_index) {
+                double actual_value = plotted_series->data[check_bar_index];
                 if (are_equal(actual_value, expected_value)) {
                     std::cout << "    [PASS] Expected: " << expected_value << ", Got: " << actual_value << std::endl;
                     passed_tests++;
@@ -86,7 +87,7 @@ void run_test(const std::string& test_name,
                     std::cout << "    [FAIL] Expected: " << expected_value << ", Got: " << actual_value << std::endl;
                 }
             } else {
-                std::cout << "    [FAIL] Result series is too short. Size: " << plotted.series->data.size() << ", Expected index: " << check_bar_index << std::endl;
+                std::cout << "    [FAIL] Result series is too short. Size: " << plotted_series->data.size() << ", Expected index: " << check_bar_index << std::endl;
             }
             break;
         }

@@ -147,11 +147,11 @@ std::string bytecodeToTxt(const Bytecode& bytecode)
             case OpCode::STORE_GLOBAL:
                 result += "STORE_GLOBAL " + std::to_string(instr.operand);
                 break;
+            case OpCode::STORE_EXPORT:
+                result += "STORE_EXPORT " + std::to_string(instr.operand);
+                break;
             case OpCode::RENAME_SERIES:
                 result += "RENAME_SERIES";
-                break;
-            case OpCode::STORE_AND_PLOT_GLOBAL:
-                result += "STORE_AND_PLOT_GLOBAL " + std::to_string(instr.operand);
                 break;
             case OpCode::JUMP_IF_FALSE:
                 result += "JUMP_IF_FALSE " + std::to_string(instr.operand);
@@ -161,9 +161,6 @@ std::string bytecodeToTxt(const Bytecode& bytecode)
                 break;
             case OpCode::CALL_BUILTIN_FUNC:
                 result += "CALL_BUILTIN_FUNC " + std::to_string(instr.operand);
-                break;
-            case OpCode::CALL_PLOT:
-                result += "CALL_PLOT " + std::to_string(instr.operand);
                 break;
             case OpCode::HALT:
                 result += "HALT";
@@ -245,12 +242,11 @@ Bytecode txtToBytecode(const std::string& txt)
         {"LOAD_BUILTIN_VAR", OpCode::LOAD_BUILTIN_VAR},
         {"LOAD_GLOBAL", OpCode::LOAD_GLOBAL},
         {"STORE_GLOBAL", OpCode::STORE_GLOBAL},
+        {"STORE_EXPORT", OpCode::STORE_EXPORT},
         {"RENAME_SERIES", OpCode::RENAME_SERIES},
-        {"STORE_AND_PLOT_GLOBAL", OpCode::STORE_AND_PLOT_GLOBAL},
         {"JUMP_IF_FALSE", OpCode::JUMP_IF_FALSE},
         {"JUMP", OpCode::JUMP},
         {"CALL_BUILTIN_FUNC", OpCode::CALL_BUILTIN_FUNC},
-        {"CALL_PLOT", OpCode::CALL_PLOT},
         {"HALT", OpCode::HALT}
     };
 

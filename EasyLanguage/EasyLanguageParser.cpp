@@ -95,12 +95,6 @@ std::unique_ptr<ELStatement> EasyLanguageParser::variableDeclaration() {
 
 
 std::unique_ptr<ELStatement> EasyLanguageParser::statement() {
-    // Handle explicit 'Plot' keyword (e.g., "Plot(Close);")
-    if (match(TokenType::PLOT)) {
-        // The 'Plot' token is now in 'previous'.
-        return plotStatement(previous);
-    }
-
     if (current.type == TokenType::IDENTIFIER) {
         std::string lowerLexeme = current.lexeme;
         std::transform(lowerLexeme.begin(), lowerLexeme.end(), lowerLexeme.begin(),
@@ -123,25 +117,6 @@ std::unique_ptr<ELStatement> EasyLanguageParser::statement() {
         return assignmentStatement();
     }
     throw std::runtime_error("EasyLanguage Parser Error: Line " + std::to_string(current.line) + ": Expected a statement.");
-}
-
-std::unique_ptr<ELStatement> EasyLanguageParser::plotStatement(Token plotNameToken) {
-    // Check if we have identifier followed by parenthesis, if not throw error
-    if (!match(TokenType::LEFT_PAREN)) {
-        throw std::runtime_error("EasyLanguage Parser Error: Line " + std::to_string(current.line) + ": Expect '(' after plot name. (Found: '" + current.lexeme + "')");
-    }
-
-    // The rest remains the same...
-    std::unique_ptr<ELExpression> value = expression(); // Required value
-    std::unique_ptr<ELExpression> color = nullptr;     // Optional color
-    if (match(TokenType::COMMA)) {
-        color = expression();                           // Consume optional color
-    } else {
-        // Optionally provide a default color if none is specified.
-    }
-    consume(TokenType::RIGHT_PAREN, "EasyLanguage Parser Error: Line " + std::to_string(current.line) + ": Expect ')' after plot arguments.");
-    consume(TokenType::SEMICOLON, "Expect ';' after plot statement.");
-    return std::make_unique<ELPlotStatement>(plotNameToken, std::move(value), std::move(color));
 }
 
 std::unique_ptr<ELStatement> EasyLanguageParser::ifStatement() {

@@ -65,8 +65,8 @@ void HithinkCompiler::visit(HithinkAssignmentStatement& node) {
     node.value->accept(*this);
     if (node.isOutput) {
         // 1. 处理输出变量 (使用 ':')
-        //  - 将其存储到全局槽位并标记为绘图
-        resolveAndEmitStoreAndPlot(node.name);
+        //  - 将其存储到全局槽位
+        resolveAndEmitStoreGlobal(node.name);
     } else {
         // 2. 处理普通赋值 (使用 ':=')
         resolveAndEmitStore(node.name);
@@ -100,28 +100,11 @@ void HithinkCompiler::visit(HithinkBinaryExpression& node) {
 }
 
 void HithinkCompiler::visit(HithinkFunctionCallExpression& node) {
-    // 特殊处理 DRAWTEXT: 转换为 plot, 并添加条件跳转
-    if (node.name.lexeme == "DRAWTEXT") {
-        if (node.arguments.size() != 3) {
-            throw std::runtime_error("DRAWTEXT expects 3 arguments (condition, price, text).");
-        }
 
-        // 1. 编译条件表达式
-        node.arguments[0]->accept(*this);
-
-        // 2. 如果条件为假，则跳转到绘图语句之后
-        int jump_if_false = emitJump(OpCode::JUMP_IF_FALSE);
-
-        // 3. 编译绘图语句 (plot(price, text))
-        node.arguments[2]->accept(*this); // text (plot name)
-        node.arguments[1]->accept(*this); // price (series)
-        int plotNameIndex = addConstant(builtin_mappings.at("drawtext")); // "plot"
-        emitByteWithOperand(OpCode::CALL_PLOT, 3); // CALL_PLOT (plot_name, series, color), always 3 args
-
-        // 4. 回填跳转指令
-        patchJump(jump_if_false);
-        return;
-    }
+    //check arguments number
+    // if (node.arguments.size() != 3) {
+    //     throw std::runtime_error("expects 3 arguments (condition, price, text).");
+    // }
 
     // 常规函数调用处理
     for (const auto& arg : node.arguments) {
@@ -206,7 +189,7 @@ void HithinkCompiler::resolveAndEmitLoad(const Token& name) {
 
 void HithinkCompiler::resolveAndEmitStore(const Token& name) {
     std::string varName = name.lexeme;
-    // 即使是输出变量，也使用相同的全局槽位 (Even if it's an output variable, use the same global slot)
+    // 即使不是是输出变量，也使用相同的全局槽位 (Even if it's an output variable, use the same global slot)
     if (globalVarSlots.find(varName) == globalVarSlots.end()) {
         bytecode.global_name_pool.push_back(varName);
         globalVarSlots[varName] = nextSlot++;
@@ -214,14 +197,14 @@ void HithinkCompiler::resolveAndEmitStore(const Token& name) {
     emitByteWithOperand(OpCode::STORE_GLOBAL, globalVarSlots[varName]);
 }
 
-void HithinkCompiler::resolveAndEmitStoreAndPlot(const Token& name) {
+void HithinkCompiler::resolveAndEmitStoreGlobal(const Token& name) {
     std::string varName = name.lexeme;
     // 输出变量也使用全局槽位 (Output variables also use global slots)
     if (globalVarSlots.find(varName) == globalVarSlots.end()) {
         bytecode.global_name_pool.push_back(varName);
         globalVarSlots[varName] = nextSlot++;
     }
-    emitByteWithOperand(OpCode::STORE_AND_PLOT_GLOBAL, globalVarSlots[varName]);
+    emitByteWithOperand(OpCode::STORE_EXPORT, globalVarSlots[varName]);
 }
 
 int HithinkCompiler::emitJump(OpCode jumpType) {

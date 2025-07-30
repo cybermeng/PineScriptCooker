@@ -54,6 +54,7 @@ void PineVM::loadBytecode(const std::string &code)
     // 重置所有计算状态，为新的执行做准备
     globals.clear();
     globals.resize(bytecode.global_name_pool.size());
+    exports.clear();
 
     vars.clear();
     vars.reserve(bytecode.varNum);
@@ -65,7 +66,6 @@ void PineVM::loadBytecode(const std::string &code)
     }
     
     // 清空绘图结果和函数状态缓存
-    plotted_series.clear();
     builtin_func_cache.clear();
 
     // 重置执行上下文
@@ -344,34 +344,23 @@ void PineVM::runCurrentBar()
             storeGlobal(ip->operand, pop());
             break;
         }
+        case OpCode::STORE_EXPORT:
+        {
+            std::string& name = bytecode.global_name_pool[ip->operand];
+            auto it = exports.find(name);
+            if (it == exports.end())
+            {
+                exports[name] = {name, "default_color"};
+            }
+            storeGlobal(ip->operand, pop());
+            break;
+        }
         case OpCode::RENAME_SERIES:
         {
             Value name_val = pop();
             Value &series_val = stack.back(); // Peek at the top of the stack
             auto series_ptr = std::get<std::shared_ptr<Series>>(series_val);
             series_ptr->name = std::get<std::string>(name_val);
-            break;
-        }
-        case OpCode::STORE_AND_PLOT_GLOBAL:
-        {
-            // 窥视（Peek），而不是弹出（Pop）。该值可能被后续指令（例如 POP）使用。
-            Value &val_to_store = stack.back();
-            Value &val_stored = storeGlobal(ip->operand, val_to_store); // 存储一个副本
-
-            // Now handle plotting
-            auto series_ptr = std::get<std::shared_ptr<Series>>(val_stored);
-
-            // Check if this series is already registered for plotting
-            auto it = std::find_if(plotted_series.begin(), plotted_series.end(),
-                                   [&](const PlottedSeries &ps)
-                                   {
-                                       return ps.series.get() == series_ptr.get();
-                                   });
-
-            if (it == plotted_series.end())
-            {
-                plotted_series.push_back({series_ptr, "default_color"});
-            }
             break;
         }
         case OpCode::LOAD_BUILTIN_VAR:
@@ -406,7 +395,7 @@ void PineVM::runCurrentBar()
             if (built_in_funcs.count(func_name))
             {
                 // 基于函数和序号创建唯一的缓存键，以支持状态保持
-                std::string cache_key = "__call__" + func_name + "~" + std::to_string(ip->operand);
+                std::string cache_key = "__call__" + func_name + "__" + std::to_string(ip->operand);
                 std::shared_ptr<Series> result_series;
                 if (builtin_func_cache.count(cache_key))
                 {
@@ -426,54 +415,6 @@ void PineVM::runCurrentBar()
             {
                 throw std::runtime_error("Undefined built-in function: " + func_name);
             }
-            break;
-        }
-        case OpCode::CALL_PLOT:
-        {
-            Value color_val = pop();          // 颜色
-            Value series_to_plot_val = pop(); // 要绘制的序列
-
-            auto series_ptr = std::get<std::shared_ptr<Series>>(series_to_plot_val);
-
-            // 检查此序列是否已注册以进行绘制
-            auto it = std::find_if(plotted_series.begin(), plotted_series.end(),
-                                   [&](const PlottedSeries &ps)
-                                   {
-                                       return ps.series.get() == series_ptr.get();
-                                   });
-
-            if (it == plotted_series.end())
-            {
-                // 尚未注册，添加它
-                if (series_ptr->name.empty())
-                {
-                    // 如果序列没有名称，尝试从常量池中获取一个
-                    // 这通常发生在像 `plot(close)` 这样的情况下，`close` 是一个内置变量，
-                    // 它的 Series 对象可能没有在编译时设置名称。
-                    // 我们可以使用其在 `built_in_vars` 中的键作为名称。
-                    for (const auto &pair : built_in_vars)
-                    {
-                        if (std::holds_alternative<std::shared_ptr<Series>>(pair.second) &&
-                            std::get<std::shared_ptr<Series>>(pair.second).get() == series_ptr.get())
-                        {
-                            series_ptr->name = pair.first;
-                            break;
-                        }
-                    }
-                    if (series_ptr->name.empty())
-                    {
-                        series_ptr->name = "unnamed_series"; // 最后的备用名称
-                    }
-                }
-
-                std::string color_str = "default_color";
-                if (std::holds_alternative<std::string>(color_val))
-                {
-                    color_str = std::get<std::string>(color_val);
-                }
-                plotted_series.push_back({series_ptr, color_str});
-            }
-            push(true); // plot() 在PineScript中返回void，但我们的VM可能需要一个返回值
             break;
         }
         default:
@@ -497,6 +438,24 @@ void PineVM::registerBuiltins()
         vm.pop();
         Value defval = vm.pop();
         result_series->setCurrent(current_bar, std::get<double>(defval));
+        return result_series;
+    };
+    built_in_funcs["plot"] = [](PineVM &vm) -> Value
+    {
+        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
+        int current_bar = vm.getCurrentBarIndex();
+        Value color = vm.pop();
+        Value val = vm.pop();
+        auto it = vm.exports.find(result_series->name);
+        if (it == vm.exports.end())
+        {
+            vm.exports[result_series->name] = {result_series->name, std::get<std::string>(color)};
+        }
+        auto* plot_series = std::get_if<std::shared_ptr<Series>>(&val);
+        if(plot_series)
+        {
+            result_series->setCurrent(current_bar, (*plot_series)->getCurrent(current_bar));
+        }
         return result_series;
     };
     built_in_funcs["ta.sma"] = [](PineVM &vm) -> Value
@@ -1504,16 +1463,86 @@ void PineVM::registerBuiltins()
         result_series->setCurrent(current_bar, mema_val);
         return result_series;
     };
-    built_in_funcs["mulae"] = [](PineVM &vm) -> Value
+    built_in_funcs["mular"] = [](PineVM &vm) -> Value
     {
         std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        //todo
+        int current_bar = vm.getCurrentBarIndex();
+        // MULAR 累乘
+        // 求累乘.
+        // 用法:
+        // MULAR(X,N),统计N周期中X的乘积.N=0则从第一个有效值开始.
+        // 例如:
+        // MULAR(C/REF(C,1),0)表示统计从上市第一天以来的复利
+        Value length_val = vm.pop();
+        Value source_val = vm.pop();
+
+        int length = static_cast<int>(vm.getNumericValue(length_val));
+        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+        double product = 1.0;
+        bool has_nan = false;
+
+        if (length == 0)
+        { // N=0则从第一个有效值开始
+            for (int i = 0; i <= current_bar; ++i)
+            {
+                double val = source_series->getCurrent(i);
+                if (std::isnan(val))
+                {
+                    has_nan = true;
+                    break;
+                }
+                product *= val;
+            }
+        }
+        else
+        { // 统计N周期中X的乘积
+            for (int i = 0; i < length; ++i)
+            {
+                if (current_bar - i < 0)
+                {
+                    has_nan = true; // Not enough data for the full length
+                    break;
+                }
+                double val = source_series->getCurrent(current_bar - i);
+                if (std::isnan(val))
+                {
+                    has_nan = true;
+                    break;
+                }
+                product *= val;
+            }
+        }
+
+        if (has_nan)
+        {
+            result_series->setCurrent(current_bar, NAN);
+        }
+        else
+        {
+            result_series->setCurrent(current_bar, product);
+        }
+        
         return result_series;
     };
     built_in_funcs["range"] = [](PineVM &vm) -> Value
     {
         std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        //todo
+        int current_bar = vm.getCurrentBarIndex();
+        // RANGE 介于某个范围之间
+        // RANGE(A,B,C):A在B和C范围之间,B<A<C.
+        // 用法:
+        // RANGE(A,B,C)表示A大于B同时小于C时返回1,否则返回0
+        Value c_val = vm.pop();
+        Value b_val = vm.pop();
+        Value a_val = vm.pop();
+
+        double A = vm.getNumericValue(a_val);
+        double B = vm.getNumericValue(b_val);
+        double C = vm.getNumericValue(c_val);
+
+        // RANGE(A,B,C)表示A大于B同时小于C时返回1,否则返回0
+        double range_val = (A > B && A < C) ? 1.0 : 0.0;
+        result_series->setCurrent(current_bar, range_val);
         return result_series;
     };
     built_in_funcs["ref"] = [](PineVM &vm) -> Value
@@ -3196,7 +3225,7 @@ void PineVM::registerBuiltins()
 
 void PineVM::printPlottedResults() const
 {
-    if (plotted_series.empty())
+    if (exports.empty())
     {
         std::cout << "\n--- No Plotted Results ---" << std::endl;
         return;
@@ -3274,11 +3303,77 @@ void PineVM::printPlottedResults() const
         std::cout << "]" << std::endl;
     }
     std::cout << "\n--- Plotted Results (前10个和后10个值) ---" << std::endl;
-    for (const auto &plotted : plotted_series)
+    for (const auto &plotted : globals)
     {
-        std::cout << "Series: " << plotted.series->name << ", Color: " << plotted.color << std::endl;
+        if (std::holds_alternative<std::shared_ptr<Series>>(plotted))
+        {
+            std::shared_ptr<Series> plotted_series = std::get<std::shared_ptr<Series>>(plotted);
+            auto it = exports.find(plotted_series->name);
+            if (it == exports.end())
+            {
+                continue;
+            }
+            std::cout << "Series: " << plotted_series->name  << std::endl;
 
-        const auto &data = plotted.series->data;
+            const auto &data = plotted_series->data;
+            const size_t n = data.size();
+
+            auto print_value = [](double val)
+            {
+                if (std::isnan(val))
+                {
+                    std::cout << "nan";
+                }
+                else
+                {
+                    std::cout << std::fixed << std::setprecision(3) << val;
+                }
+            };
+
+            std::cout << "  Data (total " << n << " points): [";
+
+            if (n <= 20)
+            {
+                // 如果点数少于等于20，则全部打印
+                for (size_t i = 0; i < n; ++i)
+                {
+                    if (i > 0)
+                        std::cout << ", ";
+                    print_value(data[i]);
+                }
+            }
+            else
+            {
+                // 打印前10个点
+                for (size_t i = 0; i < 10; ++i)
+                {
+                    if (i > 0)
+                        std::cout << ", ";
+                    print_value(data[i]);
+                }
+                std::cout << ", ...";
+                // 打印后10个点
+                for (size_t i = n - 10; i < n; ++i)
+                {
+                    std::cout << ", ";
+                    print_value(data[i]);
+                }
+            }
+            std::cout << "]" << std::endl;
+        }
+    }
+
+    for (const auto &plotted : builtin_func_cache)
+    {
+        auto it = exports.find(plotted.first);
+        if (it == exports.end())
+        {
+            continue;
+        }
+        std::shared_ptr<Series> plotted_series = plotted.second;
+        std::cout << "Series: " << plotted_series->name  << std::endl;
+
+        const auto &data = plotted_series->data;
         const size_t n = data.size();
 
         auto print_value = [](double val)
@@ -3323,13 +3418,14 @@ void PineVM::printPlottedResults() const
             }
         }
         std::cout << "]" << std::endl;
+    
     }
 }
 
 // 1. 私有辅助函数 (核心逻辑)
 void PineVM::writePlottedResultsToStream(std::ostream &stream, int precision) const
 {
-    if (plotted_series.empty())
+    if (exports.empty())
     {
         std::cout << "\n--- No Plotted Results ---" << std::endl;
         return;
@@ -3352,72 +3448,142 @@ void PineVM::writePlottedResultsToStream(std::ostream &stream, int precision) co
         stream << "time";
         first_series = false;
     }
-    for (const auto &plotted : plotted_series)
+    for (const auto &plotted : globals)
     {
+        if (std::holds_alternative<std::shared_ptr<Series>>(plotted))
+        {
+            std::shared_ptr<Series> plotted_series = std::get<std::shared_ptr<Series>>(plotted);
+            auto it = exports.find(plotted_series->name);
+            if (it == exports.end())
+            {
+                continue;
+            }
+            if (!first_series)
+            {
+                stream << ",";
+            }
+            stream << plotted_series->name;
+        }
+        first_series = false;
+    }
+    for (const auto &plotted : builtin_func_cache)
+    {
+        auto it = exports.find(plotted.first);
+        if (it == exports.end())
+        {
+            continue;
+        }
         if (!first_series)
         {
             stream << ",";
         }
-        stream << plotted.series->name;
+        stream << plotted.first;
         first_series = false;
     }
     stream << "\n";
 
     // 写入数据
-    if (!plotted_series.empty() || time_series)
+    size_t max_data_points = 0;
+    if (time_series)
     {
-        size_t max_data_points = 0;
+        max_data_points = time_series->data.size();
+    }
+    for (const auto &plotted : globals)
+    {
+        if (std::holds_alternative<std::shared_ptr<Series>>(plotted))
+        {
+            std::shared_ptr<Series> plotted_series = std::get<std::shared_ptr<Series>>(plotted);
+            auto it = exports.find(plotted_series->name);
+            if (it == exports.end())
+            {
+                continue;
+            }
+            if (plotted_series->data.size() > max_data_points)
+            {
+                max_data_points = plotted_series->data.size();
+            }
+        }
+    }
+    for (const auto &plotted : builtin_func_cache)
+    {
+        std::shared_ptr<Series> plotted_series = plotted.second;
+        auto it = exports.find(plotted.first);
+        if (it == exports.end())
+        {
+            continue;
+        }
+        if (plotted_series->data.size() > max_data_points)
+        {
+            max_data_points = plotted_series->data.size();
+        }
+    }
+
+    for (size_t i = 0; i < max_data_points; ++i)
+    {
+        first_series = true;
         if (time_series)
         {
-            max_data_points = time_series->data.size();
-        }
-        for (const auto &plotted : plotted_series)
-        {
-            if (plotted.series->data.size() > max_data_points)
+            if (i < time_series->data.size())
             {
-                max_data_points = plotted.series->data.size();
-            }
-        }
-
-        for (size_t i = 0; i < max_data_points; ++i)
-        {
-            first_series = true;
-            if (time_series)
-            {
-                if (i < time_series->data.size())
+                time_t rawtime = static_cast<time_t>(time_series->data[i]);
+                if (rawtime > 0)
                 {
-                    time_t rawtime = static_cast<time_t>(time_series->data[i]);
-                    if (rawtime > 0)
-                    {
-                        struct tm dt;
-                        // 依然需要使用线程安全的 localtime_r 或 localtime_s
-                        #ifdef _WIN32
-                            localtime_s(&dt, &rawtime);
-                        #else
-                            localtime_r(&rawtime, &dt);
-                        #endif
+                    struct tm dt;
+                    // 依然需要使用线程安全的 localtime_r 或 localtime_s
+                    #ifdef _WIN32
+                        localtime_s(&dt, &rawtime);
+                    #else
+                        localtime_r(&rawtime, &dt);
+                    #endif
 
-                        // 使用 put_time 更符合 C++ 风格，但底层转换仍依赖 C-API
-                        stream << std::put_time(&dt, "%Y-%m-%d %H:%M:%S");
-                    }
+                    // 使用 put_time 更符合 C++ 风格，但底层转换仍依赖 C-API
+                    stream << std::put_time(&dt, "%Y-%m-%d %H:%M:%S");
                 }
-                first_series = false;
             }
-            for (const auto &plotted : plotted_series)
+            first_series = false;
+        }
+        for (const auto &plotted : globals)
+        {
+            if (std::holds_alternative<std::shared_ptr<Series>>(plotted))
             {
+                std::shared_ptr<Series> plotted_series = std::get<std::shared_ptr<Series>>(plotted);
+                auto it = exports.find(plotted_series->name);
+                if (it == exports.end())
+                {
+                    continue;
+                }
                 if (!first_series)
                 {
                     stream << ",";
                 }
-                if (i < plotted.series->data.size())
+                if (i < plotted_series->data.size())
                 {
                     // 数据保留N位小数
-                    stream << std::fixed << std::setprecision(precision) << plotted.series->data[i];
+                    stream << std::fixed << std::setprecision(precision) << plotted_series->data[i];
                 }
                 first_series = false;
             }
-            stream << "\n";
         }
+        for (const auto &plotted : builtin_func_cache)
+        {
+            std::shared_ptr<Series> plotted_series = plotted.second;
+            auto it = exports.find(plotted.first);
+            if (it == exports.end())
+            {
+                continue;
+            }
+            if (!first_series)
+            {
+                stream << ",";
+            }
+            if (i < plotted_series->data.size())
+            {
+                // 数据保留N位小数
+                stream << std::fixed << std::setprecision(precision) << plotted_series->data[i];
+            }
+            first_series = false;
+        }
+        stream << "\n";
     }
 }
 

@@ -77,10 +77,10 @@ public:
     int getTotalBars() const { return total_bars; }
 
     /**
-     * @brief 获取所有已绘制的序列及其属性。
-     * @return const std::vector<PlottedSeries>& 对已绘制序列向量的常量引用。
+     * @brief 获取所有全局变量（包括绘制的序列）。
+     * @return const std::vector<Value>& 全局变量的引用。
      */
-    const std::vector<PlottedSeries>& getPlottedSeries() const { return plotted_series; }
+    const std::vector<Value>& getGlobalSeries() { return globals; }
 
     /**
      * @brief 打印所有已绘制的序列及其数据。
@@ -118,6 +118,7 @@ private:
     std::vector<Value> stack;        // 操作数栈,
     std::vector<Value> globals;      // 全局变量存储槽
     std::vector<std::shared_ptr<Series>> vars;        // 中间变量存储槽
+    std::map<std::string, ExportedSeries> exports;
 
     // --- 执行上下文 ---
     int total_bars; // 当前已知的总K线数
@@ -127,9 +128,6 @@ private:
     std::map<std::string, Value> built_in_vars;
     std::map<std::string, BuiltinFunction> built_in_funcs;
     std::map<std::string, std::shared_ptr<Series>> builtin_func_cache;
-
-    // --- 结果存储 ---
-    std::vector<PlottedSeries> plotted_series;
 
     // --- 私有辅助函数 ---
     void runCurrentBar();

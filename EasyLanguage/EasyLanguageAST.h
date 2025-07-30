@@ -12,7 +12,6 @@ struct ELExpression;
 
 struct ELInputDeclaration;
 struct ELVariableDeclaration;
-struct ELPlotStatement;
 struct ELExpressionStatement; // Forward declaration for new AST node
 
 struct ELIfStatement;
@@ -32,7 +31,6 @@ struct ELAstVisitor {
     virtual void visit(ELFunctionCallExpression& node) = 0;
     virtual void visit(ELLiteralExpression& node) = 0;
     virtual void visit(ELVariableExpression& node) = 0;
-    virtual void visit(ELPlotStatement& node) = 0; // Add visit for PlotStatement
     virtual void visit(ELExpressionStatement& node) = 0; // Add visit for ExpressionStatement
     virtual void visit(ELBinaryExpression& node) = 0;
     // Add other EL-specific statement/expression types as needed
@@ -83,15 +81,6 @@ struct ELAssignmentStatement : ELStatement {
     std::unique_ptr<ELExpression> value;
     ELAssignmentStatement(Token name, std::unique_ptr<ELExpression> value)
         : name(name), value(std::move(value)) {}
-    void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
-};
-
-struct ELPlotStatement : ELStatement {
-    Token plotName; // e.g., Plot1, Plot2
-    std::unique_ptr<ELExpression> value;
-    std::unique_ptr<ELExpression> color; // Optional
-    ELPlotStatement(Token plotName, std::unique_ptr<ELExpression> value, std::unique_ptr<ELExpression> color = nullptr)
-        : plotName(plotName), value(std::move(value)), color(std::move(color)) {}
     void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
 };
 

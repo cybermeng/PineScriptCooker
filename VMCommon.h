@@ -40,14 +40,13 @@ enum class OpCode {
     LOAD_BUILTIN_VAR,   // 加载一个内置变量 (如 'close')
     LOAD_GLOBAL,        // 加载一个全局变量
     STORE_GLOBAL,       // 存储一个全局变量
+    STORE_EXPORT,       // 存储一个输出值
     RENAME_SERIES,      // 重命名栈顶的序列
-    STORE_AND_PLOT_GLOBAL, // 存储到全局变量并添加到绘图列表
     
     JUMP_IF_FALSE,      // 如果栈顶值为假，则跳转
     JUMP,               // 无条件跳转
     // 函数调用
     CALL_BUILTIN_FUNC,  // 调用一个内置函数 (如 'ta.sma')
-    CALL_PLOT,          // 调用特殊的 'plot' 函数 (plot_name, series, color)
     
     // 控制
     HALT                // 停止当前K线柱的执行
@@ -106,11 +105,11 @@ struct Bytecode {
 };
 
 /**
- * @struct PlottedSeries
- * @brief 代表一个已绘制的序列，包含其数据和可视化属性。
+ * @struct ExportedSeries
+ * @brief 代表一个已绘制的序列，包含其名字和可视化等属性。
  */
-struct PlottedSeries {
-    std::shared_ptr<Series> series;
+struct ExportedSeries {
+    std::string name;
     std::string color;
 };
 

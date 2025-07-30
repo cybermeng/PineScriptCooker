@@ -20,7 +20,6 @@ private:
     void visit(ELFunctionCallExpression& node) override;
     void visit(ELLiteralExpression& node) override;
     void visit(ELExpressionStatement& node) override; // New: for expression statements
-    void visit(ELPlotStatement& node) override; // Implement this pure virtual function
     void visit(ELVariableExpression& node) override;
     void visit(ELBinaryExpression& node) override;
 

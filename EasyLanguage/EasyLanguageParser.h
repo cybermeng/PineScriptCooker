@@ -26,7 +26,6 @@ private:
     std::unique_ptr<ELStatement> inputDeclaration();
     std::unique_ptr<ELStatement> variableDeclaration(); // Keep this
     std::unique_ptr<ELStatement> ifStatement();
-    std::unique_ptr<ELStatement> plotStatement(Token plotNameToken); // Declare plotStatement with token parameter
     std::unique_ptr<ELStatement> assignmentStatement(); // For `VarName = Expression;`
 
     std::unique_ptr<ELExpression> expression();

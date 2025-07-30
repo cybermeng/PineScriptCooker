@@ -176,7 +176,9 @@ int main(int argc, char* argv[]) {
     )";
 
     std::string hithink_source = R"(
-        TE:LAST(OPEN, 6, 5);
+        MA5:MA(CLOSE,5);
+        MA10:MA(CLOSE,10);
+        SIG:CROSS(MA5,MA10);
 )";
         /*
         MA5:MA(CLOSE,5);
@@ -373,9 +375,9 @@ int main(int argc, char* argv[]) {
                 // (可选) 打印最新的结果
                 // vm.printPlottedResults(); 
                 // 打印最后一个值来观察变化
-                const auto& results = vm.getPlottedSeries();
+                const auto& results = vm.getGlobalSeries();
                 if (!results.empty()) {
-                    const auto& data = results[0].series->data;
+                    const auto& data = std::get<std::shared_ptr<Series>>(results[0])->data;
                     if (!data.empty()) {
                         std::cout << "[Main/Consumer] Latest value: " << data.back() << std::endl << std::endl;
                     }

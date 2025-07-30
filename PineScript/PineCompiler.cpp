@@ -116,18 +116,8 @@ void PineCompiler::visit(CallExpr& expr) {
     if (auto* var = dynamic_cast<VariableExpr*>(expr.callee.get())) {
         // Simple function call like plot(...)
         std::string funcName = var->name.lexeme;
-        if (funcName == "plot") { // PineScript's plot
-            // CALL_PLOT expects: plot_name_string, series_to_plot_val, color_val (pushed in reverse order)
-            // So push color, then series, then plot_name
-            if (expr.arguments.size() == 2) { expr.arguments[1]->accept(*this); } else { int constIndex = addConstant(std::string("default_color")); emitByteWithOperand(OpCode::PUSH_CONST, constIndex); }
-            expr.arguments[0]->accept(*this); // Push series
-            int plotNameIndex = addConstant(std::string("plot")); // Push "plot" as default name
-            emitByteWithOperand(OpCode::PUSH_CONST, plotNameIndex);
-            emitByteWithOperand(OpCode::CALL_PLOT, 3); // Always 3 arguments now
-        } else {
-            int funcNameIndex = addConstant(funcName);
-            emitByteWithOperand(OpCode::CALL_BUILTIN_FUNC, funcNameIndex);
-        }
+        int funcNameIndex = addConstant(funcName);
+        emitByteWithOperand(OpCode::CALL_BUILTIN_FUNC, funcNameIndex);
     } else if (auto* member = dynamic_cast<MemberAccessExpr*>(expr.callee.get())) {
         // Member call like ta.sma(...) or input.int(...)
         if (auto* obj = dynamic_cast<VariableExpr*>(member->object.get())) {

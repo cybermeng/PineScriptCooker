@@ -36,7 +36,7 @@ private:
     int addConstant(const Value& value);
     void resolveAndEmitLoad(const Token& name);
     void resolveAndEmitStore(const Token& name);
-    void resolveAndEmitStoreAndPlot(const Token& name);
+    void resolveAndEmitStoreGlobal(const Token& name);
     int emitJump(OpCode jumpType);
     void patchJump(int offset);
 

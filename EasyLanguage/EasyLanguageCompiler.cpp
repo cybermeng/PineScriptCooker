@@ -72,24 +72,6 @@ void EasyLanguageCompiler::visit(ELFunctionCallExpression& node) {
     // Example: Average -> ta.sma, RSI -> ta.rsi
     std::string pineVmFuncName;
 
-    // Handle PlotX as a special function call
-    if (node.name.lexeme.rfind("Plot", 0) == 0 && node.name.lexeme.length() > 4 && isdigit(node.name.lexeme[4])) {
-        // This is a PlotX function call (e.g., Plot1, Plot2)
-        // CALL_PLOT expects: plot_name_string, series_to_plot_val, color_val (pushed in reverse order)
-        // So push color, then series, then plot_name
-        if (node.arguments.size() == 2) { // value, color
-            node.arguments[1]->accept(*this); // Push color_val
-        } else { // Only value, no color
-            int constIndex = addConstant(std::string("default_color"));
-            emitByteWithOperand(OpCode::PUSH_CONST, constIndex); // Push default_color
-        }
-        node.arguments[0]->accept(*this); // Push series_to_plot_val
-        int plotNameIndex = addConstant(node.name.lexeme); // Push plot_name_string
-        emitByteWithOperand(OpCode::PUSH_CONST, plotNameIndex);
-        emitByteWithOperand(OpCode::CALL_PLOT, 3); // 3 arguments: plot_name, series, color
-        return; // Handled
-    }
-
     // Push arguments onto the stack in order
     for (const auto& arg : node.arguments) {
         arg->accept(*this);
@@ -97,22 +79,6 @@ void EasyLanguageCompiler::visit(ELFunctionCallExpression& node) {
 
     int funcNameIndex = addConstant(pineVmFuncName);
     emitByteWithOperand(OpCode::CALL_BUILTIN_FUNC, funcNameIndex);
-}
-
-void EasyLanguageCompiler::visit(ELPlotStatement& node) {
-    // CALL_PLOT expects: plot_name_string, series_to_plot_val, color_val (pushed in reverse order)
-    // So push color, then series, then plot_name
-
-    if (node.color) {
-        node.color->accept(*this); // Push color_val
-    } else {
-        int constIndex = addConstant(std::string("default_color")); // Or a specific default like "blue"
-        emitByteWithOperand(OpCode::PUSH_CONST, constIndex); // Push default_color
-    }
-    node.value->accept(*this); // Push series_to_plot_val
-    int plotNameIndex = addConstant(node.plotName.lexeme); // Push plot_name_string
-    emitByteWithOperand(OpCode::PUSH_CONST, plotNameIndex);
-    emitByteWithOperand(OpCode::CALL_PLOT, 3); // 3 arguments: plot_name, series, color
 }
 
 void EasyLanguageCompiler::visit(ELExpressionStatement& node) {
