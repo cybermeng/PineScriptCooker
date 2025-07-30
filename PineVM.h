@@ -51,23 +51,7 @@ public:
 
     std::string getLastErrorMessage() const { return lastErrorMessage; }
 
-    // --- 公共API，主要供内置函数回调和数据更新使用 ---
-    
-    /**
-     * @brief 从操作数栈中弹出一个值。
-     * @return Value 栈顶的值。
-     * @throws std::runtime_error 如果栈为空。
-     */
-    Value pop();
-
-    /**
-     * @brief 将一个值压入操作数栈。
-     * @param val 要压入的值。
-     */
-    void push(Value val);
-
-    void pushNumbericValue(double val, int operand);
-    
+  
     /**
      * @brief 获取当前正在执行的K线柱索引。
      * @return int 当前的 bar_index。
@@ -131,6 +115,9 @@ private:
 
     // --- 私有辅助函数 ---
     void runCurrentBar();
+    Value pop();
+    void push(Value val);
+    void pushNumbericValue(double val, int operand);
     Value& storeGlobal(int operand, const Value& val);
     double getNumericValue(const Value& val);
     bool getBoolValue(const Value& val);

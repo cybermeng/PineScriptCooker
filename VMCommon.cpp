@@ -126,6 +126,7 @@ std::string bytecodeToTxt(const Bytecode& bytecode)
             case OpCode::POP:
                 result += "POP";
                 break;
+            case OpCode::SUBSCRIPT: result += "SUBSCRIPT " + std::to_string(instr.operand); break;
             case OpCode::ADD: result += "ADD " + std::to_string(instr.operand); break;
             case OpCode::SUB: result += "SUB " + std::to_string(instr.operand); break;
             case OpCode::MUL: result += "MUL " + std::to_string(instr.operand); break;
@@ -227,6 +228,7 @@ Bytecode txtToBytecode(const std::string& txt)
     const std::map<std::string, OpCode> opCodeMap = {
         {"PUSH_CONST", OpCode::PUSH_CONST},
         {"POP", OpCode::POP},
+        {"SUBSCRIPT", OpCode::SUBSCRIPT},
         {"ADD", OpCode::ADD},
         {"SUB", OpCode::SUB},
         {"MUL", OpCode::MUL},

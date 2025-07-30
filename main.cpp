@@ -154,11 +154,16 @@ int main(int argc, char* argv[]) {
     }
 
     std::string pine_source = R"(
-        ma_length = input.int(14, "MA Length")
-        ma = (ta.sma(close, ma_length) + close) / 2;
-        rsi = ta.rsi(close, 14)
-        plot(rsi, color.green)
-        plot(ma, color.red)
+        //@version=6
+        indicator("MACD #1")
+        fast = 12
+        slow = 26
+        fastMA = ta.ema(close, fast)
+        slowMA = ta.ema(close, slow)
+        macd = fastMA - slowMA
+        signal = ta.ema(macd, 9)
+        plot(macd, color = color.blue)
+        plot(signal, color = color.orange)
     )";
 
     // Simplified EasyLanguage example for demonstration.

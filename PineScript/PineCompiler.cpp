@@ -184,7 +184,8 @@ void PineCompiler::patchJump(int offset) {
 // 解析变量并发出 LOAD 指令
 void PineCompiler::resolveAndEmitLoad(const Token& name) {
     // 检查是内置变量还是全局变量
-    if (name.lexeme == "close" || name.lexeme == "high") { // 等内置变量
+    if (name.lexeme == "close" || name.lexeme == "high" || name.lexeme == "low" || name.lexeme == "open" || name.lexeme == "volume"
+         || name.lexeme == "time" || name.lexeme == "date") { // 等内置变量
         int constIndex = addConstant(name.lexeme);
         emitByteWithOperand(OpCode::LOAD_BUILTIN_VAR, constIndex);
     } else {

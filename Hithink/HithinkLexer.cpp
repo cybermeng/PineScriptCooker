@@ -35,6 +35,8 @@ Token HithinkLexer::scanToken() {
     switch (c) {
         case '(': return makeToken(TokenType::LEFT_PAREN);
         case ')': return makeToken(TokenType::RIGHT_PAREN);
+        case '[': return makeToken(TokenType::LEFT_BRACKET);  // 新增
+        case ']': return makeToken(TokenType::RIGHT_BRACKET); // 新增
         case ';': return makeToken(TokenType::SEMICOLON);
         case ',': return makeToken(TokenType::COMMA);
         case '+': return makeToken(TokenType::PLUS);
@@ -51,9 +53,6 @@ Token HithinkLexer::scanToken() {
             return makeToken(match('=') ? TokenType::GREATER_EQUAL : TokenType::GREATER);
         case '=':
             // 支持 == 和 = 都作为相等判断符号。
-            // match('=') 会在存在第二个'='时消耗它。
-            // 无论如何，都返回EQUAL类型。makeToken会根据current_指针
-            // 正确地生成 "=" 或 "==" 的文本。
             match('=');
             return makeToken(TokenType::EQUAL);
         case '\'': return string();
@@ -109,16 +108,12 @@ void HithinkLexer::skipWhitespace() {
                 if (!isAtEnd()) advance(); // Skip '}'
                 break;
             case '/':
-                // 检查是否为 "//" 注释
                 if (peekNext() == '/') {
-                    // 是注释，消耗掉这一行的所有字符
                     while (peek() != '\n' && !isAtEnd()) {
                         advance();
                     }
-                    // break 以便外层循环可以处理换行符或文件结尾
                     break;
                 } else {
-                    // 是除法运算符，不是注释。停止跳过空白，让 scanToken() 来处理它。
                     return;
                 }
            default:
@@ -132,7 +127,6 @@ Token HithinkLexer::identifier() {
     
     std::string_view text = source_.substr(start_, current_ - start_);
     
-    // 为了不区分大小写地处理关键字
     std::string upper_text;
     upper_text.resize(text.length());
     std::transform(text.begin(), text.end(), upper_text.begin(),
@@ -142,7 +136,6 @@ Token HithinkLexer::identifier() {
     if (upper_text == "AND") return makeToken(TokenType::AND);
     if (upper_text == "OR") return makeToken(TokenType::OR);
 
-    // Hithink的函数名和内置变量(如C, O, MA)都作为标识符处理，由Parser或Semantic Analyzer识别
     return makeToken(TokenType::IDENTIFIER);
 }
 
@@ -176,14 +169,10 @@ Token HithinkLexer::errorToken(const char* message) const {
 }
 
 Token HithinkLexer::peekNextToken() {
-    // 保存当前状态
     size_t original_start = start_;
     size_t original_current = current_;
     int original_line = line_;
-
     Token next_token = scanToken();
-
-    // 恢复状态
     start_ = original_start;
     current_ = original_current;
     line_ = original_line;

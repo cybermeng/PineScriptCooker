@@ -267,6 +267,23 @@ void PineVM::runCurrentBar()
             pop();
             break;
         }
+        case OpCode::SUBSCRIPT: // 新增：处理下标操作
+        {
+            Value index_val = pop();
+            Value callee_val = pop();
+
+            int offset = static_cast<int>(getNumericValue(index_val));
+            
+            auto* series_ptr = std::get_if<std::shared_ptr<Series>>(&callee_val);
+            if (!series_ptr || !*series_ptr) {
+                 // 如果被索引的不是一个有效的序列，则结果为 NaN
+                pushNumbericValue(NAN, ip->operand);
+            } else {
+                double result = (*series_ptr)->getCurrent(bar_index - offset);
+                pushNumbericValue(result, ip->operand);
+            }
+            break;
+        }
         case OpCode::ADD:
         case OpCode::SUB:
         case OpCode::MUL:

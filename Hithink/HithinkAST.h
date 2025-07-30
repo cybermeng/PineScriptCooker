@@ -22,9 +22,9 @@ struct HithinkFunctionCallExpression;
 struct HithinkLiteralExpression;
 struct HithinkUnaryExpression;
 struct HithinkVariableExpression;
+struct HithinkSubscriptExpression; // 新增：前向声明
 
 // Hithink AST 访问者 (Visitor) 模式
-// 为每种 AST 节点类型提供一个 visit 方法
 struct HithinkAstVisitor {
     virtual ~HithinkAstVisitor() = default;
     virtual void visit(HithinkAssignmentStatement& node) = 0;
@@ -35,6 +35,7 @@ struct HithinkAstVisitor {
     virtual void visit(HithinkUnaryExpression& node) = 0;
     virtual void visit(HithinkVariableExpression& node) = 0;
     virtual void visit(HithinkEmptyStatement& stmt) = 0;
+    virtual void visit(HithinkSubscriptExpression& node) = 0; // 新增
 };
 
 // 所有 Hithink AST 节点的基类
@@ -52,7 +53,7 @@ struct HithinkExpression : HithinkAstNode {};
 // --- 具体的语句节点 ---
 struct HithinkEmptyStatement : HithinkStatement {
     void accept(HithinkAstVisitor& visitor) override { visitor.visit(*this); }
-   };
+};
 
 // 赋值语句节点, 用于 `MA5: MA(C, 5);` 或 `V1 := C > O;`
 struct HithinkAssignmentStatement : HithinkStatement {
@@ -126,5 +127,17 @@ struct HithinkVariableExpression : HithinkExpression {
 
     HithinkVariableExpression(Token name) : name(std::move(name)) {}
 
+    void accept(HithinkAstVisitor& visitor) override { visitor.visit(*this); }
+};
+
+// 新增：下标访问表达式节点, 如 `CLOSE[1]`
+struct HithinkSubscriptExpression : HithinkExpression {
+    std::unique_ptr<HithinkExpression> callee; // 被访问的表达式
+    std::unique_ptr<HithinkExpression> index;  // 下标表达式
+    Token bracket; // The '[' token, for error reporting
+
+    HithinkSubscriptExpression(std::unique_ptr<HithinkExpression> callee, std::unique_ptr<HithinkExpression> index, Token bracket)
+        : callee(std::move(callee)), index(std::move(index)), bracket(std::move(bracket)) {}
+    
     void accept(HithinkAstVisitor& visitor) override { visitor.visit(*this); }
 };

@@ -10,6 +10,8 @@ enum class TokenType {
     LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE, COMMA, DOT, MINUS, PLUS, SLASH, STAR, GREATER, LESS,
     COLON, SEMICOLON, // For EasyLanguage
 
+    LEFT_BRACKET, RIGHT_BRACKET,
+
     // One or two character tokens.
     EQUAL, EQUAL_EQUAL, BANG_EQUAL, GREATER_EQUAL, LESS_EQUAL, COLON_EQUAL, // Hithink `:=`
 
