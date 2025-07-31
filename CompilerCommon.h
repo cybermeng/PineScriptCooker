@@ -21,7 +21,7 @@ enum class TokenType {
     // PineScript Keywords & Literals
     STRING, // PineScript string literal (also used by EasyLanguageLexer)
     IF, ELSE, AND, OR, NOT,
-    INPUT, INT, FLOAT, BOOL, COLOR, PLOT, PLOTSHAPE,
+    INPUT, INT, FLOAT, BOOL, COLOR,
     TRUE, FALSE,
 
     // EasyLanguage / Hithink Keywords

@@ -149,8 +149,6 @@ TokenType PineLexer::identifierType() {
     if (text == "float") return TokenType::FLOAT;
     if (text == "bool") return TokenType::BOOL;
     if (text == "color") return TokenType::COLOR;
-    if (text == "plot") return TokenType::PLOT;
-    if (text == "plotshape") return TokenType::PLOTSHAPE;
     if (text == "true") return TokenType::TRUE;
     if (text == "false") return TokenType::FALSE;
 

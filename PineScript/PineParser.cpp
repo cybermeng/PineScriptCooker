@@ -148,8 +148,6 @@ bool PineParser::isExpressionStartToken(TokenType type) {
            type == TokenType::INPUT ||
            type == TokenType::TRUE ||
            type == TokenType::FALSE ||
-           type == TokenType::PLOT ||
-           type == TokenType::PLOTSHAPE ||
            type == TokenType::LEFT_PAREN ||
            type == TokenType::COLOR;
 }
@@ -170,8 +168,6 @@ bool PineParser::isAssignableToken(TokenType type) {
         case TokenType::FLOAT:
         case TokenType::BOOL:
         case TokenType::COLOR:
-        case TokenType::PLOT:
-        case TokenType::PLOTSHAPE:
             return true;
         default:
             return false;
@@ -187,16 +183,6 @@ std::unique_ptr<Expr> PineParser::primary() {
     if (match(TokenType::STRING)) {
         std::string s = previous.lexeme;
         return std::make_unique<LiteralExpr>(s.substr(1, s.length() - 2));
-    }
-    if (match(TokenType::PLOT)) {
-        std::unique_ptr<Expr> callee = std::make_unique<VariableExpr>(previous);
-        consume(TokenType::LEFT_PAREN, "Expect '(' after 'plot'.");
-        return finishCall(std::move(callee));
-    }
-    if (match(TokenType::PLOTSHAPE)) {
-        std::unique_ptr<Expr> callee = std::make_unique<VariableExpr>(previous);
-        consume(TokenType::LEFT_PAREN, "Expect '(' after 'plotshape'.");
-        return finishCall(std::move(callee));
     }
 
     if (isExpressionStartToken(current.type)) {
