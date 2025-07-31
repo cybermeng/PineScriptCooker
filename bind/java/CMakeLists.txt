@@ -15,6 +15,7 @@ add_library(pinevm_jni SHARED
     # 列出所有需要编译的 C++源文件
     ../../PineVM.cpp
     ../../VMCommon.cpp
+    ../../VMFunc.cpp
     ../../Hithink/HithinkCompiler.cpp
     ../../Hithink/HithinkLexer.cpp
     ../../Hithink/HithinkParser.cpp

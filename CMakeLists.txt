@@ -1,3 +1,4 @@
+# cmake .. -G "Ninja"
 # CMake 最低版本要求。3.14 是一个比较现代且广泛可用的版本。
 cmake_minimum_required(VERSION 3.14)
 
@@ -30,6 +31,7 @@ set(PINEVM_CORE_SOURCES
     DataSource/CSVDataSource.cpp
     PineVM.cpp
     VMCommon.cpp
+    VMFunc.cpp
 
     PineScript/PineCompiler.cpp
     PineScript/PineParser.cpp

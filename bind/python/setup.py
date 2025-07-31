@@ -49,7 +49,8 @@ ext_modules = [
          '../../Hithink/HithinkParser.cpp', # 假设Parser是Compiler的一部分
          '../../Hithink/HithinkLexer.cpp', # 假设Lexer是Parser的一部分
          '../../PineVM.cpp',
-         '../../VMCommon.cpp' # 假设有这个文件
+         '../../VMFunc.cpp',
+         '../../VMCommon.cpp'
          ],
         # 包含目录
         include_dirs=[

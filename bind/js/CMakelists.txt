@@ -1,101 +1,111 @@
-#cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="/path/to/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" -G "Ninja"
-#cmake --build build
-# CMakeLists.txt for PineVM WebAssembly build using Emscripten
+# CMakeLists.txt - Compiles the PineVM C++ project to WebAssembly using Emscripten.
+# --------------------------------------------------------------------------------
 
 # 1. --- 项目基本配置 ---
 # 设置最低要求的 CMake 版本
 cmake_minimum_required(VERSION 3.13)
 
-# 定义项目名称、版本和语言
-project(PineVM_WASM VERSION 1.0 LANGUAGES CXX)
+# 定义项目名称和语言
+project(PineVM CXX)
 
-# 设置 C++ 标准为 C++17，与原脚本的 -std=c++17 对应
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# 打印状态信息，方便调试
+message(STATUS "Configuring PineVM for WebAssembly (Emscripten)")
 
-# 检查是否正在使用 Emscripten 工具链进行编译
-# 这是确保正确编译环境的关键
-if(NOT CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
-    message(FATAL_ERROR "This project must be compiled with the Emscripten toolchain.
-    Please configure CMake with: -DCMAKE_TOOLCHAIN_FILE=/path/to/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake")
-endif()
-
-
-# 2. --- 定义源文件和目标 ---
-# 添加可执行目标。目标名 'pine_vm' 将成为输出文件的前缀。
-# CMake 会自动处理 .js 和 .wasm 后缀。
-# 使用 CMAKE_CURRENT_SOURCE_DIR 使路径相对于当前 CMakeLists.txt 文件。
-add_executable(pine_vm
+# 2. --- 源文件和目标配置 ---
+# 定义 C++ 源文件列表
+# 注意：路径是相对于这个 CMakeLists.txt 文件的
+set(PINEVM_SOURCES
     main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../PineVM.cpp
+    ../../PineVM.cpp
+    ../../VMFunc.cpp
+    ../../Hithink/HithinkCompiler.cpp
+    ../../VMCommon.cpp
+    ../../Hithink/HithinkParser.cpp
+    ../../Hithink/HithinkLexer.cpp
 )
 
-# 设置输出文件的基础名称为 "pine_vm"，对应原脚本的 pine_vm.js
-set_target_properties(pine_vm PROPERTIES OUTPUT_NAME "pine_vm")
+# 定义最终输出的目标名称
+set(TARGET_NAME "pine_vm")
 
-# 将所有输出文件（.js, .wasm, .html 等）放入构建目录下的 'public' 子目录中
-# 这与原脚本的 OUTPUT_DIR=public 行为一致
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/public)
+# 创建一个可执行目标。对于 Emscripten，这将生成 .js 和 .wasm 文件
+add_executable(${TARGET_NAME} ${PINEVM_SOURCES})
 
+# 3. --- Emscripten 编译和链接选项 ---
+# 将批处理文件中的 EMCC_FLAGS 分解为 CMake 指令
 
-# 3. --- 设置 Emscripten 编译和链接选项 ---
-# 将原脚本中的 EMCC_FLAGS 转换为 CMake 的目标属性
-# 使用 target_link_options 添加链接器标志（以 -s 开头的都是链接器标志）
-target_link_options(pine_vm PRIVATE
-    # 调试与优化
-    -O3                         # 优化级别
-    -gsource-map                # 生成 source map 用于调试
-    -sASSERTIONS=1              # 开启运行时断言（建议在调试时开启）
-
-    # 异常和内存管理
-    -fexceptions                # 启用 C++ 异常处理
-    -sALLOW_MEMORY_GROWTH=1     # 允许内存动态增长
-    -sSAFE_HEAP=1               # 增加内存访问的安全性检查
-
-    # 模块化与导出设置
-    -sMODULARIZE=1              # 将输出包装成一个模块
-    -sEXPORT_ES6=1              # 导出为 ES6 模块格式
-    -sEXPORT_NAME='createPineVmModule' # 设置模块加载函数名
-
-    # 环境与导出函数
-    -sENVIRONMENT=web           # 指定运行环境为 Web
-    -sWASM=1                    # 确保生成 WASM 文件（现代 emcc 默认开启）
-
-    # 导出 C++ 函数给 JavaScript 调用
-    # 注意：使用单引号来包裹列表，避免 CMake 语法冲突
-    "-sEXPORTED_FUNCTIONS=['_run_pine_calculation', '_malloc', '_free', '_realloc', 'stringToUTF8']"
-
-    # 导出运行时方法给 JavaScript 调用
-    "-sEXPORTED_RUNTIME_METHODS=['cwrap']"
+# 设置 C++ 标准
+set_target_properties(${TARGET_NAME} PROPERTIES
+    CXX_STANDARD 17
+    CXX_STANDARD_REQUIRED ON
 )
 
+# 添加编译选项
+target_compile_options(${TARGET_NAME} PRIVATE
+    -gsource-map      # 生成 Source Map 用于调试
+    -fexceptions      # 启用异常处理
+)
 
-# 4. --- 复制辅助文件 ---
-# 在编译目标 'pine_vm' 之后，自动将 index.html 和 main.js 复制到输出目录
-# 这对应原脚本中的 `copy` 命令
+# 添加链接选项 (大部分 -s 标志是链接器标志)
+# 使用分号分隔列表，CMake 会正确处理
+set(EM_LINK_FLAGS
+    "-O3"                                           # 优化级别
+    "-sSAFE_HEAP=1"                                 # 内存安全检查
+    "-sASSERTIONS=1"                                # 启用运行时断言
+    "-sALLOW_MEMORY_GROWTH=1"                       # 允许内存增长
+    "-sMODULARIZE=1"                                # 生成模块化的 JS
+    "-sEXPORT_ES6=1"                                # 导出为 ES6 模块
+    "-sEXPORT_NAME='createPineVmModule'"            # 定义模块加载函数名
+    "-sENVIRONMENT=web"                             # 目标环境为 Web
+    "-sWASM=1"                                      # 确保生成 WASM
+    "-sEXPORTED_FUNCTIONS=['_run_pine_calculation','_malloc','_free','_realloc','stringToUTF8']" # 导出的 C/C++ 函数
+    "-sEXPORTED_RUNTIME_METHODS=['cwrap']"          # 导出的 Emscripten 运行时方法
+)
+target_link_options(${TARGET_NAME} PRIVATE ${EM_LINK_FLAGS})
+
+
+# 4. --- 输出配置 ---
+# 定义输出目录，与原脚本保持一致 (public)
+# 这会将输出文件放置在构建目录下的 'public' 文件夹中 (例如: build/public)
+set(OUTPUT_DIR "${CMAKE_BINARY_DIR}/public")
+
+# 告诉 CMake 最终产物是一个 .js 文件，并设置其输出目录
+set_target_properties(${TARGET_NAME} PROPERTIES
+    SUFFIX ".js"
+    RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
+)
+
+# 5. --- 构建后步骤 (复制文件) ---
+# 定义需要复制到输出目录的辅助文件
+set(SUPPORT_FILES
+    "index.html"
+    "main.js"
+)
+
+# 添加一个构建后命令，在目标编译成功后，将辅助文件复制到输出目录
 add_custom_command(
-    TARGET pine_vm POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    TARGET ${TARGET_NAME}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${OUTPUT_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E copy
             "${CMAKE_CURRENT_SOURCE_DIR}/index.html"
-            "$<TARGET_FILE_DIR:pine_vm>/index.html"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${OUTPUT_DIR}/index.html"
+    COMMAND ${CMAKE_COMMAND} -E copy
             "${CMAKE_CURRENT_SOURCE_DIR}/main.js"
-            "$<TARGET_FILE_DIR:pine_vm>/main.js"
-    COMMENT "Copying support files to output directory..."
+            "${OUTPUT_DIR}/main.js"
+    COMMENT "=> Copying support files to ${OUTPUT_DIR}"
 )
 
-
-# 5. --- 提供构建完成后的信息 ---
-# 在构建过程结束时打印有用的信息
-install(CODE "
-    message(STATUS \"-------------------------------------------------------------------\")
-    message(STATUS \"PineVM WebAssembly Build Complete!\")
-    message(STATUS \"All files are in: ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\")
-    message(STATUS \" \")
-    message(STATUS \"To run, navigate to the output directory and start a web server:\")
-    message(STATUS \"  cd ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}\")
-    message(STATUS \"  python -m http.server\")
-    message(STATUS \" \")
-    message(STATUS \"Then open your browser to: http://localhost:8000\")
-    message(STATUS \"-------------------------------------------------------------------\")
-")
+# 6. --- 完成信息 ---
+# 添加一个自定义目标，用于在构建完成后打印帮助信息
+add_custom_target(build_complete ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "--- Build Complete! ---"
+    COMMAND ${CMAKE_COMMAND} -E echo "All necessary files are in the '${OUTPUT_DIR}' directory."
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "To run the application, start a local web server."
+    COMMAND ${CMAKE_COMMAND} -E echo "For example, using Python:"
+    COMMAND ${CMAKE_COMMAND} -E echo "cd ${OUTPUT_DIR} && python -m http.server"
+    COMMAND ${CMAKE_COMMAND} -E echo ""
+    COMMAND ${CMAKE_COMMAND} -E echo "Then, open your browser to http://localhost:8000"
+    DEPENDS ${TARGET_NAME}
+    COMMENT "--- Finalizing Build ---"
+)
