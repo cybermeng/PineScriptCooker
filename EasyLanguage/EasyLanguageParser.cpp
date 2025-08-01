@@ -1,269 +1,269 @@
 #include "EasyLanguageParser.h"
 #include <iostream>
-#include <algorithm> // For std::transform
-#include <cctype>    // For std::tolower, isdigit
- 
-EasyLanguageParser::EasyLanguageParser(const std::string& source) : lexer(source) {
-    advance(); // Prime the parser with the first token
+
+EasyLanguageParser::EasyLanguageParser(std::string_view source) : lexer_(source), hadError_(false) {
+    advance();
 }
 
-std::vector<std::unique_ptr<ELStatement>> EasyLanguageParser::parse() {
-    std::vector<std::unique_ptr<ELStatement>> statements;
-    while (current.type != TokenType::END_OF_FILE) {
-        statements.push_back(declaration());
+std::vector<std::unique_ptr<EasyLanguageStatement>> EasyLanguageParser::parse() {
+    std::vector<std::unique_ptr<EasyLanguageStatement>> statements;
+    while (!check(TokenType::END_OF_FILE)) {
+        std::unique_ptr<EasyLanguageStatement> stmt = nullptr;
+        if (check(TokenType::VARIABLES) || check(TokenType::INPUTS)) {
+            stmt = declaration();
+        } else {
+            stmt = statement();
+        }
+        
+        if (stmt) {
+            statements.push_back(std::move(stmt));
+        } else if (hadError_) {
+            synchronize();
+        }
     }
     return statements;
 }
 
-void EasyLanguageParser::advance() {
-    previous = current;
-    current = lexer.scanToken();
-    while (current.type == TokenType::ERROR) {
-        std::cerr << "EasyLanguage Parser Error on line " << current.line << ": " << current.lexeme << std::endl;
-        hadError = true;
-        current = lexer.scanToken();
-    }
-}
+// --- Top-Level Parsing Rules ---
 
-void EasyLanguageParser::consume(TokenType type, const std::string& message) {
-    if (current.type == type) {
+std::unique_ptr<EasyLanguageStatement> EasyLanguageParser::declaration() {
+    Token keyword = current_;
+    advance(); // Consume `VARIABLES` or `INPUTS`
+    consume(TokenType::COLON, "Expect ':' after 'Variables' or 'Inputs'.");
+
+    auto declStmt = std::make_unique<DeclarationsStatement>(keyword);
+
+    do {
+        if (!check(TokenType::IDENTIFIER)) {
+            error(current_, "Expect variable name.");
+            return nullptr;
+        }
+        Token name = current_;
         advance();
-        return;
-    }
-    throw std::runtime_error("EasyLanguage Parser Error: Line " + std::to_string(current.line) + ": " + message + " (Found: '" + current.lexeme + "')");
-}
-
-bool EasyLanguageParser::match(TokenType type) {
-    if (!check(type)) return false;
-    advance();
-    return true;
-}
-
-bool EasyLanguageParser::check(TokenType type) {
-    return current.type == type;
-}
-
-std::unique_ptr<ELStatement> EasyLanguageParser::declaration() {
-    if (match(TokenType::INPUTS)) {
-        return inputDeclaration();
-    }
-    if (match(TokenType::VARIABLES)) {
-        return variableDeclaration();
-    }
-    // If not a declaration, it must be a regular statement
-    return statement();
-}
-
-std::unique_ptr<ELStatement> EasyLanguageParser::inputDeclaration() {
-    consume(TokenType::COLON, "Expect ':' after 'Inputs'.");
-    // EasyLanguage inputs can be like: Inputs: Length(14);
-    // Or multiple: Inputs: Length(14), Price(Close);
-    std::unique_ptr<ELInputDeclaration> input_decl;
-    do {
-        Token name = current;
-        consume(TokenType::IDENTIFIER, "Expect input name.");
-        std::unique_ptr<ELExpression> defaultValue = nullptr;
+        
+        std::unique_ptr<EasyLanguageExpression> initializer = nullptr;
         if (match(TokenType::LEFT_PAREN)) {
-            defaultValue = expression();
-            consume(TokenType::RIGHT_PAREN, "Expect ')' after input default value.");
+            initializer = expression();
+            consume(TokenType::RIGHT_PAREN, "Expect ')' after variable initializer.");
         }
-        input_decl = std::make_unique<ELInputDeclaration>(name, std::move(defaultValue));
+        
+        declStmt->declarations.push_back({name, std::move(initializer)});
+
     } while (match(TokenType::COMMA));
-    consume(TokenType::SEMICOLON, "Expect ';' after input declaration."); // Assuming semicolon terminates declaration line
-    return input_decl; // This will only return the last one if multiple are declared on one line.
-                       // A real EL parser would return a list or a block. For simplicity, return one.
+
+    consume(TokenType::SEMICOLON, "Expect ';' after declarations list.");
+    return declStmt;
 }
 
-std::unique_ptr<ELStatement> EasyLanguageParser::variableDeclaration() {
-    consume(TokenType::COLON, "Expect ':' after 'Variables'.");
-    // EasyLanguage variables can be like: Variables: MyVar(0);
-    // Or multiple: Variables: MyVar(0), AnotherVar(1);
-    std::unique_ptr<ELVariableDeclaration> var_decl;
-    do {
-        Token name = current;
-        consume(TokenType::IDENTIFIER, "Expect variable name.");
-        std::unique_ptr<ELExpression> initialValue = nullptr;
-        if (match(TokenType::LEFT_PAREN)) {
-            initialValue = expression();
-            consume(TokenType::RIGHT_PAREN, "Expect ')' after variable initial value.");
-        }
-        var_decl = std::make_unique<ELVariableDeclaration>(name, std::move(initialValue));
-    } while (match(TokenType::COMMA));
-    consume(TokenType::SEMICOLON, "Expect ';' after variable declaration."); // Assuming semicolon terminates declaration line
-    return var_decl; // Similar to inputDeclaration, returns only the last one.
+std::unique_ptr<EasyLanguageStatement> EasyLanguageParser::statement() {
+    if (match(TokenType::IF)) return ifStatement();
+    if (match(TokenType::BEGIN)) return blockStatement();
+    if (match(TokenType::SEMICOLON)) return std::make_unique<EmptyStatement>();
+    return assignmentOrExpressionStatement();
 }
 
-
-std::unique_ptr<ELStatement> EasyLanguageParser::statement() {
-    if (current.type == TokenType::IDENTIFIER) {
-        std::string lowerLexeme = current.lexeme;
-        std::transform(lowerLexeme.begin(), lowerLexeme.end(), lowerLexeme.begin(),
-                       [](unsigned char c){ return std::tolower(c); });
-
-        // If not a PlotX, then check if it's a generic function call statement
-        if (lexer.peekNextToken().type == TokenType::LEFT_PAREN) {
-            std::unique_ptr<ELExpression> funcCallExpr = call();
-            consume(TokenType::SEMICOLON, "Expect ';' after function call statement.");
-            return std::make_unique<ELExpressionStatement>(std::move(funcCallExpr));
-        }
-    }
-
-    if (match(TokenType::IF)) {
-        return ifStatement();
-    }
-    // Check for assignment statement: an assignable token followed by an '='.
-    // This allows for user-defined variables that might coincidentally match keyword prefixes.
-    if (isAssignableToken(current.type) && lexer.peekNextToken().type == TokenType::EQUAL) {
-        return assignmentStatement();
-    }
-    throw std::runtime_error("EasyLanguage Parser Error: Line " + std::to_string(current.line) + ": Expected a statement.");
-}
-
-std::unique_ptr<ELStatement> EasyLanguageParser::ifStatement() {
-    std::unique_ptr<ELExpression> condition = expression(); // Condition is an expression
+std::unique_ptr<EasyLanguageStatement> EasyLanguageParser::ifStatement() {
+    auto condition = expression();
+    if (!condition) return nullptr;
     consume(TokenType::THEN, "Expect 'Then' after if condition.");
 
-    std::unique_ptr<ELIfStatement> ifStmt = std::make_unique<ELIfStatement>(std::move(condition));
+    auto thenBranch = statement();
+    if (!thenBranch) return nullptr;
 
-    // Then branch
-    if (match(TokenType::BEGIN)) { // Multi-line then block
-        while (!check(TokenType::END) && current.type != TokenType::END_OF_FILE) {
-            ifStmt->thenBranch.push_back(statement());
-        }
-        consume(TokenType::END, "Expect 'End' after 'Then Begin' block.");
-        consume(TokenType::SEMICOLON, "Expect ';' after 'End' of then block."); // EL blocks often end with semicolon
-    } else { // Single-line then statement
-        ifStmt->thenBranch.push_back(statement());
-    }
-
-    // Else branch (optional)
+    std::unique_ptr<EasyLanguageStatement> elseBranch = nullptr;
     if (match(TokenType::ELSE)) {
-        if (match(TokenType::BEGIN)) { // Multi-line else block
-            while (!check(TokenType::END) && current.type != TokenType::END_OF_FILE) {
-                ifStmt->elseBranch.push_back(statement());
-            }
-            consume(TokenType::END, "Expect 'End' after 'Else Begin' block.");
-            consume(TokenType::SEMICOLON, "Expect ';' after 'End' of else block."); // EL blocks often end with semicolon
-        } else { // Single-line else statement
-            ifStmt->elseBranch.push_back(statement());
-        }
+        elseBranch = statement();
+        if (!elseBranch) return nullptr;
     }
-    return ifStmt;
+
+    return std::make_unique<IfStatement>(std::move(condition), std::move(thenBranch), std::move(elseBranch));
 }
 
-std::unique_ptr<ELStatement> EasyLanguageParser::assignmentStatement() {
-    // When assignmentStatement is called, 'current' is already the variable name token.
-    // We need to ensure it's an assignable token type.
-    if (!isAssignableToken(current.type)) {
-        throw std::runtime_error("EasyLanguage Parser Error: Line " + std::to_string(current.line) + ": Invalid assignment target.");
+std::unique_ptr<EasyLanguageStatement> EasyLanguageParser::blockStatement() {
+    auto block = std::make_unique<BlockStatement>();
+    while (!check(TokenType::END) && !check(TokenType::END_OF_FILE)) {
+        auto stmt = statement();
+        if(stmt) block->statements.push_back(std::move(stmt));
     }
-    Token name = current; // Store the variable name token
-    advance(); // Consume the variable name token (e.g., MySMA, MyRSI)
-    consume(TokenType::EQUAL, "Expect '=' for assignment.");
-    std::unique_ptr<ELExpression> value = expression();
-    consume(TokenType::SEMICOLON, "Expect ';' after assignment statement.");
-    return std::make_unique<ELAssignmentStatement>(name, std::move(value));
+    consume(TokenType::END, "Expect 'End' after block.");
+    match(TokenType::SEMICOLON); // Optional semicolon after End
+    return block;
 }
 
-std::unique_ptr<ELExpression> EasyLanguageParser::expression() {
-    return comparison();
-}
+std::unique_ptr<EasyLanguageStatement> EasyLanguageParser::assignmentOrExpressionStatement() {
+    auto expr = expression();
+    if (!expr) return nullptr;
 
-std::unique_ptr<ELExpression> EasyLanguageParser::comparison() {
-    std::unique_ptr<ELExpression> expr = term(); // Start with term for arithmetic
-
-    while (match(TokenType::GREATER) || match(TokenType::LESS) ||
-           match(TokenType::GREATER_EQUAL) || match(TokenType::LESS_EQUAL) ||
-           match(TokenType::EQUAL_EQUAL) || match(TokenType::BANG_EQUAL))
-    {
-        Token op = previous;
-        std::unique_ptr<ELExpression> right = term();
-        expr = std::make_unique<ELBinaryExpression>(std::move(expr), op, std::move(right));
-    }
-    return expr;
-}
-
-std::unique_ptr<ELExpression> EasyLanguageParser::term() {
-    std::unique_ptr<ELExpression> expr = factor();
-
-    while (match(TokenType::MINUS) || match(TokenType::PLUS)) {
-        Token op = previous;
-        std::unique_ptr<ELExpression> right = factor();
-        expr = std::make_unique<ELBinaryExpression>(std::move(expr), op, std::move(right));
-    }
-    return expr;
-}
-
-std::unique_ptr<ELExpression> EasyLanguageParser::factor() {
-    std::unique_ptr<ELExpression> expr = call();
-
-    while (match(TokenType::SLASH) || match(TokenType::STAR)) {
-        Token op = previous;
-        std::unique_ptr<ELExpression> right = call();
-        expr = std::make_unique<ELBinaryExpression>(std::move(expr), op, std::move(right));
-    }
-    return expr;
-}
-
-std::unique_ptr<ELExpression> EasyLanguageParser::call() {
-    std::unique_ptr<ELExpression> expr = primary();
-
-    while (match(TokenType::LEFT_PAREN)) {
-        // If it's an identifier, it's a function call
-        if (auto var_expr = dynamic_cast<ELVariableExpression*>(expr.get())) {
-            auto call_expr = std::make_unique<ELFunctionCallExpression>(var_expr->name);
-            if (!check(TokenType::RIGHT_PAREN)) {
-                do {
-                    call_expr->arguments.push_back(expression());
-                } while (match(TokenType::COMMA));
-            }
-            consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
-            expr = std::move(call_expr);
+    // Check for assignment. EasyLanguage assignment is `Var = ...`, but `=` is also comparison.
+    // The trick is that only a variable can be on the left of an assignment.
+    if (match(TokenType::EQUAL)) {
+        if (auto* varExpr = dynamic_cast<VariableExpression*>(expr.get())) {
+            Token name = varExpr->name;
+            auto value = expression();
+            if (!value) return nullptr;
+            consume(TokenType::SEMICOLON, "Expect ';' after assignment statement.");
+            return std::make_unique<AssignmentStatement>(name, std::move(value));
         } else {
-            throw std::runtime_error("EasyLanguage Parser Error: Line " + std::to_string(current.line) + ": Expected function name before '('.");
+            error(previous_, "Invalid assignment target. Left side of '=' must be a variable for assignment.");
+            return nullptr;
         }
+    }
+    
+    // If not an assignment, it must be an expression statement.
+    consume(TokenType::SEMICOLON, "Expect ';' after expression statement.");
+    return std::make_unique<ExpressionStatement>(std::move(expr));
+}
+
+// --- Expression Parsing (Precedence order) ---
+
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::expression() {
+    return logic_or();
+}
+
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::logic_or() {
+    auto expr = logic_and();
+    if (!expr) return nullptr;
+    while (match(TokenType::OR)) {
+        Token op = previous_;
+        auto right = logic_and();
+        if (!right) return nullptr;
+        expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
     }
     return expr;
 }
 
-// New auxiliary function: Checks if a token type can be an assignment target (L-value)
-bool EasyLanguageParser::isAssignableToken(TokenType type) {
-    // In EasyLanguage, user-defined variables are typically IDENTIFIERs.
-    // However, if the lexer is over-eager and tokenizes "MySMA" as TokenType::SMA,
-    // or "MyRSI" as TokenType::RSI_EL, we need to allow them as assignable targets.
-    // This list should include all token types that can appear on the left-hand side of an assignment.
-    switch (type) {
-        case TokenType::IDENTIFIER:
-            // Add other keywords here if they can be assigned to (e.g., Plot1, Value1 etc. if they are not IDENTIFIERs)
-            return true;
-        default:
-            return false;
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::logic_and() {
+    auto expr = equality();
+    if (!expr) return nullptr;
+    while (match(TokenType::AND)) {
+        Token op = previous_;
+        auto right = equality();
+        if (!right) return nullptr;
+        expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
     }
+    return expr;
 }
 
-std::unique_ptr<ELExpression> EasyLanguageParser::primary() {
-    if (match(TokenType::NUMBER)) {
-        return std::make_unique<ELLiteralExpression>(std::stod(previous.lexeme));
+// NOTE: In EasyLanguage, '=' is both assignment and equality. We parse it here as equality.
+// The `assignmentOrExpressionStatement` function handles the ambiguity.
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::equality() {
+    auto expr = comparison();
+    if (!expr) return nullptr;
+    while (match(TokenType::EQUAL) || match(TokenType::BANG_EQUAL)) {
+        Token op = previous_;
+        auto right = comparison();
+        if (!right) return nullptr;
+        expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
     }
-    if (match(TokenType::TRUE)) {
-        return std::make_unique<ELLiteralExpression>(true);
+    return expr;
+}
+
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::comparison() {
+    auto expr = term();
+    if (!expr) return nullptr;
+    while (match(TokenType::GREATER) || match(TokenType::GREATER_EQUAL) || match(TokenType::LESS) || match(TokenType::LESS_EQUAL)) {
+        Token op = previous_;
+        auto right = term();
+        if (!right) return nullptr;
+        expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
     }
-    if (match(TokenType::FALSE)) {
-        return std::make_unique<ELLiteralExpression>(false);
+    return expr;
+}
+
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::term() {
+    auto expr = factor();
+    if (!expr) return nullptr;
+    while (match(TokenType::MINUS) || match(TokenType::PLUS)) {
+        Token op = previous_;
+        auto right = factor();
+        if (!right) return nullptr;
+        expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
     }
-    if (match(TokenType::STRING)) {
-        std::string s = previous.lexeme;
-        return std::make_unique<ELLiteralExpression>(s.substr(1, s.length() - 2));
+    return expr;
+}
+
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::factor() {
+    auto expr = unary();
+    if (!expr) return nullptr;
+    while (match(TokenType::SLASH) || match(TokenType::STAR)) {
+        Token op = previous_;
+        auto right = unary();
+        if (!right) return nullptr;
+        expr = std::make_unique<BinaryExpression>(std::move(expr), op, std::move(right));
     }
+    return expr;
+}
+
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::unary() {
+    if (match(TokenType::MINUS) || match(TokenType::NOT)) {
+        Token op = previous_;
+        auto right = unary();
+        if (!right) return nullptr;
+        return std::make_unique<UnaryExpression>(op, std::move(right));
+    }
+    return subscript();
+}
+
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::subscript() {
+    auto expr = primary();
+    if (!expr) return nullptr;
+    while (match(TokenType::LEFT_BRACKET)) {
+        Token bracket = previous_;
+        auto index = expression();
+        if (!index) return nullptr;
+        consume(TokenType::RIGHT_BRACKET, "Expect ']' after subscript index.");
+        expr = std::make_unique<SubscriptExpression>(std::move(expr), std::move(index), bracket);
+    }
+    return expr;
+}
+
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::primary() {
+    if (match(TokenType::NUMBER)) return std::make_unique<LiteralExpression>(std::stod(previous_.lexeme));
+    if (match(TokenType::STRING)) return std::make_unique<LiteralExpression>(previous_.lexeme.substr(1, previous_.lexeme.length() - 2));
+    if (match(TokenType::TRUE)) return std::make_unique<LiteralExpression>(true);
+    if (match(TokenType::FALSE)) return std::make_unique<LiteralExpression>(false);
+    
     if (match(TokenType::IDENTIFIER)) {
-        return std::make_unique<ELVariableExpression>(previous); // Treat function names as variables initially for call() to handle
+        Token calleeName = previous_;
+        if (match(TokenType::LEFT_PAREN)) {
+            return finishCall(calleeName);
+        }
+        return std::make_unique<VariableExpression>(calleeName);
     }
-    // Add support for parentheses for grouping expressions
+
     if (match(TokenType::LEFT_PAREN)) {
-        std::unique_ptr<ELExpression> expr = expression();
+        auto expr = expression();
+        if (!expr) return nullptr;
         consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
         return expr;
     }
 
-    throw std::runtime_error("EasyLanguage Parser Error: Line " + std::to_string(current.line) + ": Expect expression. (Found: '" + current.lexeme + "')");
+    error(current_, "Expect expression.");
+    return nullptr;
 }
+
+std::unique_ptr<EasyLanguageExpression> EasyLanguageParser::finishCall(Token calleeName) {
+    auto callExpr = std::make_unique<FunctionCallExpression>(calleeName);
+    if (!check(TokenType::RIGHT_PAREN)) {
+        do {
+            if (callExpr->arguments.size() >= 255) {
+                error(current_, "Cannot have more than 255 arguments.");
+            }
+            auto arg = expression();
+            if (!arg) return nullptr;
+            callExpr->arguments.push_back(std::move(arg));
+        } while (match(TokenType::COMMA));
+    }
+    consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
+    return callExpr;
+}
+
+// --- Parser Helper Methods ---
+
+bool EasyLanguageParser::hadError() const { return hadError_; }
+void EasyLanguageParser::advance() { previous_ = current_; for (;;) { current_ = lexer_.scanToken(); if (current_.type != TokenType::ERROR) break; error(current_, current_.lexeme.c_str()); } }
+void EasyLanguageParser::consume(TokenType type, const char* message) { if (check(type)) { advance(); return; } error(current_, message); }
+bool EasyLanguageParser::match(TokenType type) { if (!check(type)) return false; advance(); return true; }
+bool EasyLanguageParser::check(TokenType type) const { return current_.type == type; }
+void EasyLanguageParser::error(const Token& token, const char* message) { if (hadError_) return; hadError_ = true; std::cerr << "[line " << token.line << "] Error"; if (token.type == TokenType::END_OF_FILE) std::cerr << " at end"; else if (token.type != TokenType::ERROR) std::cerr << " at '" << token.lexeme << "'"; std::cerr << ": " << message << std::endl; }
+void EasyLanguageParser::synchronize() { advance(); while (!check(TokenType::END_OF_FILE)) { if (previous_.type == TokenType::SEMICOLON) return; switch (current_.type) { case TokenType::IF: case TokenType::BEGIN: case TokenType::VARIABLES: case TokenType::INPUTS: return; default: break; } advance(); } }

@@ -762,6 +762,11 @@ void PineVM::registerBuiltins()
     };
    
     // `plot` 函数，我们也可以让 color 可选
+    built_in_funcs["plot1"] = 
+    built_in_funcs["plot2"] = 
+    built_in_funcs["plot3"] = 
+    built_in_funcs["plot4"] = 
+    built_in_funcs["plot5"] = 
     built_in_funcs["plot"] = {
         .function = [](FunctionContext &ctx) -> Value {
             auto plot_series = ctx.getArgAsSeries(0);
@@ -847,6 +852,7 @@ void PineVM::registerBuiltins()
         .min_args = 2,
         .max_args = 2
     };
+    built_in_funcs["rsi"] = 
     built_in_funcs["ta.rsi"] = {
         .function = [](FunctionContext &ctx) -> Value {
             auto series = ctx.getArgAsSeries(0);
@@ -861,8 +867,32 @@ void PineVM::registerBuiltins()
             }
 
             // 获取前一个 bar 的增益和损失
-            double prev_gain = vm.builtin_func_cache["__call__ta.rsi__gain"]->getCurrent(current_bar - 1);
-            double prev_loss = vm.builtin_func_cache["__call__ta.rsi__loss"]->getCurrent(current_bar - 1);
+            std::string cache_key = "__call__ta.rsi__gain";
+            std::shared_ptr<Series> rsi__gain_series;
+            if (vm.builtin_func_cache.count(cache_key))
+            {
+                rsi__gain_series = vm.builtin_func_cache.at(cache_key);
+            }
+            else
+            {
+                rsi__gain_series = std::make_shared<Series>();
+                rsi__gain_series->name = cache_key;
+                vm.builtin_func_cache[cache_key] = rsi__gain_series;
+            }
+            cache_key = "__call__ta.rsi__loss";
+            std::shared_ptr<Series> rsi__loss_series;
+            if (vm.builtin_func_cache.count(cache_key))
+            {
+                rsi__loss_series = vm.builtin_func_cache.at(cache_key);
+            }
+            else
+            {
+                rsi__loss_series = std::make_shared<Series>();
+                rsi__loss_series->name = cache_key;
+                vm.builtin_func_cache[cache_key] = rsi__loss_series;
+            }
+            double prev_gain = rsi__gain_series->getCurrent(current_bar - 1);
+            double prev_loss = rsi__loss_series->getCurrent(current_bar - 1);
 
             // 计算当前 bar 的价格变化
             double current_price = series->getCurrent(current_bar);
@@ -889,8 +919,8 @@ void PineVM::registerBuiltins()
                 avg_loss = (prev_loss * (length - 1) + loss) / length;
             }
             // 缓存增益和损失，供下一次迭代使用
-            vm.builtin_func_cache["__call__ta.rsi__gain"]->setCurrent(current_bar, avg_gain);
-            vm.builtin_func_cache["__call__ta.rsi__loss"]->setCurrent(current_bar, avg_loss);
+            rsi__gain_series->setCurrent(current_bar, avg_gain);
+            rsi__loss_series->setCurrent(current_bar, avg_loss);
 
             double rs = (avg_loss == 0) ? (avg_gain / 0.0000000001) : (avg_gain / avg_loss); // 避免除以零
             double rsi = 100 - (100 / (1 + rs));

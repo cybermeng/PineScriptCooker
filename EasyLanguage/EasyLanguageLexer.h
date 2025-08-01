@@ -1,30 +1,27 @@
 #pragma once
 #include "../CompilerCommon.h"
-#include <string>
-#include <vector>
+#include <string_view>
 
 class EasyLanguageLexer {
 public:
-    EasyLanguageLexer(const std::string& source);
+    EasyLanguageLexer(std::string_view source);
     Token scanToken();
-    Token peekNextToken();
 
 private:
-    std::string source;
-    int start = 0;
-    int current = 0;
-    int line = 1;
-
-    bool isAtEnd();
+    bool isAtEnd() const;
     char advance();
-    char peek();
+    char peek() const;
+    char peekNext() const;
     bool match(char expected);
-    Token makeToken(TokenType type);
-    Token errorToken(const std::string& message);
     void skipWhitespace();
-    Token string();
-    Token number();
     Token identifier();
-    TokenType identifierType(const std::string& text);
-    char peekNext();
+    Token number();
+    Token string(char quote_char);
+    Token makeToken(TokenType type) const;
+    Token errorToken(const char* message) const;
+
+    std::string_view source_;
+    size_t start_;
+    size_t current_;
+    int line_;
 };

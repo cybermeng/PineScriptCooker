@@ -1,121 +1,180 @@
 #pragma once
-#include "../CompilerCommon.h" // For Token, Value, etc.
+#include "../CompilerCommon.h"
 #include <vector>
 #include <memory>
 #include <string>
 #include <variant>
 
-// Forward declarations for EasyLanguage AST nodes
-struct ELAstNode;
-struct ELStatement;
-struct ELExpression;
+// Forward declarations
+struct EasyLanguageAstVisitor;
+struct EasyLanguageStatement;
+struct EasyLanguageExpression;
 
-struct ELInputDeclaration;
-struct ELVariableDeclaration;
-struct ELExpressionStatement; // Forward declaration for new AST node
+struct VariableDecl;
+struct DeclarationsStatement;
+struct AssignmentStatement;
+struct IfStatement;
+struct BlockStatement;
+struct ExpressionStatement;
+struct EmptyStatement;
+struct BinaryExpression;
+struct UnaryExpression;
+struct LiteralExpression;
+struct VariableExpression;
+struct FunctionCallExpression;
+struct SubscriptExpression;
 
-struct ELIfStatement;
-struct ELAssignmentStatement;
-struct ELFunctionCallExpression;
-struct ELLiteralExpression;
-struct ELVariableExpression;
-struct ELBinaryExpression;
-
-// EasyLanguage AST Visitors
-struct ELAstVisitor {
-    virtual ~ELAstVisitor() = default;
-    virtual void visit(ELInputDeclaration& node) = 0;
-    virtual void visit(ELVariableDeclaration& node) = 0;
-    virtual void visit(ELIfStatement& node) = 0;
-    virtual void visit(ELAssignmentStatement& node) = 0;
-    virtual void visit(ELFunctionCallExpression& node) = 0;
-    virtual void visit(ELLiteralExpression& node) = 0;
-    virtual void visit(ELVariableExpression& node) = 0;
-    virtual void visit(ELExpressionStatement& node) = 0; // Add visit for ExpressionStatement
-    virtual void visit(ELBinaryExpression& node) = 0;
-    // Add other EL-specific statement/expression types as needed
+// The Visitor for the EasyLanguage AST
+struct EasyLanguageAstVisitor {
+    virtual ~EasyLanguageAstVisitor() = default;
+    virtual void visit(DeclarationsStatement& stmt) = 0;
+    virtual void visit(AssignmentStatement& stmt) = 0;
+    virtual void visit(IfStatement& stmt) = 0;
+    virtual void visit(BlockStatement& stmt) = 0;
+    virtual void visit(ExpressionStatement& stmt) = 0;
+    virtual void visit(EmptyStatement& stmt) = 0;
+    virtual void visit(BinaryExpression& expr) = 0;
+    virtual void visit(UnaryExpression& expr) = 0;
+    virtual void visit(LiteralExpression& expr) = 0;
+    virtual void visit(VariableExpression& expr) = 0;
+    virtual void visit(FunctionCallExpression& expr) = 0;
+    virtual void visit(SubscriptExpression& expr) = 0;
 };
 
-// Base class for all EasyLanguage AST nodes
-struct ELAstNode {
-    virtual ~ELAstNode() = default; // 添加虚析构函数，确保多态性下正确释放内存
-    virtual void accept(ELAstVisitor& visitor) = 0;
+// Base nodes
+struct EasyLanguageAstNode {
+    virtual ~EasyLanguageAstNode() = default;
+    virtual void accept(EasyLanguageAstVisitor& visitor) = 0;
 };
 
-// Base class for EasyLanguage statements
-struct ELStatement : ELAstNode {};
+struct EasyLanguageStatement : EasyLanguageAstNode {};
+struct EasyLanguageExpression : EasyLanguageAstNode {};
 
-// Base class for EasyLanguage expressions
-struct ELExpression : ELAstNode {};
+// --- Concrete Statement Nodes ---
 
-// Specific EasyLanguage AST Nodes
-
-// Declarations
-struct ELInputDeclaration : ELStatement {
+// Represents a single variable declaration like `MyVar(10)`
+struct VariableDecl {
     Token name;
-    std::unique_ptr<ELExpression> defaultValue; // Optional
-    ELInputDeclaration(Token name, std::unique_ptr<ELExpression> defaultValue = nullptr)
-        : name(name), defaultValue(std::move(defaultValue)) {}
-    void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
+    std::unique_ptr<EasyLanguageExpression> initializer;
 };
 
-struct ELVariableDeclaration : ELStatement {
+// Represents a block of declarations like `Variables: Var1(0), Var2;`
+struct DeclarationsStatement : EasyLanguageStatement {
+    Token keyword; // `VARIABLES` or `INPUTS`
+    std::vector<VariableDecl> declarations;
+
+    DeclarationsStatement(Token keyword) : keyword(std::move(keyword)) {}
+
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
+};
+
+// `MyVar = C + O;`
+struct AssignmentStatement : EasyLanguageStatement {
     Token name;
-    std::unique_ptr<ELExpression> initialValue; // Optional
-    ELVariableDeclaration(Token name, std::unique_ptr<ELExpression> initialValue = nullptr)
-        : name(name), initialValue(std::move(initialValue)) {}
-    void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
+    std::unique_ptr<EasyLanguageExpression> value;
+
+    AssignmentStatement(Token name, std::unique_ptr<EasyLanguageExpression> value)
+        : name(std::move(name)), value(std::move(value)) {}
+    
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
 };
 
-struct ELIfStatement : ELStatement {
-    std::unique_ptr<ELExpression> condition;
-    std::vector<std::unique_ptr<ELStatement>> thenBranch;
-    std::vector<std::unique_ptr<ELStatement>> elseBranch; // Optional
+// `If C > O Then ... Else ...`
+struct IfStatement : EasyLanguageStatement {
+    std::unique_ptr<EasyLanguageExpression> condition;
+    std::unique_ptr<EasyLanguageStatement> thenBranch;
+    std::unique_ptr<EasyLanguageStatement> elseBranch; // Can be nullptr
 
-    ELIfStatement(std::unique_ptr<ELExpression> cond) : condition(std::move(cond)) {}
-    void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
+    IfStatement(std::unique_ptr<EasyLanguageExpression> condition,
+                std::unique_ptr<EasyLanguageStatement> thenBranch,
+                std::unique_ptr<EasyLanguageStatement> elseBranch)
+        : condition(std::move(condition)), thenBranch(std::move(thenBranch)), elseBranch(std::move(elseBranch)) {}
+    
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
 };
 
-struct ELAssignmentStatement : ELStatement {
+// `Begin ... End`
+struct BlockStatement : EasyLanguageStatement {
+    std::vector<std::unique_ptr<EasyLanguageStatement>> statements;
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
+};
+
+// A standalone expression, like `Plot(...);`
+struct ExpressionStatement : EasyLanguageStatement {
+    std::unique_ptr<EasyLanguageExpression> expression;
+
+    ExpressionStatement(std::unique_ptr<EasyLanguageExpression> expr) : expression(std::move(expr)) {}
+
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
+};
+
+// An empty statement, e.g., a lone semicolon
+struct EmptyStatement : EasyLanguageStatement {
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
+};
+
+
+// --- Concrete Expression Nodes ---
+
+// `A + B`
+struct BinaryExpression : EasyLanguageExpression {
+    std::unique_ptr<EasyLanguageExpression> left;
+    Token op;
+    std::unique_ptr<EasyLanguageExpression> right;
+
+    BinaryExpression(std::unique_ptr<EasyLanguageExpression> left, Token op, std::unique_ptr<EasyLanguageExpression> right)
+        : left(std::move(left)), op(std::move(op)), right(std::move(right)) {}
+    
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
+};
+
+// `-A`
+struct UnaryExpression : EasyLanguageExpression {
+    Token op;
+    std::unique_ptr<EasyLanguageExpression> right;
+
+    UnaryExpression(Token op, std::unique_ptr<EasyLanguageExpression> right)
+        : op(std::move(op)), right(std::move(right)) {}
+    
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
+};
+
+// `10.5` or `"hello"`
+struct LiteralExpression : EasyLanguageExpression {
+    Value value;
+
+    LiteralExpression(Value val) : value(std::move(val)) {}
+    
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
+};
+
+// `Close` or `MyVar`
+struct VariableExpression : EasyLanguageExpression {
     Token name;
-    std::unique_ptr<ELExpression> value;
-    ELAssignmentStatement(Token name, std::unique_ptr<ELExpression> value)
-        : name(name), value(std::move(value)) {}
-    void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
+
+    VariableExpression(Token name) : name(std::move(name)) {}
+    
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
 };
 
-struct ELExpressionStatement : ELStatement {
-    std::unique_ptr<ELExpression> expression;
-    ELExpressionStatement(std::unique_ptr<ELExpression> expr) : expression(std::move(expr)) {}
-    void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
-};
-
-
-// Expressions
-struct ELFunctionCallExpression : ELExpression {
+// `MA(C, 5)`
+struct FunctionCallExpression : EasyLanguageExpression {
     Token name;
-    std::vector<std::unique_ptr<ELExpression>> arguments;
-    ELFunctionCallExpression(Token name) : name(name) {}
-    void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
+    std::vector<std::unique_ptr<EasyLanguageExpression>> arguments;
+
+    FunctionCallExpression(Token name) : name(std::move(name)) {}
+    
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
 };
 
-struct ELLiteralExpression : ELExpression {
-    Value value; // Reusing PineVM's Value variant
-    ELLiteralExpression(Value val) : value(std::move(val)) {}
-    void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
-};
+// `Close[1]`
+struct SubscriptExpression : EasyLanguageExpression {
+    std::unique_ptr<EasyLanguageExpression> callee;
+    std::unique_ptr<EasyLanguageExpression> index;
+    Token bracket;
 
-struct ELVariableExpression : ELExpression {
-    Token name;
-    ELVariableExpression(Token name) : name(name) {}
-    void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
-};
-
-struct ELBinaryExpression : ELExpression {
-    std::unique_ptr<ELExpression> left;
-    Token op; // Operator token (e.g., PLUS, MINUS, EQUAL_EQUAL)
-    std::unique_ptr<ELExpression> right;
-    ELBinaryExpression(std::unique_ptr<ELExpression> left, Token op, std::unique_ptr<ELExpression> right)
-        : left(std::move(left)), op(op), right(std::move(right)) {}
-    void accept(ELAstVisitor& visitor) override { visitor.visit(*this); }
+    SubscriptExpression(std::unique_ptr<EasyLanguageExpression> callee, std::unique_ptr<EasyLanguageExpression> index, Token bracket)
+        : callee(std::move(callee)), index(std::move(index)), bracket(std::move(bracket)) {}
+    
+    void accept(EasyLanguageAstVisitor& visitor) override { visitor.visit(*this); }
 };

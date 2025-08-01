@@ -131,10 +131,8 @@ int main(int argc, char* argv[]) {
                     }
                 } else if (selected_language_from_file == "e" || selected_language_from_file == "easylanguage") {
                     std::cout << language_source << std::endl;
-                    EasyLanguageParser parser(language_source);
-                    std::vector<std::unique_ptr<ELStatement>> el_ast = parser.parse();
-                    EasyLanguageCompiler el_compiler;
-                    bytecode = el_compiler.compile(el_ast);
+                    EasyLanguageCompiler compiler;
+                    bytecode = compiler.compile(language_source);
                 } else {
                     throw std::runtime_error("Invalid language selected. Please choose 'pine', 'easylanguage', or 'hithink'.");
                 }
@@ -255,11 +253,11 @@ int main(int argc, char* argv[]) {
 
         } else if (selected_language == "e" || selected_language == "easylanguage") {
             std::cout << easylanguage_source << std::endl;
-            EasyLanguageParser parser(easylanguage_source);
-            std::vector<std::unique_ptr<ELStatement>> el_ast = parser.parse();
-            EasyLanguageCompiler el_compiler;
-            Bytecode bytecode = el_compiler.compile(el_ast);
-            bytecode_str = bytecodeToTxt(bytecode);
+            EasyLanguageCompiler compiler;
+            bytecode_str = compiler.compile_to_str(easylanguage_source);
+            if (compiler.hadError()) {
+                throw std::runtime_error("EasyLanguage compilation failed.");
+            }
         } else {
             throw std::runtime_error("Invalid language selected. Please choose 'pine', 'easylanguage', or 'hithink'.");
         }

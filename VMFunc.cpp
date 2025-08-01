@@ -735,7 +735,8 @@ void PineVM::registerBuiltinsHithink()
         .max_args = 2
     };
 
-    built_in_funcs["ma"] = {
+    built_in_funcs["ma"] = 
+    built_in_funcs["average"] = {
         .function = [](FunctionContext &ctx) -> Value {
             // Args: source (series), length (numeric)
             auto source_series = ctx.getArgAsSeries(0);
