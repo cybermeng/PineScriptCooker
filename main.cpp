@@ -182,6 +182,7 @@ int main(int argc, char* argv[]) {
     )";
 
     std::string hithink_source = R"(
+        //for test
         MA5:MA(CLOSE,5);
         MA10:MA(CLOSE,10);
         SIG:CROSS(MA5,MA10);
@@ -246,6 +247,12 @@ int main(int argc, char* argv[]) {
             if (compiler.hadError()) {
                 throw std::runtime_error("Hithink compilation failed.");
             }
+            //测试反编译
+            Bytecode bytecode2 = txtToBytecode(bytecode_str);
+            std::string bytecode_str2 = compiler.bytecodeToScript(bytecode2);
+            std::cout << "\n\n--- Decompiled code ---" << std::endl;
+            std::cout << bytecode_str2;
+
         } else if (selected_language == "e" || selected_language == "easylanguage") {
             std::cout << easylanguage_source << std::endl;
             EasyLanguageParser parser(easylanguage_source);
@@ -256,6 +263,8 @@ int main(int argc, char* argv[]) {
         } else {
             throw std::runtime_error("Invalid language selected. Please choose 'pine', 'easylanguage', or 'hithink'.");
         }
+
+        std::cout << "\n\n----------------------------" << std::endl;
         std::cout << bytecode_str;
 
         // --- 准备数据源 ---
@@ -299,6 +308,7 @@ int main(int argc, char* argv[]) {
             std::cerr << "Invalid data source type." << std::endl;
             return 1;
         }
+
 
         // --- 初始化 VM 并注册数据 ---
         PineVM vm;

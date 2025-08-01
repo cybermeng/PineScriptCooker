@@ -13,6 +13,9 @@ public:
     Bytecode compile(std::string_view source);
     std::string compile_to_str(std::string_view source);
 
+    // 反编译函数，将字节码转换回 Hithink 脚本字符串
+    static std::string bytecodeToScript(const Bytecode& bytecode);
+
     bool hadError() const;
 
 private:

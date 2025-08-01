@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <algorithm>
 #include <string>
+#include <sstream> // For bytecodeToScript
+#include <map>     // For bytecodeToScript
 
 const std::unordered_map<std::string, std::string> HithinkCompiler::builtin_mappings = {
     {"CLOSE", "close"}, {"C", "close"},
@@ -215,4 +217,179 @@ void HithinkCompiler::patchJump(int offset) {
         throw std::runtime_error("Jump offset too large!");
     }
     bytecode.instructions[offset].operand = jump;
+}
+
+// Helper to convert a Value variant to its string representation for the script
+static std::string valueToString(const Value& value) {
+    return std::visit([](auto&& arg) -> std::string {
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, std::monostate>) {
+            return "null"; // Or some other representation for nil/monostate
+        } else if constexpr (std::is_same_v<T, double>) {
+            std::stringstream ss;
+            ss << arg;
+            return ss.str();
+        } else if constexpr (std::is_same_v<T, bool>) {
+            return arg ? "true" : "false"; // Hithink doesn't have bool literals, but this is for completeness
+        } else if constexpr (std::is_same_v<T, std::string>) {
+            // Add quotes around the string literal
+            return "'" + arg + "'";
+        } else if constexpr (std::is_same_v<T, std::shared_ptr<Series>>) {
+            // This shouldn't typically appear as a literal in code, but handle it just in case
+            return arg->name;
+        }
+        return "<?>"; // Unknown type
+    }, value);
+}
+
+std::string HithinkCompiler::bytecodeToScript(const Bytecode& bytecode) {
+    if (bytecode.instructions.empty()) {
+        return "";
+    }
+
+    std::vector<std::string> expression_stack;
+    std::vector<std::string> statements;
+
+    // Map binary opcodes to their string symbols
+    const std::map<OpCode, std::string> binary_op_map = {
+        {OpCode::ADD,           " + "},
+        {OpCode::SUB,           " - "},
+        {OpCode::MUL,           " * "},
+        {OpCode::DIV,           " / "},
+        {OpCode::GREATER,       " > "},
+        {OpCode::GREATER_EQUAL, " >= "},
+        {OpCode::LESS,          " < "},
+        {OpCode::LESS_EQUAL,    " <= "},
+        {OpCode::EQUAL_EQUAL,   " = "}, // Use '=' for equality as per Hithink grammar
+        {OpCode::BANG_EQUAL,    " <> "},// Use '<>' for inequality
+        {OpCode::LOGICAL_AND,   " AND "},
+        {OpCode::LOGICAL_OR,    " OR "}
+    };
+
+    for (const auto& instr : bytecode.instructions) {
+        switch (instr.op) {
+            case OpCode::PUSH_CONST: {
+                expression_stack.push_back(valueToString(bytecode.constant_pool[instr.operand]));
+                break;
+            }
+
+            case OpCode::LOAD_BUILTIN_VAR:
+            case OpCode::LOAD_GLOBAL: {
+                std::string varName;
+                if (instr.op == OpCode::LOAD_BUILTIN_VAR) {
+                     // The name is stored as a string constant
+                    varName = std::get<std::string>(bytecode.constant_pool[instr.operand]);
+                } else { // LOAD_GLOBAL
+                    varName = bytecode.global_name_pool[instr.operand];
+                }
+                 // Built-in variables are often uppercase in scripts
+                std::transform(varName.begin(), varName.end(), varName.begin(), ::toupper);
+                expression_stack.push_back(varName);
+                break;
+            }
+
+            case OpCode::ADD:
+            case OpCode::SUB:
+            case OpCode::MUL:
+            case OpCode::DIV:
+            case OpCode::GREATER:
+            case OpCode::GREATER_EQUAL:
+            case OpCode::LESS:
+            case OpCode::LESS_EQUAL:
+            case OpCode::EQUAL_EQUAL:
+            case OpCode::BANG_EQUAL:
+            case OpCode::LOGICAL_AND:
+            case OpCode::LOGICAL_OR: {
+                if (expression_stack.size() < 2) throw std::runtime_error("Decompile error: stack underflow for binary op.");
+                std::string right = expression_stack.back(); expression_stack.pop_back();
+                std::string left = expression_stack.back(); expression_stack.pop_back();
+                std::string op_str = binary_op_map.at(instr.op);
+                expression_stack.push_back("(" + left + op_str + right + ")");
+                break;
+            }
+
+            case OpCode::SUBSCRIPT: {
+                if (expression_stack.size() < 2) throw std::runtime_error("Decompile error: stack underflow for subscript.");
+                std::string index = expression_stack.back(); expression_stack.pop_back();
+                std::string callee = expression_stack.back(); expression_stack.pop_back();
+                expression_stack.push_back(callee + "[" + index + "]");
+                break;
+            }
+            
+            case OpCode::CALL_BUILTIN_FUNC: {
+                if (expression_stack.empty()) throw std::runtime_error("Decompile error: stack underflow for function call arg count.");
+                
+                // The argument count was pushed as a constant right before the call
+                int arg_count = static_cast<int>(std::stod(expression_stack.back()));
+                expression_stack.pop_back();
+
+                if (expression_stack.size() < arg_count) throw std::runtime_error("Decompile error: stack underflow for function arguments.");
+
+                std::vector<std::string> args;
+                for (int i = 0; i < arg_count; ++i) {
+                    args.push_back(expression_stack.back());
+                    expression_stack.pop_back();
+                }
+                std::reverse(args.begin(), args.end());
+
+                std::string func_name_str = valueToString(bytecode.constant_pool[instr.operand]);
+                // The function name is stored as a string, remove the quotes added by valueToString
+                func_name_str = func_name_str.substr(1, func_name_str.length() - 2);
+                std::transform(func_name_str.begin(), func_name_str.end(), func_name_str.begin(), ::toupper);
+
+
+                std::stringstream call_ss;
+                call_ss << func_name_str << "(";
+                for (size_t i = 0; i < args.size(); ++i) {
+                    call_ss << args[i] << (i == args.size() - 1 ? "" : ", ");
+                }
+                call_ss << ")";
+                expression_stack.push_back(call_ss.str());
+                break;
+            }
+            
+            case OpCode::STORE_GLOBAL:
+            case OpCode::STORE_EXPORT: {
+                if (expression_stack.empty()) throw std::runtime_error("Decompile error: stack underflow for assignment.");
+                std::string value_str = expression_stack.back(); expression_stack.pop_back();
+                std::string var_name = bytecode.global_name_pool[instr.operand];
+
+                // Special case for `SELECT` keyword
+                if (var_name == "select" && instr.op == OpCode::STORE_EXPORT) {
+                    statements.push_back("SELECT " + value_str + ";");
+                } else {
+                    std::string op = (instr.op == OpCode::STORE_EXPORT) ? ":" : ":=";
+                    statements.push_back(var_name + " " + op + " " + value_str + ";");
+                }
+                break;
+            }
+            
+            case OpCode::POP: {
+                if (expression_stack.empty()) throw std::runtime_error("Decompile error: stack underflow for POP.");
+                // This is an expression statement, like a DRAWTEXT() call that isn't assigned.
+                std::string expr_str = expression_stack.back();
+                expression_stack.pop_back();
+                statements.push_back(expr_str + ";");
+                break;
+            }
+
+            case OpCode::HALT:
+                goto end_loop; // Exit the loop
+
+            default:
+                // Ignore other opcodes like JUMP for now as they are not generated by this compiler.
+                // Or throw an error if they are unexpected.
+                // throw std::runtime_error("Unsupported opcode in decompiler: " + std::to_string(static_cast<int>(instr.op)));
+                break;
+        }
+    }
+
+end_loop:
+    // Join all finalized statements with a newline
+    std::stringstream result_ss;
+    for (const auto& stmt : statements) {
+        result_ss << stmt << "\n";
+    }
+
+    return result_ss.str();
 }
