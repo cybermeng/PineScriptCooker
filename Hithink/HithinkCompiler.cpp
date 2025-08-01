@@ -171,7 +171,8 @@ void HithinkCompiler::resolveAndEmitLoad(const Token& name) {
         varName = builtin_mappings.at(upperVarName);
     }
 
-    if (varName == "close" || varName == "high" || varName == "low" || varName == "open" || varName == "volume"
+    if (varName == "close" || varName == "high" || varName == "low" || varName == "open"
+         || varName == "volume" || varName == "amount"
          || varName == "time" || varName == "date") {
         int constIndex = addConstant(varName);
         emitByteWithOperand(OpCode::LOAD_BUILTIN_VAR, constIndex);
