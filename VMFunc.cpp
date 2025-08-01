@@ -540,7 +540,7 @@ void PineVM::registerBuiltinsHithink()
             
             double highest_val = NAN;
             bool first = true;
-            for (int i = 1; i < length && current_bar - i >= 0; ++i) {
+            for (int i = 1; i < length + 1 && current_bar - i >= 0; ++i) {
                 double val = source_series->getCurrent(current_bar - i);
                 if (!std::isnan(val)) {
                     if (first) { highest_val = val; first = false; }
@@ -655,7 +655,7 @@ void PineVM::registerBuiltinsHithink()
             
             double lowest_val = NAN;
             bool first = true;
-            for (int i = 1; i < length && current_bar - i >= 0; ++i) {
+            for (int i = 1; i < length + 1 && current_bar - i >= 0; ++i) {
                 double val = source_series->getCurrent(current_bar - i);
                 if (!std::isnan(val)) {
                     if (first) { lowest_val = val; first = false; }
