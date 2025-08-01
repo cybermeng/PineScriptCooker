@@ -530,6 +530,30 @@ void PineVM::registerBuiltinsHithink()
         .max_args = 2
     };
 
+    built_in_funcs["hv"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double highest_val = NAN;
+            bool first = true;
+            for (int i = 1; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    if (first) { highest_val = val; first = false; }
+                    else { highest_val = std::max(highest_val, val); }
+                }
+            }
+            result_series->setCurrent(current_bar, highest_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+    
     built_in_funcs["hhvbars"] = {
         .function = [](FunctionContext &ctx) -> Value {
             // Args: source (series), length (numeric)
@@ -612,6 +636,30 @@ void PineVM::registerBuiltinsHithink()
                     } else {
                         lowest_val = std::min(lowest_val, val);
                     }
+                }
+            }
+            result_series->setCurrent(current_bar, lowest_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["lv"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double lowest_val = NAN;
+            bool first = true;
+            for (int i = 1; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    if (first) { lowest_val = val; first = false; }
+                    else { lowest_val = std::min(lowest_val, val); }
                 }
             }
             result_series->setCurrent(current_bar, lowest_val);
@@ -1835,54 +1883,6 @@ void PineVM::registerBuiltinsHithink()
     
     built_in_funcs["upnday"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 2, .max_args = 2 }; // placeholder
 
-    built_in_funcs["lv"] = {
-        .function = [](FunctionContext &ctx) -> Value {
-            auto source_series = ctx.getArgAsSeries(0);
-            int length = static_cast<int>(ctx.getArgAsNumeric(1));
-            
-            auto result_series = ctx.getResultSeries();
-            int current_bar = ctx.getCurrentBarIndex();
-            
-            double lowest_val = NAN;
-            bool first = true;
-            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
-                double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val)) {
-                    if (first) { lowest_val = val; first = false; }
-                    else { lowest_val = std::min(lowest_val, val); }
-                }
-            }
-            result_series->setCurrent(current_bar, lowest_val);
-            return result_series;
-        },
-        .min_args = 2,
-        .max_args = 2
-    };
-
-    built_in_funcs["hv"] = {
-        .function = [](FunctionContext &ctx) -> Value {
-            auto source_series = ctx.getArgAsSeries(0);
-            int length = static_cast<int>(ctx.getArgAsNumeric(1));
-            
-            auto result_series = ctx.getResultSeries();
-            int current_bar = ctx.getCurrentBarIndex();
-            
-            double highest_val = NAN;
-            bool first = true;
-            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
-                double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val)) {
-                    if (first) { highest_val = val; first = false; }
-                    else { highest_val = std::max(highest_val, val); }
-                }
-            }
-            result_series->setCurrent(current_bar, highest_val);
-            return result_series;
-        },
-        .min_args = 2,
-        .max_args = 2
-    };
-    
     built_in_funcs["isnull"] = {
         .function = [](FunctionContext &ctx) -> Value {
             double dval = ctx.getArgAsNumeric(0);

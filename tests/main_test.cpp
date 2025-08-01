@@ -121,11 +121,13 @@ void test_all_functions() {
     // run_test("findlow", "RESULT: findlow(low, 4, 0);", {{"low", {8,12,5,11}}}, 5.0, 3); // 过去4个bar(0-3), 最低是5
     // run_test("findlowbars", "RESULT: findlowbars(low, 4, 0);", {{"low", {8,12,5,11}}}, 1.0, 3); // 最低点在index=2, 距离3-2=1
     run_test("hhv", "RESULT: hhv(high, 3);", {{"high", {8,12,9,11}}}, 12.0, 3); // 过去3个bar(1-3), 最高是12
+    run_test("hv", "RESULT: hv(high, 3);", {{"high", {8,12,9,13}}}, 12.0, 3); // 过去3个bar(1-3), 最高是12
     run_test("hhvbars", "RESULT: hhvbars(high, 3);", {{"high", {8,12,9,11}}}, 2.0, 3); // 最高点在index=1, 距离3-1=2
     run_test("hod", "RESULT: hod(high, 2);", {{"high", {8,12,9,11}}}, 12.0, 3); // H[3-2] = H[1] = 12
     run_test("islastbar", "RESULT: islastbar();", {{"close", {1,2,3,4,5}}}, 1.0, 4);
     run_test("islastbar_false", "RESULT: islastbar();", {{"close", {1,2,3,4,5}}}, 0.0, 3);
     run_test("llv", "RESULT: llv(low, 4);", {{"low", {8,12,5,11}}}, 5.0, 3);
+    run_test("lv", "RESULT: lv(low, 4);", {{"low", {8,12,5,1}}}, 5.0, 3);
     run_test("llvbars", "RESULT: llvbars(low, 4);", {{"low", {8,12,5,11}}}, 1.0, 3);
     run_test("lod", "RESULT: lod(low, 1);", {{"low", {8,12,5,11}}}, 5.0, 3); // L[3-1]=L[2]=5
     run_test("ma", "RESULT: ma(close, 3);", {{"close", {2,4,6,8}}}, 6.0, 3); // (4+6+8)/3=6
