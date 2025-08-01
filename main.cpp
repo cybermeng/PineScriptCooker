@@ -162,8 +162,9 @@ int main(int argc, char* argv[]) {
         slowMA = ta.ema(close, slow)
         macd = fastMA - slowMA
         signal = ta.ema(macd, 9)
-        plot(macd, color = color.blue)
-        plot(signal, color = color.orange)
+        plot(macd, color.blue)
+        //plot(macd, color = color.blue)
+        //plot(signal, color = color.orange)
     )";
 
     // Simplified EasyLanguage example for demonstration.

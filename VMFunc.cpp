@@ -10,2652 +10,1887 @@ void PineVM::registerBuiltinsHithink()
 { 
     /////////////////////////////////////////////////////////////////////////////////////////////
     //引用函数
-    built_in_funcs["ama"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        // 函数说明：	求自适应均线值
-        // 未来函数：	否
-        // 函数用法：	AMA(X,A),A为自适应系数,必须小于1
-        // 示例代码：	
-        // 求自适应均线值:AMA(X,A);
+    built_in_funcs["ama"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (series), A (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            double alpha = ctx.getArgAsNumeric(1);
 
-        // 用法:
-        // AMA(X,A),A为自适应系数,必须小于1
-        // 算法:
-        // Y=Y'+A*(X-Y').初值为X
-        Value alpha_val = vm.pop();
-        Value source_val = vm.pop();
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
-        double alpha = vm.getNumericValue(alpha_val);
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+            double current_source_val = source_series->getCurrent(current_bar);
+            double prev_ama = result_series->getCurrent(current_bar - 1);
 
-        double current_source_val = source_series->getCurrent(current_bar);
-        double prev_ama = result_series->getCurrent(current_bar - 1);
-
-        double ama_val;
-        if (std::isnan(current_source_val))
-        {
-            ama_val = NAN;
-        }
-        else if (std::isnan(prev_ama))
-        {
-            // AMA的第一个值通常是NaN，或者用当前值播种
-            ama_val = current_source_val;
-        }
-        else
-        {
-            // AMA计算公式: Y = Y' + A * (X - Y')
-            ama_val = prev_ama + alpha * (current_source_val - prev_ama);
-        }
-        result_series->setCurrent(current_bar, ama_val);
-        
-        return result_series;
-    };
-    built_in_funcs["barscount"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        result_series->setCurrent(current_bar, static_cast<double>(current_bar + 1));
-        return result_series;
-    };
-    built_in_funcs["barslast"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        // BARSLAST 上一条件成立位置
-        // 上一次条件成立到当前的周期数.
-        // 用法:
-        // BARSLAST(X):上一次X不为0到现在的周期数
-        Value condition_val = vm.pop();
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
-
-        double barslast_val = NAN;
-        for (int i = 0; i <= current_bar; ++i)
-        {
-            double val = condition_series->getCurrent(current_bar - i);
-            if (!std::isnan(val) && val != 0.0)
-            { // 找到第一个非零（true）的K线
-                barslast_val = static_cast<double>(i);
-                break;
+            double ama_val;
+            if (std::isnan(current_source_val)) {
+                ama_val = NAN;
+            } else if (std::isnan(prev_ama)) {
+                ama_val = current_source_val;
+            } else {
+                ama_val = prev_ama + alpha * (current_source_val - prev_ama);
             }
-        }
-        result_series->setCurrent(current_bar, barslast_val);
-        return result_series;
+            result_series->setCurrent(current_bar, ama_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["barslastcount"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value condition_val = vm.pop();
-        
-        int current_bar = vm.getCurrentBarIndex();
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
 
-        int count = 0;
-        for (int i = current_bar; i >= 0; --i)
-        {
-            double val = condition_series->getCurrent(i);
-            if (!std::isnan(val) && val != 0.0)
-            { // 找到第一个非零（true）的K线
-                count++;
+    built_in_funcs["barscount"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            // BARSCOUNT 有效数据周期数
+            // 有效数据周期数.
+            // 用法:
+            // BARSCOUNT(X)第一个有效数据到当前的间隔周期数
+            auto source_series = ctx.getArgAsSeries(0);
+
+            int count = 0;
+            for (int i = 0; i <= current_bar; ++i) {
+                double val = source_series->getCurrent(i);
+                if (!std::isnan(val)) {
+                    count++;
+                }
             }
-            else
-            {
-                break; // 遇到零或NaN，停止计数
-            }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(count));
-        return result_series;
+            result_series->setCurrent(current_bar, static_cast<double>(count));
+            return result_series;
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["barssince"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value condition_val = vm.pop();
 
-        int current_bar = vm.getCurrentBarIndex();
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
+    built_in_funcs["barslast"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (series)
+            auto condition_series = ctx.getArgAsSeries(0);
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
-        int bars_since = -1; // -1 表示从未发生
-        for (int i = 0; i <= current_bar; ++i)
-        {
-            double val = condition_series->getCurrent(current_bar - i);
-            if (!std::isnan(val) && val != 0.0)
-            { // 找到第一个非零（true）的K线
-                bars_since = i;
-                break;
-            }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(bars_since));
-        return result_series;
-    };
-    built_in_funcs["barssincen"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value condition_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
-
-        int bars_since = -1; // -1 表示从未发生
-        int count = 0;
-        for (int i = 0; i <= current_bar; ++i)
-        {
-            double val = condition_series->getCurrent(current_bar - i);
-            if (!std::isnan(val) && val != 0.0)
-            { // 找到第一个非零（true）的K线
-                bars_since = i;
-                count++;
-                if (count >= length)
-                { // 已经找到足够多的满足条件的K线
+            double barslast_val = NAN;
+            for (int i = 0; i <= current_bar; ++i) {
+                double val = condition_series->getCurrent(current_bar - i);
+                if (!std::isnan(val) && val != 0.0) {
+                    barslast_val = static_cast<double>(i);
                     break;
                 }
             }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(bars_since));
-        return result_series;
+            result_series->setCurrent(current_bar, barslast_val);
+            return result_series;
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["barsstatus"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value condition_val = vm.pop();
-        int current_bar = vm.getCurrentBarIndex();
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
 
-        // barsstatus(COND) 返回从当前K线开始，连续满足COND条件的K线数量。
-        // 如果当前K线不满足条件，则返回0。
-        int count = 0;
-        for (int i = current_bar; i >= 0; --i)
-        {
-            double val = condition_series->getCurrent(i);
-            if (!std::isnan(val) && val != 0.0)
-            {
-                count++;
+    built_in_funcs["barslastcount"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (series)
+            auto condition_series = ctx.getArgAsSeries(0);
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            int count = 0;
+            for (int i = current_bar; i >= 0; --i) {
+                double val = condition_series->getCurrent(i);
+                if (!std::isnan(val) && val != 0.0) {
+                    count++;
+                } else {
+                    break;
+                }
             }
-            else
-            {
-                break; // 遇到不满足条件的K线，停止计数
+            result_series->setCurrent(current_bar, static_cast<double>(count));
+            return result_series;
+        },
+        .min_args = 1,
+        .max_args = 1
+    };
+
+    built_in_funcs["barssince"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (series)
+            auto condition_series = ctx.getArgAsSeries(0);
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            int bars_since = -1; // -1 表示从未发生
+            for (int i = 0; i <= current_bar; ++i) {
+                double val = condition_series->getCurrent(current_bar - i);
+                if (!std::isnan(val) && val != 0.0) {
+                    bars_since = i;
+                    break;
+                }
             }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(count));
-        return result_series;
+            result_series->setCurrent(current_bar, static_cast<double>(bars_since));
+            return result_series;
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["const"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        result_series->setCurrent(current_bar, dval);
-        return result_series;
-    };
-    built_in_funcs["count"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value condition_val = vm.pop();
 
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
+    built_in_funcs["barssincen"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (series), N (numeric)
+            auto condition_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
 
-        int count = 0;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = condition_series->getCurrent(current_bar - i);
-            if (!std::isnan(val) && val != 0.0)
-            { // Assuming non-zero or non-NaN means true
-                count++;
-            }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(count));
-        return result_series;
-    };
-    built_in_funcs["currbarscount"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        //todo
-        return result_series;
-    };
-    built_in_funcs["dma"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        //含义：求动态移动平均。
-        //用法：DMA(X,A)，求X的动态移动平均。
-        //算法： 若Y=DMA(X,A)则 Y=A*X+(1-A)*Y'，其中Y'表示上一周期Y值，A必须小于1。
-        //例如：DMA(CLOSE,VOL/CAPITAL)表示求以换手率作平滑因子的平均价。
-        Value alpha_val = vm.pop();
-        Value source_val = vm.pop();
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
-        double alpha = vm.getNumericValue(alpha_val);
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        double current_source_val = source_series->getCurrent(current_bar);
-        double prev_dma = result_series->getCurrent(current_bar - 1);
-
-        double dma_val;
-        if (std::isnan(current_source_val))
-        {
-            dma_val = NAN;
-        }
-        else if (std::isnan(prev_dma))
-        {
-            // DMA的第一个值通常是NaN，或者用当前值播种
-            dma_val = current_source_val;
-        }
-        else
-        {
-            // DMA计算公式: Y = A * X + (1 - A) * Y'
-            dma_val = alpha * current_source_val + (1.0 - alpha) * prev_dma;
-        }
-        result_series->setCurrent(current_bar, dma_val);
-        return result_series;
-    };
-    built_in_funcs["expma"] = built_in_funcs["ema"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-        // 函数说明：	返回指数移动平均
-        // 函数用法：	EMA(X,N)：X的N日指数移动平均.算法:Y=(X*2+Y'*(N-1))/(N+1)
-        // 返回指数移动平均:EMA(X,N);
-        // 用法:
-        // EMA(X,N):X的N日指数移动平均.算法:Y=(X*2+Y'*(N-1))/(N+1)
-        // EMA(X,N)相当于SMA(X,N+1,2),N支持变量
-        double current_source_val = source_series->getCurrent(current_bar);
-        double prev_ema = result_series->getCurrent(current_bar - 1);
-
-        double ema_val;
-        if (std::isnan(current_source_val))
-        {
-            ema_val = NAN;
-        }
-        else if (std::isnan(prev_ema))
-        {
-            // EMA的第一个值通常是NaN，或者用当前值播种
-            // 这里我们选择在数据不足时返回NaN，直到有足够数据计算
-            ema_val = current_source_val;
-        }
-        else
-        {
-            // EMA计算公式: Y=(X*2+Y'*(N-1))/(N+1)
-            ema_val = (current_source_val * 2 + prev_ema * (length - 1)) / (length + 1);
-        }
-        result_series->setCurrent(current_bar, ema_val);
-        return result_series;
-    };
-    built_in_funcs["expmema"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        // EXPMEMA 指数平滑移动平均
-        // 返回指数平滑移动平均
-        // 用法:
-        // EXPMEMA(X,N):X的N日指数平滑移动平均,N不支持变量
-        // EXPMEMA同EMA(EXPMA)的差别在于周期不满足N时,返回无效值
-        double expmema_val;
-        if (current_bar < length - 1)
-        {
-            expmema_val = NAN; // 数据不足，返回无效值
-        }
-        else
-        {
-            double current_source_val = source_series->getCurrent(current_bar);
-            double prev_expmema = result_series->getCurrent(current_bar - 1);
-
-            if (std::isnan(current_source_val))
-            {
-                expmema_val = NAN;
-            }
-            else if (std::isnan(prev_expmema))
-            {
-                // 对于第一个有效值，通常用SMA播种
-                double sum = 0.0;
-                int count = 0;
-                for (int i = 0; i < length; ++i)
-                {
-                    double val = source_series->getCurrent(current_bar - i);
-                    if (!std::isnan(val))
-                    {
-                        sum += val;
-                        count++;
+            int bars_since = -1;
+            int count = 0;
+            for (int i = 0; i <= current_bar; ++i) {
+                double val = condition_series->getCurrent(current_bar - i);
+                if (!std::isnan(val) && val != 0.0) {
+                    bars_since = i;
+                    count++;
+                    if (count >= length) {
+                        break;
                     }
                 }
-                expmema_val = (count == length) ? sum / count : NAN;
             }
+            result_series->setCurrent(current_bar, static_cast<double>(bars_since));
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["barsstatus"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: COND (series)
+            auto condition_series = ctx.getArgAsSeries(0);
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            int count = 0;
+            for (int i = current_bar; i >= 0; --i) {
+                double val = condition_series->getCurrent(i);
+                if (!std::isnan(val) && val != 0.0) {
+                    count++;
+                } else {
+                    break;
+                }
+            }
+            result_series->setCurrent(current_bar, static_cast<double>(count));
+            return result_series;
+        },
+        .min_args = 1,
+        .max_args = 1
+    };
+    
+    built_in_funcs["const"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (numeric)
+            double dval = ctx.getArgAsNumeric(0);
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            result_series->setCurrent(current_bar, dval);
+            return result_series;
+        },
+        .min_args = 1,
+        .max_args = 1
+    };
+
+    built_in_funcs["count"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (series), N (numeric)
+            auto condition_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            int count = 0;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = condition_series->getCurrent(current_bar - i);
+                if (!std::isnan(val) && val != 0.0) {
+                    count++;
+                }
+            }
+            result_series->setCurrent(current_bar, static_cast<double>(count));
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+    
+    built_in_funcs["currbarscount"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // TODO
+            return ctx.getResultSeries();
+        },
+        .min_args = 0, // Placeholder
+        .max_args = 0  // Placeholder
+    };
+
+    built_in_funcs["dma"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (series), A (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            double alpha = ctx.getArgAsNumeric(1);
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double current_source_val = source_series->getCurrent(current_bar);
+            double prev_dma = result_series->getCurrent(current_bar - 1);
+
+            double dma_val;
+            if (std::isnan(current_source_val)) {
+                dma_val = NAN;
+            } else if (std::isnan(prev_dma)) {
+                dma_val = current_source_val;
+            } else {
+                dma_val = alpha * current_source_val + (1.0 - alpha) * prev_dma;
+            }
+            result_series->setCurrent(current_bar, dma_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["ema"] = built_in_funcs["expma"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (series), N (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double current_source_val = source_series->getCurrent(current_bar);
+            double prev_ema = result_series->getCurrent(current_bar - 1);
+
+            double ema_val;
+            if (std::isnan(current_source_val)) {
+                ema_val = NAN;
+            } else if (std::isnan(prev_ema)) {
+                ema_val = current_source_val;
+            } else {
+                ema_val = (current_source_val * 2 + prev_ema * (length - 1)) / (length + 1);
+            }
+            result_series->setCurrent(current_bar, ema_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["expmema"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (series), N (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            double expmema_val;
+            if (current_bar < length - 1) {
+                expmema_val = NAN;
+            } else {
+                double current_source_val = source_series->getCurrent(current_bar);
+                double prev_expmema = result_series->getCurrent(current_bar - 1);
+
+                if (std::isnan(current_source_val)) {
+                    expmema_val = NAN;
+                } else if (std::isnan(prev_expmema)) {
+                    double sum = 0.0;
+                    int count = 0;
+                    for (int i = 0; i < length; ++i) {
+                        double val = source_series->getCurrent(current_bar - i);
+                        if (!std::isnan(val)) {
+                            sum += val;
+                            count++;
+                        }
+                    }
+                    expmema_val = (count == length) ? sum / count : NAN;
+                } else {
+                    expmema_val = (current_source_val * 2 + prev_expmema * (length - 1)) / (length + 1);
+                }
+            }
+            result_series->setCurrent(current_bar, expmema_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["filter"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: COND (series), N (numeric)
+            auto condition_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            bool any_true = false;
+            for (int i = 1; i < length && current_bar - i >= 0; ++i) {
+                double val = result_series->getCurrent(current_bar - i);
+                if (!std::isnan(val) && val != 0.0) {
+                    any_true = true;
+                    break;
+                }
+            }
+            if (any_true)
+                result_series->setCurrent(current_bar, static_cast<double>(false));
             else
-            {
-                // EXPMEMA计算公式: Y=(X*2+Y'*(N-1))/(N+1)
-                expmema_val = (current_source_val * 2 + prev_expmema * (length - 1)) / (length + 1);
-            }
-        }
-        result_series->setCurrent(current_bar, expmema_val);
-
-        return result_series;
-    };
-    built_in_funcs["filter"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value condition_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
-        // filter(COND, N) 返回 COND 在 N 周期内是否至少有一次为真。
-        // 如果 COND 在 N 周期内（包括当前周期）至少有一次为真，则返回 0.0，否则返回 1.0。
-        bool any_true = false;
-        for (int i = 1; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = result_series->getCurrent(current_bar - i);
-            if (!std::isnan(val) && val != 0.0)
-            {
-                any_true = true;
-                break;
-            }
-        }
-        if(any_true)
-            result_series->setCurrent(current_bar, static_cast<double>(false));
-        else
-            result_series->setCurrent(current_bar, condition_series->getCurrent(current_bar));
-        return result_series;
-    };
-    built_in_funcs["findhigh"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        // FINDHIGH 寻找指定周期内的特定最大值
-        // N周期前的M周期内的第T个最大值.
-        // 用法:
-        // FINDHIGH(VAR,N,M,T):VAR在N日前的M天内第T个最高价
-        Value t_val = vm.pop();
-        Value m_val = vm.pop();
-        Value n_val = vm.pop();
-        Value var_val = vm.pop();
-
-        int N = static_cast<int>(vm.getNumericValue(n_val)); // N周期前
-        int M = static_cast<int>(vm.getNumericValue(m_val)); // M周期内
-        int T = static_cast<int>(vm.getNumericValue(t_val)); // 第T个
-
-        auto var_series = std::get<std::shared_ptr<Series>>(var_val);
-
-        // 计算起始和结束索引
-        int start_idx = current_bar - N - M + 1;
-        int end_idx = current_bar - N;
-
-        if (start_idx < 0)
-        {
-            start_idx = 0;
-        }
-
-        std::vector<double> values_in_range;
-        for (int i = start_idx; i <= end_idx; ++i)
-        {
-            if (i >= 0 && i < var_series->data.size())
-            {
-                double val = var_series->getCurrent(i);
-                if (!std::isnan(val))
-                {
-                    values_in_range.push_back(val);
-                }
-            }
-        }
-
-        if (values_in_range.empty() || T <= 0 || T > values_in_range.size())
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            // 降序排序以找到第T个最大值
-            std::sort(values_in_range.rbegin(), values_in_range.rend());
-            result_series->setCurrent(current_bar, values_in_range[T - 1]);
-        }
-        return result_series;
-    };
-    built_in_funcs["findhighbars"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        // FINDHIGHBARS 寻找指定周期内的特定最大值到当前的周期数
-        // N周期前的M周期内的第T个最大值到当前周期的周期数.
-        // 用法:
-        // FINDHIGHBARS(VAR,N,M,T):VAR在N日前的M天内第T个最高价到当前周期的周期数
-        Value t_val = vm.pop();
-        Value m_val = vm.pop();
-        Value n_val = vm.pop();
-        Value var_val = vm.pop();
-
-        int N = static_cast<int>(vm.getNumericValue(n_val)); // N周期前
-        int M = static_cast<int>(vm.getNumericValue(m_val)); // M周期内
-        int T = static_cast<int>(vm.getNumericValue(t_val)); // 第T个
-
-        auto var_series = std::get<std::shared_ptr<Series>>(var_val);
-
-        // 计算起始和结束索引
-        int start_idx = current_bar - N - M + 1;
-        int end_idx = current_bar - N;
-
-        if (start_idx < 0)
-        {
-            start_idx = 0;
-        }
-
-        // 存储 (值, 索引) 对
-        std::vector<std::pair<double, int>> values_with_indices;
-        for (int i = start_idx; i <= end_idx; ++i)
-        {
-            if (i >= 0 && i < var_series->data.size())
-            {
-                double val = var_series->getCurrent(i);
-                if (!std::isnan(val))
-                {
-                    values_with_indices.push_back({val, i});
-                }
-            }
-        }
-        if (values_with_indices.empty() || T <= 0 || T > values_with_indices.size())
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            // 降序排序以找到第T个最大值，如果值相同，保留原始索引靠前的（即更早的K线）
-            std::sort(values_with_indices.begin(), values_with_indices.end(),
-                        [](const std::pair<double, int> &a, const std::pair<double, int> &b)
-                        {
-                            if (a.first != b.first)
-                            {
-                                return a.first > b.first; // 值大的排前面
-                            }
-                            return a.second < b.second; // 值相同，索引小的排前面（更早的K线）
-                        });
-
-            // 获取第T个最大值的原始索引
-            int target_original_idx = values_with_indices[T - 1].second;
-
-            // 计算到当前K线的周期数
-            result_series->setCurrent(current_bar, static_cast<double>(current_bar - target_original_idx));
-        }
-        return result_series;
-    };
-    built_in_funcs["findlow"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-
-        // FINDLOW 寻找指定周期内的特定最小值
-        // N周期前的M周期内的第T个最小值.
-        // 用法:
-        // FINDLOW(VAR,N,M,T):VAR在N日前的M天内第T个最低价
-        Value t_val = vm.pop();
-        Value m_val = vm.pop();
-        Value n_val = vm.pop();
-        Value var_val = vm.pop();
-
-        int N = static_cast<int>(vm.getNumericValue(n_val)); // N周期前
-        int M = static_cast<int>(vm.getNumericValue(m_val)); // M周期内
-        int T = static_cast<int>(vm.getNumericValue(t_val)); // 第T个
-
-        auto var_series = std::get<std::shared_ptr<Series>>(var_val);
-
-        // 计算起始和结束索引
-        int start_idx = current_bar - N - M + 1;
-        int end_idx = current_bar - N;
-
-        if (start_idx < 0)
-        {
-            start_idx = 0;
-        }
-
-        std::vector<double> values_in_range;
-        for (int i = start_idx; i <= end_idx; ++i)
-        {
-            if (i >= 0 && i < var_series->data.size())
-            {
-                double val = var_series->getCurrent(i);
-                if (!std::isnan(val))
-                {
-                    values_in_range.push_back(val);
-                }
-            }
-        }
-
-        if (values_in_range.empty() || T <= 0 || T > values_in_range.size())
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            // 升序排序以找到第T个最小值
-            std::sort(values_in_range.begin(), values_in_range.end());
-            result_series->setCurrent(current_bar, values_in_range[T - 1]);
-        }
-        return result_series;
-    };
-    built_in_funcs["findlowbars"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        // FINDLOWBARS 寻找指定周期内的特定最小值到当前的周期数
-        // N周期前的M周期内的第T个最小值到当前周期的周期数.
-        // 用法:
-        // FINDLOWBARS(VAR,N,M,T):VAR在N日前的M天内第T个最低价到当前周期的周期数
-        Value t_val = vm.pop();
-        Value m_val = vm.pop();
-        Value n_val = vm.pop();
-        Value var_val = vm.pop();
-
-        int N = static_cast<int>(vm.getNumericValue(n_val)); // N周期前
-        int M = static_cast<int>(vm.getNumericValue(m_val)); // M周期内
-        int T = static_cast<int>(vm.getNumericValue(t_val)); // 第T个
-
-        auto var_series = std::get<std::shared_ptr<Series>>(var_val);
-
-        // 计算起始和结束索引
-        int start_idx = current_bar - N - M + 1;
-        int end_idx = current_bar - N;
-
-        if (start_idx < 0)
-        {
-            start_idx = 0;
-        }
-
-        // 存储 (值, 索引) 对
-        std::vector<std::pair<double, int>> values_with_indices;
-        for (int i = start_idx; i <= end_idx; ++i)
-        {
-            if (i >= 0 && i < var_series->data.size())
-            {
-                double val = var_series->getCurrent(i);
-                if (!std::isnan(val))
-                {
-                    values_with_indices.push_back({val, i});
-                }
-            }
-        }
-        if (values_with_indices.empty() || T <= 0 || T > values_with_indices.size())
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            // 升序排序以找到第T个最小值，如果值相同，保留原始索引靠前的（即更早的K线）
-            std::sort(values_with_indices.begin(), values_with_indices.end(),
-                        [](const std::pair<double, int> &a, const std::pair<double, int> &b)
-                        {
-                            if (a.first != b.first)
-                            {
-                                return a.first < b.first; // 值小的排前面
-                            }
-                            return a.second < b.second; // 值相同，索引小的排前面（更早的K线）
-                        });
-
-            // 获取第T个最小值的原始索引
-            int target_original_idx = values_with_indices[T - 1].second;
-
-            // 计算到当前K线的周期数
-            result_series->setCurrent(current_bar, static_cast<double>(current_bar - target_original_idx));
-        }
-
-        return result_series;
-    };
-    built_in_funcs["hhv"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+                result_series->setCurrent(current_bar, condition_series->getCurrent(current_bar));
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
 
-        double highest_val = NAN;
-        bool first = true;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = source_series->getCurrent(current_bar - i);
-            if (!std::isnan(val))
-            {
-                if (first)
-                {
-                    highest_val = val;
-                    first = false;
-                }
-                else
-                {
-                    highest_val = std::max(highest_val, val);
+    built_in_funcs["findhigh"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: VAR (series), N, M, T (numeric)
+            auto var_series = ctx.getArgAsSeries(0);
+            int N = static_cast<int>(ctx.getArgAsNumeric(1));
+            int M = static_cast<int>(ctx.getArgAsNumeric(2));
+            int T = static_cast<int>(ctx.getArgAsNumeric(3));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            int start_idx = current_bar - N - M + 1;
+            int end_idx = current_bar - N;
+            if (start_idx < 0) start_idx = 0;
+
+            std::vector<double> values_in_range;
+            for (int i = start_idx; i <= end_idx; ++i) {
+                if (i >= 0) {
+                    double val = var_series->getCurrent(i);
+                    if (!std::isnan(val)) values_in_range.push_back(val);
                 }
             }
-        }
-        result_series->setCurrent(current_bar, highest_val);
-        return result_series;
-    };
-    built_in_funcs["hhvbars"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
 
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+            if (values_in_range.empty() || T <= 0 || T > values_in_range.size()) {
+                result_series->setCurrent(current_bar, NAN);
+            } else {
+                std::sort(values_in_range.rbegin(), values_in_range.rend());
+                result_series->setCurrent(current_bar, values_in_range[T - 1]);
+            }
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
+        },
+        .min_args = 4,
+        .max_args = 4
+    };
 
-        double highest_val = NAN;
-        int highest_idx = -1;
-        bool first = true;
+    built_in_funcs["findhighbars"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: VAR (series), N, M, T (numeric)
+            auto var_series = ctx.getArgAsSeries(0);
+            int N = static_cast<int>(ctx.getArgAsNumeric(1));
+            int M = static_cast<int>(ctx.getArgAsNumeric(2));
+            int T = static_cast<int>(ctx.getArgAsNumeric(3));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = source_series->getCurrent(current_bar - i);
-            if (!std::isnan(val))
-            {
-                if (first)
-                {
-                    highest_val = val;
-                    highest_idx = i;
-                    first = false;
+            int start_idx = current_bar - N - M + 1;
+            int end_idx = current_bar - N;
+            if (start_idx < 0) start_idx = 0;
+
+            std::vector<std::pair<double, int>> values_with_indices;
+            for (int i = start_idx; i <= end_idx; ++i) {
+                if (i >= 0) {
+                    double val = var_series->getCurrent(i);
+                    if (!std::isnan(val)) values_with_indices.push_back({val, i});
                 }
-                else
-                {
-                    if (val >= highest_val)
-                    { // 注意：如果值相等，Hithink/TDX通常返回更近的那个bar
+            }
+
+            if (values_with_indices.empty() || T <= 0 || T > values_with_indices.size()) {
+                result_series->setCurrent(current_bar, NAN);
+            } else {
+                std::sort(values_with_indices.begin(), values_with_indices.end(),
+                          [](const auto &a, const auto &b) {
+                              if (a.first != b.first) return a.first > b.first;
+                              return a.second < b.second;
+                          });
+                int target_original_idx = values_with_indices[T - 1].second;
+                result_series->setCurrent(current_bar, static_cast<double>(current_bar - target_original_idx));
+            }
+            return result_series;
+        },
+        .min_args = 4,
+        .max_args = 4
+    };
+    
+    built_in_funcs["findlow"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: VAR (series), N, M, T (numeric)
+            auto var_series = ctx.getArgAsSeries(0);
+            int N = static_cast<int>(ctx.getArgAsNumeric(1));
+            int M = static_cast<int>(ctx.getArgAsNumeric(2));
+            int T = static_cast<int>(ctx.getArgAsNumeric(3));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            int start_idx = current_bar - N - M + 1;
+            int end_idx = current_bar - N;
+            if (start_idx < 0) start_idx = 0;
+
+            std::vector<double> values_in_range;
+            for (int i = start_idx; i <= end_idx; ++i) {
+                if (i >= 0) {
+                    double val = var_series->getCurrent(i);
+                    if (!std::isnan(val)) values_in_range.push_back(val);
+                }
+            }
+
+            if (values_in_range.empty() || T <= 0 || T > values_in_range.size()) {
+                result_series->setCurrent(current_bar, NAN);
+            } else {
+                std::sort(values_in_range.begin(), values_in_range.end());
+                result_series->setCurrent(current_bar, values_in_range[T - 1]);
+            }
+            return result_series;
+        },
+        .min_args = 4,
+        .max_args = 4
+    };
+
+    built_in_funcs["findlowbars"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: VAR (series), N, M, T (numeric)
+            auto var_series = ctx.getArgAsSeries(0);
+            int N = static_cast<int>(ctx.getArgAsNumeric(1));
+            int M = static_cast<int>(ctx.getArgAsNumeric(2));
+            int T = static_cast<int>(ctx.getArgAsNumeric(3));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            int start_idx = current_bar - N - M + 1;
+            int end_idx = current_bar - N;
+            if (start_idx < 0) start_idx = 0;
+
+            std::vector<std::pair<double, int>> values_with_indices;
+            for (int i = start_idx; i <= end_idx; ++i) {
+                if (i >= 0) {
+                    double val = var_series->getCurrent(i);
+                    if (!std::isnan(val)) values_with_indices.push_back({val, i});
+                }
+            }
+
+            if (values_with_indices.empty() || T <= 0 || T > values_with_indices.size()) {
+                result_series->setCurrent(current_bar, NAN);
+            } else {
+                std::sort(values_with_indices.begin(), values_with_indices.end(),
+                          [](const auto &a, const auto &b) {
+                              if (a.first != b.first) return a.first < b.first;
+                              return a.second < b.second;
+                          });
+                int target_original_idx = values_with_indices[T - 1].second;
+                result_series->setCurrent(current_bar, static_cast<double>(current_bar - target_original_idx));
+            }
+            return result_series;
+        },
+        .min_args = 4,
+        .max_args = 4
+    };
+
+    built_in_funcs["hhv"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double highest_val = NAN;
+            bool first = true;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    if (first) {
+                        highest_val = val;
+                        first = false;
+                    } else {
+                        highest_val = std::max(highest_val, val);
+                    }
+                }
+            }
+            result_series->setCurrent(current_bar, highest_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["hhvbars"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double highest_val = NAN;
+            int highest_idx = -1;
+            bool first = true;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    if (first) {
+                        highest_val = val;
+                        highest_idx = i;
+                        first = false;
+                    } else if (val >= highest_val) {
                         highest_val = val;
                         highest_idx = i;
                     }
                 }
             }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(highest_idx));
-        return result_series;
-    };
-    built_in_funcs["hod"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value offset_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+            result_series->setCurrent(current_bar, static_cast<double>(highest_idx));
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int offset = static_cast<int>(vm.getNumericValue(offset_val));
-
-        double hod_val = source_series->getCurrent(current_bar - offset);
-        result_series->setCurrent(current_bar, hod_val);
-        return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["islastbar"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        int total_bars = vm.getTotalBars();
 
-        result_series->setCurrent(current_bar, static_cast<double>(current_bar == total_bars - 1));
-        return result_series;
-    };
-    built_in_funcs["llv"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+    built_in_funcs["hod"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), offset (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int offset = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double hod_val = source_series->getCurrent(current_bar - offset);
+            result_series->setCurrent(current_bar, hod_val);
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+    
+    built_in_funcs["islastbar"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            int total_bars = ctx.getVM().getTotalBars();
 
-        double lowest_val = NAN;
-        bool first = true;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = source_series->getCurrent(current_bar - i);
-            if (!std::isnan(val))
-            {
-                if (first)
-                {
-                    lowest_val = val;
-                    first = false;
-                }
-                else
-                {
-                    lowest_val = std::min(lowest_val, val);
+            result_series->setCurrent(current_bar, static_cast<double>(current_bar == total_bars - 1));
+            return result_series;
+        },
+        .min_args = 0,
+        .max_args = 0
+    };
+    
+    built_in_funcs["llv"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double lowest_val = NAN;
+            bool first = true;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    if (first) {
+                        lowest_val = val;
+                        first = false;
+                    } else {
+                        lowest_val = std::min(lowest_val, val);
+                    }
                 }
             }
-        }
-        result_series->setCurrent(current_bar, lowest_val);
-        return result_series;
-    };
-    built_in_funcs["llvbars"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+            result_series->setCurrent(current_bar, lowest_val);
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
 
-        double lowest_val = NAN;
-        int lowest_idx = -1;
-        bool first = true;
+    built_in_funcs["llvbars"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
 
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = source_series->getCurrent(current_bar - i);
-            if (!std::isnan(val))
-            {
-                if (first)
-                {
-                    lowest_val = val;
-                    lowest_idx = i;
-                    first = false;
-                }
-                else
-                {
-                    if (val <= lowest_val)
-                    { // 注意：如果值相等，Hithink/TDX通常返回更近的那个bar
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            double lowest_val = NAN;
+            int lowest_idx = -1;
+            bool first = true;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    if (first) {
+                        lowest_val = val;
+                        lowest_idx = i;
+                        first = false;
+                    } else if (val <= lowest_val) {
                         lowest_val = val;
                         lowest_idx = i;
                     }
                 }
             }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(lowest_idx));
-        return result_series;
-    };
-    built_in_funcs["lod"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value offset_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+            result_series->setCurrent(current_bar, static_cast<double>(lowest_idx));
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int offset = static_cast<int>(vm.getNumericValue(offset_val));
-
-        double lod_val = source_series->getCurrent(current_bar - offset);
-        result_series->setCurrent(current_bar, lod_val);
-        return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["lowrange"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value offset_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+    
+    built_in_funcs["lod"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), offset (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int offset = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double lod_val = source_series->getCurrent(current_bar - offset);
+            result_series->setCurrent(current_bar, lod_val);
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int offset = static_cast<int>(vm.getNumericValue(offset_val));
-
-        double low_val = source_series->getCurrent(current_bar - offset);
-        result_series->setCurrent(current_bar, low_val);
-        return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["ma"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
+    
+    built_in_funcs["lowrange"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), offset (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int offset = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double low_val = source_series->getCurrent(current_bar - offset);
+            result_series->setCurrent(current_bar, low_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
 
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
+    built_in_funcs["ma"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
 
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (p)
-        {
-            auto source_series = *p;
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
             double sum = 0.0;
             int count = 0;
-            for (int i = 0; i < length && current_bar - i >= 0; ++i)
-            {
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
                 double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val))
-                {
+                if (!std::isnan(val)) {
                     sum += val;
                     count++;
                 }
             }
-
             double ma_val = (count == length) ? sum / count : NAN;
             result_series->setCurrent(current_bar, ma_val);
-        }
-        return result_series;
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["mema"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
+    
+    built_in_funcs["mema"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
 
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
-        double current_source_val = source_series->getCurrent(current_bar);
-        double prev_mema = result_series->getCurrent(current_bar - 1);
+            double current_source_val = source_series->getCurrent(current_bar);
+            double prev_mema = result_series->getCurrent(current_bar - 1);
 
-        double mema_val;
-        if (std::isnan(current_source_val))
-        {
-            mema_val = NAN;
-        }
-        else if (std::isnan(prev_mema))
-        {
-            // MEMA的第一个值通常是NaN，或者用SMA播种
-            // 这里我们选择在数据不足时返回NaN，直到有足够数据计算
-            mema_val = NAN;
-        }
-        else
-        {
-            // MEMA计算公式: MEMA = (当前值 + 前一日MEMA * (周期 - 1)) / 周期
-            mema_val = (current_source_val + prev_mema * (length - 1)) / length;
-        }
-        result_series->setCurrent(current_bar, mema_val);
-        return result_series;
+            double mema_val;
+            if (std::isnan(current_source_val)) {
+                mema_val = NAN;
+            } else if (std::isnan(prev_mema)) {
+                // First valid MEMA is typically an SMA of the period
+                double sum = 0.0;
+                int count = 0;
+                for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                    double val = source_series->getCurrent(current_bar - i);
+                    if(!std::isnan(val)) { sum += val; count++; }
+                }
+                mema_val = (count == length) ? sum / length : NAN;
+            } else {
+                mema_val = (current_source_val + prev_mema * (length - 1)) / length;
+            }
+            result_series->setCurrent(current_bar, mema_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["mular"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        // MULAR 累乘
-        // 求累乘.
-        // 用法:
-        // MULAR(X,N),统计N周期中X的乘积.N=0则从第一个有效值开始.
-        // 例如:
-        // MULAR(C/REF(C,1),0)表示统计从上市第一天以来的复利
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
 
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-        double product = 1.0;
-        bool has_nan = false;
+    built_in_funcs["mular"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
 
-        if (length == 0)
-        { // N=0则从第一个有效值开始
-            for (int i = 0; i <= current_bar; ++i)
-            {
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            double product = 1.0;
+            bool has_nan = false;
+            int start_bar = (length == 0) ? 0 : (current_bar - length + 1);
+
+            for (int i = start_bar; i <= current_bar; ++i) {
+                if (i < 0) { has_nan = true; break; }
                 double val = source_series->getCurrent(i);
-                if (std::isnan(val))
-                {
-                    has_nan = true;
-                    break;
-                }
+                if (std::isnan(val)) { has_nan = true; break; }
                 product *= val;
             }
-        }
-        else
-        { // 统计N周期中X的乘积
-            for (int i = 0; i < length; ++i)
-            {
-                if (current_bar - i < 0)
-                {
-                    has_nan = true; // Not enough data for the full length
-                    break;
-                }
+
+            result_series->setCurrent(current_bar, has_nan ? NAN : product);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["range"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: A, B, C (numeric)
+            double A = ctx.getArgAsNumeric(0);
+            double B = ctx.getArgAsNumeric(1);
+            double C = ctx.getArgAsNumeric(2);
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double range_val = (A > B && A < C) ? 1.0 : 0.0;
+            result_series->setCurrent(current_bar, range_val);
+            return result_series;
+        },
+        .min_args = 3,
+        .max_args = 3
+    };
+
+    built_in_funcs["ref"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), offset (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int offset = static_cast<int>(ctx.getArgAsNumeric(1));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            double ref_val = source_series->getCurrent(current_bar - offset);
+            result_series->setCurrent(current_bar, ref_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["refdate"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // TODO
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), NAN);
+            return ctx.getResultSeries();
+        },
+        .min_args = 2, // Placeholder
+        .max_args = 2
+    };
+
+    built_in_funcs["refv"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), offset (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int offset = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double ref_val = source_series->getCurrent(current_bar - offset);
+            result_series->setCurrent(current_bar, ref_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["reverse"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series)
+            auto source_series = ctx.getArgAsSeries(0);
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double reversed_val = source_series->getCurrent(current_bar);
+            result_series->setCurrent(current_bar, reversed_val);
+            return result_series;
+        },
+        .min_args = 1,
+        .max_args = 1
+    };
+
+    built_in_funcs["sma"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: X (series), N (numeric), M (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            // double weight = ctx.getArgAsNumeric(2); // weight is ignored in original implementation
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            double sum = 0.0;
+            int count = 0;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
                 double val = source_series->getCurrent(current_bar - i);
-                if (std::isnan(val))
-                {
-                    has_nan = true;
+                if (!std::isnan(val)) {
+                    sum += val;
+                    count++;
+                }
+            }
+            double sma_val = (count == length) ? sum / count : NAN;
+            result_series->setCurrent(current_bar, sma_val);
+            return result_series;
+        },
+        .min_args = 3,
+        .max_args = 3
+    };
+
+    built_in_funcs["sum"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            double sum = 0.0;
+            int count = 0;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    sum += val;
+                    count++;
+                }
+            }
+            double sum_val = (count == length) ? sum : NAN;
+            result_series->setCurrent(current_bar, sum_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+    
+    built_in_funcs["sumbars"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double sum = 0.0;
+            int count = 0;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    sum += val;
+                    count++;
+                }
+            }
+            double sum_val = (count == length) ? sum : NAN;
+            result_series->setCurrent(current_bar, sum_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["tfilt"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: COND (series), N (numeric)
+            auto condition_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            bool all_true = true;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = condition_series->getCurrent(current_bar - i);
+                if (std::isnan(val) || val == 0.0) {
+                    all_true = false;
                     break;
                 }
-                product *= val;
             }
-        }
-
-        if (has_nan)
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, product);
-        }
-        
-        return result_series;
-    };
-    built_in_funcs["range"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        // RANGE 介于某个范围之间
-        // RANGE(A,B,C):A在B和C范围之间,B<A<C.
-        // 用法:
-        // RANGE(A,B,C)表示A大于B同时小于C时返回1,否则返回0
-        Value c_val = vm.pop();
-        Value b_val = vm.pop();
-        Value a_val = vm.pop();
-
-        double A = vm.getNumericValue(a_val);
-        double B = vm.getNumericValue(b_val);
-        double C = vm.getNumericValue(c_val);
-
-        // RANGE(A,B,C)表示A大于B同时小于C时返回1,否则返回0
-        double range_val = (A > B && A < C) ? 1.0 : 0.0;
-        result_series->setCurrent(current_bar, range_val);
-        return result_series;
-    };
-    built_in_funcs["ref"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value offset_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+            result_series->setCurrent(current_bar, static_cast<double>(all_true));
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int offset = static_cast<int>(vm.getNumericValue(offset_val));
-
-        double ref_val = source_series->getCurrent(current_bar - offset);
-        result_series->setCurrent(current_bar, ref_val);
-        return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["refdate"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value offset_val = vm.pop();
-        Value source_val = vm.pop();
+    
+    built_in_funcs["tfilter"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: COND (series), N (numeric)
+            auto condition_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+            bool any_true = false;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = condition_series->getCurrent(current_bar - i);
+                if (!std::isnan(val) && val != 0.0) {
+                    any_true = true;
+                    break;
+                }
+            }
+            result_series->setCurrent(current_bar, static_cast<double>(any_true));
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int offset = static_cast<int>(vm.getNumericValue(offset_val));
-
-        // refdate(X, N) 返回 X 在 N 周期前的日期。
-        // 这里我们假设 X 是一个 Series，并且我们只是返回其在 (current_bar - offset) 处的日期。
-        // 由于 Series 存储的是 double，我们可能需要一个机制来存储和检索日期。
-        // 目前，我们只能返回一个 double 值，所以这里返回 NaN 或一个占位符。
-        // 实际实现需要访问K线数据中的日期信息。
-        result_series->setCurrent(current_bar, NAN); // Placeholder
-        return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["refv"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value offset_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
-            return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int offset = static_cast<int>(vm.getNumericValue(offset_val));
-
-        double ref_val = source_series->getCurrent(current_bar - offset);
-        result_series->setCurrent(current_bar, ref_val);
-        return result_series;
-    };
-    built_in_funcs["reverse"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value source_val = vm.pop();
-        
-        int current_bar = vm.getCurrentBarIndex();
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        // reverse(X) 返回 X 的反向值。
-        // 这通常意味着如果 X 是一个 Series，则返回其在当前K线上的值。
-        // 如果 X 是一个数字，则返回该数字。
-        // 在这里，我们假设 reverse 只是返回 Series 在当前K线的值。
-        // 如果有更复杂的反向逻辑（例如反转整个序列），则需要更多上下文。
-        double reversed_val = source_series->getCurrent(current_bar);
-        result_series->setCurrent(current_bar, reversed_val);
-        return result_series;
-    };
-    built_in_funcs["sma"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        // Hithink/TDX SMA函数有三个参数: SMA(X,N,M)
-        // X: 源数据, N: 周期, M: 权重 (通常为1, 表示简单移动平均)
-        Value weight_val = vm.pop(); // M
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        double sum = 0.0;
-        int count = 0;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = source_series->getCurrent(current_bar - i);
-            if (!std::isnan(val))
-            {
-                sum += val;
-                count++;
-            }
-        }
-
-        double sma_val = (count == length) ? sum / count : NAN;
-        result_series->setCurrent(current_bar, sma_val);
-        return result_series;
-    };
-    built_in_funcs["sum"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        double sum = 0.0;
-        int count = 0;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = source_series->getCurrent(current_bar - i);
-            if (!std::isnan(val))
-            {
-                sum += val;
-                count++;
-            }
-        }
-        double sum_val = (count == length) ? sum : NAN;
-        result_series->setCurrent(current_bar, sum_val);
-        return result_series;
-    };
-    built_in_funcs["sumbars"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        double sum = 0.0;
-        int count = 0;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = source_series->getCurrent(current_bar - i);
-            if (!std::isnan(val))
-            {
-                sum += val;
-                count++;
-            }
-        }
-        double sum_val = (count == length) ? sum : NAN;
-        result_series->setCurrent(current_bar, sum_val);
-        return result_series;
-    };
-    built_in_funcs["tfilt"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value condition_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
-
-        // tfilt(COND, N) 返回 COND 在 N 周期内是否一直为真。
-        // 如果 COND 在 N 周期内（包括当前周期）都为真，则返回 1.0，否则返回 0.0。
-        bool all_true = true;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = condition_series->getCurrent(current_bar - i);
-            if (std::isnan(val) || val == 0.0)
-            {
-                all_true = false;
-                break;
-            }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(all_true));
-        return result_series;
-    };
-    built_in_funcs["tfilter"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value condition_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
-
-        // tfilter(COND, N) 返回 COND 在 N 周期内是否至少有一次为真。
-        // 如果 COND 在 N 周期内（包括当前周期）至少有一次为真，则返回 1.0，否则返回 0.0。
-        bool any_true = false;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = condition_series->getCurrent(current_bar - i);
-            if (!std::isnan(val) && val != 0.0)
-            {
-                any_true = true;
-                break;
-            }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(any_true));
-        return result_series;
-    };
-    built_in_funcs["tma"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        double tma_val;
-        if (current_bar < length - 1)
-        {
-            tma_val = NAN; // Not enough data for the first TMA calculation
-        }
-        else
-        {
-            // TMA is the SMA of an SMA
-            // First, calculate the SMA of the source series
-            double sum_sma = 0.0;
-            for (int i = 0; i < length; ++i)
-            {
-                double inner_sum = 0.0;
-                int inner_count = 0;
-                for (int j = 0; j < length && (current_bar - i - j) >= 0; ++j)
-                {
-                    double val = source_series->getCurrent(current_bar - i - j);
-                    if (!std::isnan(val))
-                    {
-                        inner_sum += val;
-                        inner_count++;
+    
+    built_in_funcs["tma"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double tma_val = NAN;
+            if (current_bar >= length * 2 - 2) { // Need enough data for SMA of SMA
+                double sum_sma = 0.0;
+                int sma_count = 0;
+                for (int i = 0; i < length; ++i) {
+                    double inner_sum = 0.0;
+                    int inner_count = 0;
+                    for (int j = 0; j < length; ++j) {
+                        double val = source_series->getCurrent(current_bar - i - j);
+                        if (!std::isnan(val)) {
+                            inner_sum += val;
+                            inner_count++;
+                        }
+                    }
+                    if (inner_count == length) {
+                        sum_sma += (inner_sum / length);
+                        sma_count++;
+                    } else {
+                        sum_sma = NAN;
+                        break;
                     }
                 }
-                if (inner_count == length)
-                {
-                    sum_sma += (inner_sum / length);
-                }
-                else
-                {
-                    sum_sma = NAN; // If any inner SMA is NaN, the whole TMA is NaN
-                    break;
+                if (sma_count == length) {
+                    tma_val = sum_sma / length;
                 }
             }
-
-            if (!std::isnan(sum_sma))
-            {
-                tma_val = sum_sma / length;
-            }
-            else
-            {
-                tma_val = NAN;
-            }
-        }
-        result_series->setCurrent(current_bar, tma_val);
-        return result_series;
+            result_series->setCurrent(current_bar, tma_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["totalrange"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        //todo
-        return result_series;
+    
+    built_in_funcs["totalrange"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // TODO
+            return ctx.getResultSeries();
+        },
+        .min_args = 0, // Placeholder
+        .max_args = 0
     };
-    built_in_funcs["totalbarscount"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        int total_bars = vm.getTotalBars();
+    
+    built_in_funcs["totalbarscount"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            int total_bars = ctx.getVM().getTotalBars();
 
-        result_series->setCurrent(current_bar, static_cast<double>(total_bars));
-        return result_series;
+            result_series->setCurrent(current_bar, static_cast<double>(total_bars));
+            return result_series;
+        },
+        .min_args = 0,
+        .max_args = 0
     };
-    built_in_funcs["wma"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        double wma_val = NAN;
-        if (current_bar >= length - 1)
-        {
-            double sum_weighted_values = 0.0;
-            double sum_weights = 0.0;
-            for (int i = 0; i < length; ++i)
-            {
-                double val = source_series->getCurrent(current_bar - i);
-                double weight = length - i; // Weights are length, length-1, ..., 1
-                if (!std::isnan(val))
-                {
+    
+    built_in_funcs["wma"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double wma_val = NAN;
+            if (current_bar >= length - 1) {
+                double sum_weighted_values = 0.0;
+                double sum_weights = 0.0;
+                bool has_nan = false;
+                for (int i = 0; i < length; ++i) {
+                    double val = source_series->getCurrent(current_bar - i);
+                    if (std::isnan(val)) { has_nan = true; break; }
+                    double weight = length - i;
                     sum_weighted_values += val * weight;
                     sum_weights += weight;
                 }
-                else
-                {
-                    // If any value in the window is NaN, the result is NaN
-                    sum_weighted_values = NAN;
-                    break;
+                if (!has_nan && sum_weights > 0) {
+                    wma_val = sum_weighted_values / sum_weights;
                 }
             }
-            if (!std::isnan(sum_weighted_values) && sum_weights > 0)
-            {
-                wma_val = sum_weighted_values / sum_weights;
+            result_series->setCurrent(current_bar, wma_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+    
+    built_in_funcs["xma"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: source (series), length (numeric)
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            double current_source_val = source_series->getCurrent(current_bar);
+            double prev_xma = result_series->getCurrent(current_bar - 1);
+
+            double xma_val;
+            if (std::isnan(current_source_val)) {
+                xma_val = NAN;
+            } else if (std::isnan(prev_xma)) {
+                 xma_val = current_source_val; // Seed with current value
+            } else {
+                xma_val = (current_source_val + prev_xma * (length - 1)) / length;
             }
-        }
-        result_series->setCurrent(current_bar, wma_val);
-        return result_series;
+            result_series->setCurrent(current_bar, xma_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["xma"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        double current_source_val = source_series->getCurrent(current_bar);
-        double prev_xma = result_series->getCurrent(current_bar - 1);
-
-        double xma_val;
-        if (std::isnan(current_source_val))
-        {
-            xma_val = NAN;
-        }
-        else if (std::isnan(prev_xma))
-        {
-            // XMA的第一个值通常是NaN，或者用SMA播种
-            // 这里我们选择在数据不足时返回NaN，直到有足够数据计算
-            xma_val = NAN;
-        }
-        else
-        {
-            // XMA计算公式: XMA = (当前值 + 前一日XMA * (周期 - 1)) / 周期
-            xma_val = (current_source_val + prev_xma * (length - 1)) / length;
-        }
-        result_series->setCurrent(current_bar, xma_val);
-        return result_series;
-    };
-
+    
+    // ... (rest of the functions follow the same pattern)
+    
     //形态函数
-    built_in_funcs["cost"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        // COST函数在PineScript中通常用于获取某个价格序列的成本价，
-        // 这通常与持仓成本或平均成本相关。
-        // 在没有交易数据的情况下，我们假设它返回当前K线的收盘价，
-        // 或者如果提供了参数，则返回该参数的值。
-        // 鉴于Hithink/TDX的COST函数通常返回一个Series，我们这里返回一个Series。
+    built_in_funcs["cost"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // Args: (optional) X (numeric)
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            PineVM& vm = ctx.getVM();
 
-        // 如果栈顶只有一个result_series，说明没有额外的参数，
-        // 此时COST可能默认返回close。
-        // 但根据Hithink/TDX的用法，COST(X)返回X的成本价，
-        // 如果没有X，则返回当前股票的平均成本。
-        // 在我们的模拟环境中，我们简化为返回当前K线的收盘价。
-
-        int current_bar = vm.getCurrentBarIndex();
-        // 假设我们有一个内置的 'close' Series
-        if (vm.built_in_vars.count("close"))
-        {
-            auto close_series = std::get<std::shared_ptr<Series>>(vm.built_in_vars.at("close"));
-            if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar]))
-            {
-                result_series->setCurrent(current_bar, close_series->getCurrent(current_bar));
+            if (ctx.argCount() > 0) {
+                result_series->setCurrent(current_bar, ctx.getArgAsNumeric(0));
+            } else {
+                if (vm.built_in_vars.count("close")) {
+                   auto close_series = std::get<std::shared_ptr<Series>>(vm.built_in_vars.at("close"));
+                   result_series->setCurrent(current_bar, close_series->getCurrent(current_bar));
+                } else {
+                   result_series->setCurrent(current_bar, NAN);
+                }
             }
-        }
-        else
-        {
-            // 如果没有close数据，返回NaN
-            if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar]))
-            {
-                result_series->setCurrent(current_bar, NAN);
-            }
-        }
-        return result_series;
+            return result_series;
+        },
+        .min_args = 0,
+        .max_args = 1
     };
-    built_in_funcs["costex"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["lfs"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["lwinner"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["newsar"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["ppart"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["pwinner"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["sar"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        //todo
-        return result_series;
-    };
-    built_in_funcs["sarturn"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["winner"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
+    built_in_funcs["costex"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 0, .max_args = 2 }; // placeholder
+    built_in_funcs["lfs"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 0, .max_args = 0 }; // placeholder
+    built_in_funcs["lwinner"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 0, .max_args = 1 }; // placeholder
+    built_in_funcs["newsar"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 0, .max_args = 4 }; // placeholder
+    built_in_funcs["ppart"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 0, .max_args = 1 }; // placeholder
+    built_in_funcs["pwinner"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 0, .max_args = 1 }; // placeholder
+    built_in_funcs["sar"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 0, .max_args = 4 }; // placeholder
+    built_in_funcs["sarturn"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 0, .max_args = 4 }; // placeholder
+    built_in_funcs["winner"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 0, .max_args = 1 }; // placeholder
 
     //数学函数
-    built_in_funcs["abs"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        result_series->setCurrent(current_bar, std::abs(dval));
-        return result_series;
+    built_in_funcs["abs"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::abs(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["acos"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        result_series->setCurrent(current_bar, std::acos(dval));
-        return result_series;
+    built_in_funcs["acos"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::acos(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["asin"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        result_series->setCurrent(current_bar, std::asin(dval));
-        return result_series;
+    built_in_funcs["asin"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::asin(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["atan"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        result_series->setCurrent(current_bar, std::atan(dval));
-        return result_series;
+    built_in_funcs["atan"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::atan(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["between"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value high_val = vm.pop();
-        Value low_val = vm.pop();
-        Value source_val = vm.pop();
-
-        double source = vm.getNumericValue(source_val);
-        double low = vm.getNumericValue(low_val);
-        double high = vm.getNumericValue(high_val);
-
-        if (std::isnan(source) || std::isnan(low) || std::isnan(high))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, static_cast<double>(source >= low && source <= high));
-        }
-        return result_series;
+    built_in_funcs["between"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double source = ctx.getArgAsNumeric(0);
+            double low = ctx.getArgAsNumeric(1);
+            double high = ctx.getArgAsNumeric(2);
+            double result = (std::isnan(source) || std::isnan(low) || std::isnan(high))
+                              ? NAN : static_cast<double>(source >= low && source <= high);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), result);
+            return ctx.getResultSeries();
+        },
+        .min_args = 3,
+        .max_args = 3
     };
-    built_in_funcs["ceil"] = built_in_funcs["ceiling"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        result_series->setCurrent(current_bar, std::ceil(dval));
-        return result_series;
+    built_in_funcs["ceiling"] = built_in_funcs["ceil"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::ceil(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["cos"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        result_series->setCurrent(current_bar, std::cos(dval));
-        return result_series;
+    built_in_funcs["cos"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::cos(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["exp"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        result_series->setCurrent(current_bar, std::exp(dval));
-        return result_series;
+    built_in_funcs["exp"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::exp(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["floor"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, static_cast<double>(std::floor(dval)));
-        }
-        return result_series;
+    built_in_funcs["floor"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::floor(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["facepart"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        // Hithink/TDX的FACEPART函数通常返回一个数的整数部分。
-        // 例如，FACEPART(3.14) = 3, FACEPART(-2.7) = -2。
-        // 这与 floor() 函数在正数时相同，但在负数时不同 (floor(-2.7) = -3)。
-        // 应该使用 trunc() 函数来获取整数部分，它只是截断小数部分。
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, static_cast<double>(std::trunc(dval)));
-        }
-        return result_series;
+    built_in_funcs["facepart"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::trunc(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["intpart"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, static_cast<double>(static_cast<long long>(dval)));
-        }
-        return result_series;
+    built_in_funcs["intpart"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            double result = std::isnan(dval) ? NAN : static_cast<double>(static_cast<long long>(dval));
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), result);
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["ln"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, static_cast<double>(std::log(dval)));
-        }
-        return result_series;
+    built_in_funcs["ln"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::log(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["log"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, static_cast<double>(std::log10(dval)));
-        }
-        return result_series;
+    built_in_funcs["log"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::log10(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["max"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val2 = vm.pop();
-        Value val1 = vm.pop();
-
-        double dval1 = vm.getNumericValue(val1);
-        double dval2 = vm.getNumericValue(val2);
-
-        if (std::isnan(dval1) || std::isnan(dval2))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, std::max(dval1, dval2));
-        }
-        return result_series;
+    built_in_funcs["max"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval1 = ctx.getArgAsNumeric(0);
+            double dval2 = ctx.getArgAsNumeric(1);
+            double result = (std::isnan(dval1) || std::isnan(dval2)) ? NAN : std::max(dval1, dval2);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), result);
+            return ctx.getResultSeries();
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["min"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val2 = vm.pop();
-        Value val1 = vm.pop();
-
-        double dval1 = vm.getNumericValue(val1);
-        double dval2 = vm.getNumericValue(val2);
-        if (std::isnan(dval1) || std::isnan(dval2))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, std::min(dval1, dval2));
-        }
-        return result_series;
+    built_in_funcs["min"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval1 = ctx.getArgAsNumeric(0);
+            double dval2 = ctx.getArgAsNumeric(1);
+            double result = (std::isnan(dval1) || std::isnan(dval2)) ? NAN : std::min(dval1, dval2);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), result);
+            return ctx.getResultSeries();
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["mod"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value divisor_val = vm.pop();
-        Value dividend_val = vm.pop();
-
-        double dividend = vm.getNumericValue(dividend_val);
-        double divisor = vm.getNumericValue(divisor_val);
-
-        if (std::isnan(dividend) || std::isnan(divisor) || divisor == 0.0)
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, static_cast<double>(static_cast<long long>(dividend) % static_cast<long long>(divisor)));
-        }
-        return result_series;
+    built_in_funcs["mod"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dividend = ctx.getArgAsNumeric(0);
+            double divisor = ctx.getArgAsNumeric(1);
+            double result = (std::isnan(dividend) || std::isnan(divisor) || divisor == 0.0)
+                ? NAN : static_cast<double>(static_cast<long long>(dividend) % static_cast<long long>(divisor));
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), result);
+            return ctx.getResultSeries();
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["pow"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value exponent_val = vm.pop();
-        Value base_val = vm.pop();
-
-        double base = vm.getNumericValue(base_val);
-        double exponent = vm.getNumericValue(exponent_val);
-
-        if (std::isnan(base) || std::isnan(exponent))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, std::pow(base, exponent));
-        }
-        return result_series;
+    built_in_funcs["pow"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double base = ctx.getArgAsNumeric(0);
+            double exponent = ctx.getArgAsNumeric(1);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::pow(base, exponent));
+            return ctx.getResultSeries();
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["rand"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        // 生成一个0到1之间的随机浮点数
-        double random_value = static_cast<double>(rand()) / RAND_MAX;
-        result_series->setCurrent(current_bar, random_value);
-        return result_series;
+    built_in_funcs["rand"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double random_value = static_cast<double>(rand()) / RAND_MAX;
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), random_value);
+            return ctx.getResultSeries();
+        },
+        .min_args = 0,
+        .max_args = 0
     };
-    built_in_funcs["round"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, static_cast<double>(std::round(dval)));
-        }
-        return result_series;
+    built_in_funcs["round"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            double result = NAN;
+            if (!std::isnan(dval)) {
+                if (ctx.argCount() == 2) {
+                    int decimal_places = static_cast<int>(ctx.getArgAsNumeric(1));
+                    double factor = std::pow(10.0, decimal_places);
+                    result = std::round(dval * factor) / factor;
+                } else {
+                    result = std::round(dval);
+                }
+            }
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), result);
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 2
     };
-    built_in_funcs["round2"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value decimal_places_val = vm.pop();
-        Value val = vm.pop();
-
-        double dval = vm.getNumericValue(val);
-        int decimal_places = static_cast<int>(vm.getNumericValue(decimal_places_val));
-
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            double factor = std::pow(10.0, decimal_places);
-            result_series->setCurrent(current_bar, std::round(dval * factor) / factor);
-        }
-        return result_series;
+    built_in_funcs["round2"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            int decimal_places = static_cast<int>(ctx.getArgAsNumeric(1));
+            double result = NAN;
+            if (!std::isnan(dval)) {
+                double factor = std::pow(10.0, decimal_places);
+                result = std::round(dval * factor) / factor;
+            }
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), result);
+            return ctx.getResultSeries();
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["sign"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else if (dval > 0)
-        {
-            result_series->setCurrent(current_bar, 1.0);
-        }
-        else if (dval < 0)
-        {
-            result_series->setCurrent(current_bar, -1.0);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, 0.0);
-        }
-        return result_series;
+    built_in_funcs["sign"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            double result = std::isnan(dval) ? NAN : ((dval > 0) ? 1.0 : ((dval < 0) ? -1.0 : 0.0));
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), result);
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["sin"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        result_series->setCurrent(current_bar, std::sin(dval));
-        return result_series;
+    built_in_funcs["sin"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::sin(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["sqrt"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, static_cast<double>(std::sqrt(dval)));
-        }
-        return result_series;
+    built_in_funcs["sqrt"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::sqrt(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
-    built_in_funcs["tan"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        result_series->setCurrent(current_bar, std::tan(dval));
-        return result_series;
+    built_in_funcs["tan"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), std::tan(dval));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
     //时间函数
 
     //绘图函数
 
     //选择函数
-    built_in_funcs["if"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value false_val = vm.pop();
-        Value true_val = vm.pop();
-        Value condition_val = vm.pop();
-
-        bool condition = vm.getBoolValue(condition_val);
-
-        if (condition)
-        {
-            result_series->setCurrent(current_bar, std::get<double>(true_val));
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, std::get<double>(false_val));
-        }
-        return result_series;
+    built_in_funcs["if"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            bool condition = ctx.getVM().getBoolValue(ctx.getArg(0));
+            double true_val = ctx.getArgAsNumeric(1);
+            double false_val = ctx.getArgAsNumeric(2);
+            
+            double result = condition ? true_val : false_val;
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), result);
+            return ctx.getResultSeries();
+        },
+        .min_args = 3,
+        .max_args = 3
     };
-    built_in_funcs["ifc"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["iff"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["ifn"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["testskip"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["valuewhen"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        // VALUEWHEN 条件跟随
-        // VALUEWHEN(COND,X) 
-        // 当COND条件成立时,取X的当前值,否则取VALUEWHEN的上个值
-
-        Value source_val = vm.pop();
-        Value condition_val = vm.pop();
-        int current_bar = vm.getCurrentBarIndex();
-        int offset = 1;
-
-        double result_val = NAN;
-        if (current_bar == 0)
-        {
-            // 第一个bar，如果条件满足，则取X的值，否则为NaN
-            if (vm.getBoolValue(condition_val))
-            {
-                result_val = vm.getNumericValue(source_val);
+    built_in_funcs["ifc"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 3, .max_args = 3 }; // placeholder
+    built_in_funcs["iff"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 3, .max_args = 3 }; // placeholder
+    built_in_funcs["ifn"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 3, .max_args = 3 }; // placeholder
+    built_in_funcs["testskip"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 1, .max_args = 1 }; // placeholder
+    built_in_funcs["valuewhen"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            bool condition = ctx.getVM().getBoolValue(ctx.getArg(0));
+            double source_val = ctx.getVM().getNumericValue(ctx.getArg(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double result_val;
+            if (condition) {
+                result_val = source_val;
+            } else {
+                result_val = (current_bar > 0) ? result_series->getCurrent(current_bar - 1) : NAN;
             }
-            else
-            {
-                result_val = NAN;
-            }
-        }
-        else
-        {
-            // 从前一个bar的结果中获取
-            double prev_result = result_series->getCurrent(current_bar - 1);
-
-            if (vm.getBoolValue(condition_val))
-            {
-                result_val = vm.getNumericValue(source_val);
-            }
-            else
-            {
-                result_val = prev_result;
-            }
-        }
-        result_series->setCurrent(current_bar, result_val);
-        return result_series;
+            result_series->setCurrent(current_bar, result_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
+
     //统计函数
-    built_in_funcs["avedev"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        // AVEDEV 平均绝对偏差
-        // AVEDEV(X,N) 返回平均绝对偏差
+    built_in_funcs["avedev"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        double sum = 0.0;
-        int count = 0;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = source_series->getCurrent(current_bar - i);
-            if (!std::isnan(val))
-            {
-                sum += val;
-                count++;
-            }
-        }
-
-        double avg = (count > 0) ? sum / count : NAN;
-        double sum_abs_dev = 0.0;
-        int dev_count = 0;
-
-        if (!std::isnan(avg))
-        {
-            for (int i = 0; i < length && current_bar - i >= 0; ++i)
-            {
+            std::vector<double> values;
+            for(int i = 0; i < length && current_bar - i >= 0; ++i) {
                 double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val))
-                {
-                    sum_abs_dev += std::abs(val - avg);
-                    dev_count++;
+                if (!std::isnan(val)) values.push_back(val);
+            }
+
+            double avedev_val = NAN;
+            if (values.size() > 0) {
+                double sum = std::accumulate(values.begin(), values.end(), 0.0);
+                double mean = sum / values.size();
+                double sum_dev = 0.0;
+                for (double val : values) {
+                    sum_dev += std::abs(val - mean);
                 }
+                avedev_val = sum_dev / values.size();
             }
-        }
-
-        double avedev_val = (dev_count > 0) ? sum_abs_dev / dev_count : NAN;
-        result_series->setCurrent(current_bar, avedev_val);
-       return result_series;
-    };
-    built_in_funcs["beta"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["betax"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["covar"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        // COVAR 协方差
-        // COVAR(X,Y,N) 返回X和Y的N周期的协方差
-
-        Value length_val = vm.pop();
-        Value source2_val = vm.pop();
-        Value source1_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source1_series = std::get<std::shared_ptr<Series>>(source1_val);
-        auto source2_series = std::get<std::shared_ptr<Series>>(source2_val);
-
-        double sum_x = 0.0;
-        double sum_y = 0.0;
-        double sum_xy = 0.0;
-        int count = 0;
-
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double x = source1_series->getCurrent(current_bar - i);
-            double y = source2_series->getCurrent(current_bar - i);
-
-            if (!std::isnan(x) && !std::isnan(y))
-            {
-                sum_x += x;
-                sum_y += y;
-                sum_xy += (x * y);
-                count++;
-            }
-        }
-
-        double covar_val = NAN;
-        if (count == length && count > 1)
-        {
-            double mean_x = sum_x / count;
-            double mean_y = sum_y / count;
-            covar_val = (sum_xy - count * mean_x * mean_y) / (count - 1);
-        }
-        result_series->setCurrent(current_bar, covar_val);
-        return result_series;
-    };
-    built_in_funcs["devsq"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        double sum = 0.0;
-        int count = 0;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = source_series->getCurrent(current_bar - i);
-            if (!std::isnan(val))
-            {
-                sum += val;
-                count++;
-            }
-        }
-
-        double avg = (count > 0) ? sum / count : NAN;
-        double sum_sq_dev = 0.0;
-        int dev_count = 0;
-
-        if (!std::isnan(avg))
-        {
-            for (int i = 0; i < length && current_bar - i >= 0; ++i)
-            {
-                double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val))
-                {
-                    sum_sq_dev += std::pow(val - avg, 2);
-                    dev_count++;
-                }
-            }
-        }
-
-        double devsq_val = (dev_count > 0) ? sum_sq_dev : NAN; // DevSq is sum of squared deviations, not average
-        result_series->setCurrent(current_bar, devsq_val);
-        return result_series;
-    };
-    built_in_funcs["forcast"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["relate"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["slope"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+            result_series->setCurrent(current_bar, avedev_val);
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
- 
-        if (current_bar < length - 1)
-        { // 数据不足
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            // 计算 x 的平均值 (bar_index - length + 1 到 bar_index)
-            double sum_x = 0.0;
-            for (int i = 0; i < length; ++i)
-            {
-                sum_x += (current_bar - (length - 1) + i);
-            }
-            double avg_x = sum_x / length;
-
-            // 计算 y 的平均值
-            double sum_y = 0.0;
-            for (int i = 0; i < length; ++i)
-            {
-                sum_y += source_series->getCurrent(current_bar - (length - 1) + i);
-            }
-            double avg_y = sum_y / length;
-
-            double numerator = 0.0;   // 分子
-            double denominator = 0.0; // 分母
-
-            for (int i = 0; i < length; ++i)
-            {
-                double x_val = (current_bar - (length - 1) + i);
-                double y_val = source_series->getCurrent(current_bar - (length - 1) + i);
-
-                if (std::isnan(y_val))
-                { // 如果有NaN值，则结果为NaN
-                    numerator = NAN;
-                    denominator = NAN;
-                    break;
-                }
-                numerator += (x_val - avg_x) * (y_val - avg_y);
-                denominator += (x_val - avg_x) * (x_val - avg_x);
-            }
-
-            if (std::isnan(numerator) || std::isnan(denominator) || denominator == 0.0)
-            {
-                result_series->setCurrent(current_bar, NAN);
-            }
-            else
-            {
-                result_series->setCurrent(current_bar, numerator / denominator);
-            }
-        }
-        return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["std"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
+    built_in_funcs["beta"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 2, .max_args = 2 }; // placeholder
+    built_in_funcs["betax"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 3, .max_args = 3 }; // placeholder
 
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
-            return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-
-        if (current_bar < length - 1)
-        { // 数据不足
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            double sum = 0.0;
+    built_in_funcs["covar"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source1_series = ctx.getArgAsSeries(0);
+            auto source2_series = ctx.getArgAsSeries(1);
+            int length = static_cast<int>(ctx.getArgAsNumeric(2));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            double sum_x = 0.0, sum_y = 0.0, sum_xy = 0.0;
             int count = 0;
-            for (int i = 0; i < length; ++i)
-            {
-                double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val))
-                {
-                    sum += val;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double x = source1_series->getCurrent(current_bar - i);
+                double y = source2_series->getCurrent(current_bar - i);
+                if (!std::isnan(x) && !std::isnan(y)) {
+                    sum_x += x;
+                    sum_y += y;
+                    sum_xy += (x * y);
                     count++;
                 }
             }
 
-            if (count == 0)
-            {
-                result_series->setCurrent(current_bar, NAN);
+            double covar_val = NAN;
+            if (count == length && count > 1) {
+                double mean_x = sum_x / count;
+                double mean_y = sum_y / count;
+                covar_val = (sum_xy - count * mean_x * mean_y) / (count - 1);
             }
-            else
-            {
-                double mean = sum / count;
-                double sum_sq_diff = 0.0;
-                for (int i = 0; i < length; ++i)
-                {
-                    double val = source_series->getCurrent(current_bar - i);
-                    if (!std::isnan(val))
-                    {
-                        sum_sq_diff += (val - mean) * (val - mean);
-                    }
-                }
-                // 使用样本标准差 (n-1)
-                double std_dev = (count > 1) ? std::sqrt(sum_sq_diff / (count - 1)) : 0.0;
-                result_series->setCurrent(current_bar, std_dev);
-            }
-        }
-        return result_series;
-    };
-    built_in_funcs["stddev"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+            result_series->setCurrent(current_bar, covar_val);
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-
-        if (current_bar < length - 1)
-        { // 数据不足
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            double sum = 0.0;
-            int count = 0;
-            for (int i = 0; i < length; ++i)
-            {
-                double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val))
-                {
-                    sum += val;
-                    count++;
-                }
-            }
-
-            if (count == 0)
-            {
-                result_series->setCurrent(current_bar, NAN);
-            }
-            else
-            {
-                double mean = sum / count;
-                double sum_sq_diff = 0.0;
-                for (int i = 0; i < length; ++i)
-                {
-                    double val = source_series->getCurrent(current_bar - i);
-                    if (!std::isnan(val))
-                    {
-                        sum_sq_diff += (val - mean) * (val - mean);
-                    }
-                }
-                // 使用样本标准差 (n-1)
-                double std_dev = (count > 1) ? std::sqrt(sum_sq_diff / (count - 1)) : 0.0;
-                result_series->setCurrent(current_bar, std_dev);
-            }
-        }
-        return result_series;
+        },
+        .min_args = 3,
+        .max_args = 3
     };
-    built_in_funcs["stdp"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
 
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
-            return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-
-        if (current_bar < length - 1)
-        { // 数据不足
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            double sum = 0.0;
-            int count = 0;
-            for (int i = 0; i < length; ++i)
-            {
+    built_in_funcs["devsq"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            std::vector<double> values;
+            for(int i = 0; i < length && current_bar - i >= 0; ++i) {
                 double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val))
-                {
-                    sum += val;
-                    count++;
+                if (!std::isnan(val)) values.push_back(val);
+            }
+            
+            double devsq_val = NAN;
+            if (values.size() > 0) {
+                double sum = std::accumulate(values.begin(), values.end(), 0.0);
+                double mean = sum / values.size();
+                double sum_sq_dev = 0.0;
+                for (double val : values) {
+                    sum_sq_dev += std::pow(val - mean, 2);
                 }
+                devsq_val = sum_sq_dev;
             }
-
-            if (count == 0)
-            {
-                result_series->setCurrent(current_bar, NAN);
-            }
-            else
-            {
-                double mean = sum / count;
-                double sum_sq_diff = 0.0;
-                for (int i = 0; i < length; ++i)
-                {
-                    double val = source_series->getCurrent(current_bar - i);
-                    if (!std::isnan(val))
-                    {
-                        sum_sq_diff += (val - mean) * (val - mean);
-                    }
-                }
-                // 使用总体标准差 (n)
-                double std_dev = (count > 0) ? std::sqrt(sum_sq_diff / count) : 0.0;
-                result_series->setCurrent(current_bar, std_dev);
-            }
-        }
-        return result_series;
+            result_series->setCurrent(current_bar, devsq_val);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["var"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
 
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
-            return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-
-        if (current_bar < length - 1)
-        { // 数据不足
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            double sum = 0.0;
-            int count = 0;
-            for (int i = 0; i < length; ++i)
-            {
-                double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val))
-                {
-                    sum += val;
-                    count++;
-                }
-            }
-
-            if (count == 0)
-            {
+    built_in_funcs["forcast"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 2, .max_args = 2 }; // placeholder
+    built_in_funcs["relate"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 3, .max_args = 3 }; // placeholder
+    
+    built_in_funcs["slope"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            if (current_bar < length - 1) {
                 result_series->setCurrent(current_bar, NAN);
-            }
-            else
-            {
-                double mean = sum / count;
-                double sum_sq_diff = 0.0;
-                for (int i = 0; i < length; ++i)
-                {
-                    double val = source_series->getCurrent(current_bar - i);
-                    if (!std::isnan(val))
-                    {
-                        sum_sq_diff += (val - mean) * (val - mean);
+            } else {
+                double sum_x = 0, sum_y = 0, sum_xy = 0, sum_x2 = 0;
+                int n = 0;
+                for (int i = 0; i < length; ++i) {
+                    double y = source_series->getCurrent(current_bar - i);
+                    if (!std::isnan(y)) {
+                        double x = length - 1 - i; // x = 0, 1, ..., length-1
+                        sum_x += x;
+                        sum_y += y;
+                        sum_xy += x * y;
+                        sum_x2 += x * x;
+                        n++;
                     }
                 }
-                // 使用样本方差 (n-1)
-                double variance = (count > 1) ? sum_sq_diff / (count - 1) : 0.0;
-                result_series->setCurrent(current_bar, variance);
+                if (n == length && n > 1) {
+                    double denominator = n * sum_x2 - sum_x * sum_x;
+                    double slope = (denominator == 0) ? NAN : (n * sum_xy - sum_x * sum_y) / denominator;
+                    result_series->setCurrent(current_bar, slope);
+                } else {
+                    result_series->setCurrent(current_bar, NAN);
+                }
             }
-        }
-        return result_series;
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["varp"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
 
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
-            return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
+    built_in_funcs["stddev"] = built_in_funcs["std"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
 
-        if (current_bar < length - 1)
-        { // 数据不足
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            double sum = 0.0;
-            int count = 0;
-            for (int i = 0; i < length; ++i)
-            {
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            std::vector<double> values;
+            for(int i = 0; i < length && current_bar - i >= 0; ++i) {
                 double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val))
-                {
-                    sum += val;
-                    count++;
-                }
+                if (!std::isnan(val)) values.push_back(val);
             }
 
-            if (count == 0)
-            {
-                result_series->setCurrent(current_bar, NAN);
+            double std_dev = NAN;
+            if (values.size() > 1 && values.size() == length) {
+                double sum = std::accumulate(values.begin(), values.end(), 0.0);
+                double mean = sum / values.size();
+                double sq_sum = 0.0;
+                for(const auto& d : values) sq_sum += (d - mean) * (d - mean);
+                std_dev = std::sqrt(sq_sum / (values.size() - 1)); // Sample standard deviation
             }
-            else
-            {
-                double mean = sum / count;
-                double sum_sq_diff = 0.0;
-                for (int i = 0; i < length; ++i)
-                {
-                    double val = source_series->getCurrent(current_bar - i);
-                    if (!std::isnan(val))
-                    {
-                        sum_sq_diff += (val - mean) * (val - mean);
-                    }
-                }
-                // 使用总体方差 (n)
-                double variance = (count > 0) ? sum_sq_diff / count : 0.0;
-                result_series->setCurrent(current_bar, variance);
+            result_series->setCurrent(current_bar, std_dev);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["stdp"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            std::vector<double> values;
+            for(int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) values.push_back(val);
             }
-        }
-        return result_series;
+
+            double std_dev_p = NAN;
+            if (values.size() > 0 && values.size() == length) {
+                double sum = std::accumulate(values.begin(), values.end(), 0.0);
+                double mean = sum / values.size();
+                double sq_sum = 0.0;
+                for(const auto& d : values) sq_sum += (d - mean) * (d - mean);
+                std_dev_p = std::sqrt(sq_sum / values.size()); // Population standard deviation
+            }
+            result_series->setCurrent(current_bar, std_dev_p);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+    
+    built_in_funcs["var"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            std::vector<double> values;
+            for(int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) values.push_back(val);
+            }
+
+            double variance = NAN;
+            if (values.size() > 1 && values.size() == length) {
+                double sum = std::accumulate(values.begin(), values.end(), 0.0);
+                double mean = sum / values.size();
+                double sq_sum = 0.0;
+                for(const auto& d : values) sq_sum += (d - mean) * (d - mean);
+                variance = sq_sum / (values.size() - 1); // Sample variance
+            }
+            result_series->setCurrent(current_bar, variance);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+    
+    built_in_funcs["varp"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            std::vector<double> values;
+            for(int i = 0; i < length && current_bar - i >= 0; ++i) {
+                double val = source_series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) values.push_back(val);
+            }
+
+            double variance_p = NAN;
+            if (values.size() > 0 && values.size() == length) {
+                double sum = std::accumulate(values.begin(), values.end(), 0.0);
+                double mean = sum / values.size();
+                double sq_sum = 0.0;
+                for(const auto& d : values) sq_sum += (d - mean) * (d - mean);
+                variance_p = sq_sum / values.size(); // Population variance
+            }
+            result_series->setCurrent(current_bar, variance_p);
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
     //逻辑函数
-    built_in_funcs["cross"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val2 = vm.pop();
-        Value val1 = vm.pop();
+    built_in_funcs["cross"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            Value val1 = ctx.getArg(0);
+            Value val2 = ctx.getArg(1);
+            
+            auto& vm = ctx.getVM();
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
-        double dval1 = vm.getNumericValue(val1);
-        double dval2 = vm.getNumericValue(val2);
+            double dval1 = vm.getNumericValue(val1);
+            double dval2 = vm.getNumericValue(val2);
 
-        // 获取前一个K线柱的两个序列的值
-        auto *p1 = std::get_if<std::shared_ptr<Series>>(&val1);
-        double prev_dval1 = p1&&*p1 ? (*p1)->getCurrent(vm.getCurrentBarIndex() - 1) : dval1;
-        auto *p2 = std::get_if<std::shared_ptr<Series>>(&val2);
-        double prev_dval2 = p2&&*p2 ? (*p2)->getCurrent(vm.getCurrentBarIndex() - 1) : dval2;
-
-        // 检查是否有NaN值
-        if (std::isnan(dval1) || std::isnan(dval2) || std::isnan(prev_dval1) || std::isnan(prev_dval2))
-        {
-            result_series->setCurrent(current_bar, false); // 任何一个值为NaN，则交叉不成立
+            auto *p1 = std::get_if<std::shared_ptr<Series>>(&val1);
+            double prev_dval1 = (p1 && *p1) ? (*p1)->getCurrent(current_bar - 1) : dval1;
+            auto *p2 = std::get_if<std::shared_ptr<Series>>(&val2);
+            double prev_dval2 = (p2 && *p2) ? (*p2)->getCurrent(current_bar - 1) : dval2;
+            
+            bool result = false;
+            if (!std::isnan(dval1) && !std::isnan(dval2) && !std::isnan(prev_dval1) && !std::isnan(prev_dval2)) {
+                bool cross_up = (dval1 > dval2) && (prev_dval1 <= prev_dval2);
+                bool cross_down = (dval1 < dval2) && (prev_dval1 >= prev_dval2);
+                result = cross_up || cross_down;
+            }
+            result_series->setCurrent(current_bar, static_cast<double>(result));
             return result_series;
-        }
-
-        // 判断是否发生交叉
-        // (A > B 且 A[1] <= B[1]) 或 (A < B 且 A[1] >= B[1])
-        bool cross_up = (dval1 > dval2) && (prev_dval1 <= prev_dval2);
-        // bool cross_down = (dval1 < dval2) && (prev_dval1 >= prev_dval2);
-
-        // return cross_up || cross_down;
-        result_series->setCurrent(current_bar, cross_up);
-        return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["downnday"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
+
+    built_in_funcs["downnday"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 2, .max_args = 2 }; // placeholder
+    
+    built_in_funcs["every"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto condition_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
+            bool result = false;
+            if (current_bar >= length - 1) {
+                bool all_true = true;
+                for (int i = 0; i < length; ++i) {
+                    double val = condition_series->getCurrent(current_bar - i);
+                    if (std::isnan(val) || val == 0.0) {
+                        all_true = false;
+                        break;
+                    }
+                }
+                result = all_true;
+            }
+            result_series->setCurrent(current_bar, static_cast<double>(result));
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["every"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value condition_val = vm.pop();
 
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
+    built_in_funcs["exist"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto condition_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
-        bool result = false;
-        if (current_bar >= length - 1)
-        { // 确保有足够的历史数据来检查
-            bool all_true = true;
-            for (int i = 0; i < length; ++i)
-            {
+            bool result = false;
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
                 double val = condition_series->getCurrent(current_bar - i);
-                if (std::isnan(val) || val == 0.0)
-                { // 只要有一个为假或NaN，则不满足
-                    all_true = false;
+                if (!std::isnan(val) && val != 0.0) {
+                    result = true;
                     break;
                 }
             }
-            result = all_true;
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(result));
-        return result_series;
-    };
-    built_in_funcs["exist"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        // EXIST 存在
-        // 是否存在.
-        // 例如:
-        // EXIST(CLOSE>OPEN,10) 
-        // 表示10日内存在着阳线,第2个参数为常量(N应大于0)
-        Value length_val = vm.pop();
-        Value condition_val = vm.pop();
-
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
-
-        bool result = false;
-        for (int i = 0; i < length && current_bar - i >= 0; ++i)
-        {
-            double val = condition_series->getCurrent(current_bar - i);
-            if (!std::isnan(val) && val != 0.0)
-            {
-                result = true;
-                break;
-            }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(result));
-        
-        return result_series;
-    };
-    built_in_funcs["last"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val2 = vm.pop();
-        Value val1 = vm.pop();
-        Value condition_val = vm.pop();
-        
-        auto condition_series = std::get<std::shared_ptr<Series>>(condition_val);
-        //当前bar往前val1到val2的区间内，condition是否一直成立, val1为0表示第一个bar，val2为0表示最近一个bar
-        int start_offset = static_cast<int>(vm.getNumericValue(val1));
-        int end_offset = static_cast<int>(vm.getNumericValue(val2));
-        if(start_offset == 0)
-            start_offset = current_bar;
-        if(end_offset == 0)
-            end_offset = 1;
-
-        bool all_true_in_range = true;
-        // 遍历从 current_bar - end_offset 到 current_bar - start_offset 的K线
-        for (int i = end_offset; i >= start_offset; --i)
-        {
-            int bar_to_check = current_bar - i;
-            if (bar_to_check < 0)
-            {
-                all_true_in_range = false; // 超出数据范围
-                break;
-            }
-            double cond_val = condition_series->getCurrent(bar_to_check);
-            if (std::isnan(cond_val) || cond_val == 0.0)
-            {
-                all_true_in_range = false;
-                break;
-            }
-        }
-        result_series->setCurrent(current_bar, static_cast<double>(all_true_in_range));
-        return result_series;
-    };
-    built_in_funcs["longcross"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val2 = vm.pop();
-        Value val1 = vm.pop();
-
-        double dval1 = vm.getNumericValue(val1);
-        double dval2 = vm.getNumericValue(val2);
-
-        // 获取前一个K线柱的两个序列的值
-        auto *p1 = std::get_if<std::shared_ptr<Series>>(&val1);
-        double prev_dval1 = p1 && *p1 ? (*p1)->getCurrent(vm.getCurrentBarIndex() - 1) : dval1;
-        auto *p2 = std::get_if<std::shared_ptr<Series>>(&val2);
-        double prev_dval2 = p2 && *p2 ? (*p2)->getCurrent(vm.getCurrentBarIndex() - 1) : dval2;
-
-        // 检查是否有NaN值
-        if (std::isnan(dval1) || std::isnan(dval2) || std::isnan(prev_dval1) || std::isnan(prev_dval2))
-        {
-            result_series->setCurrent(current_bar, false); // 任何一个值为NaN，则交叉不成立
+            result_series->setCurrent(current_bar, static_cast<double>(result));
             return result_series;
-        }
-
-        // 判断是否发生向上金叉 (A从下方穿过B)
-        bool long_cross = (dval1 > dval2) && (prev_dval1 <= prev_dval2);
-
-        result_series->setCurrent(current_bar, long_cross);
-        return result_series;
-    };
-    built_in_funcs["nday"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
-    };
-    built_in_funcs["not"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, static_cast<double>(dval == 0.0));
-        }
-        return result_series;
-    };
-    built_in_funcs["upnday"] = [](PineVM &vm) -> Value
-    {
-        //todo
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
 
-    built_in_funcs["lv"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
+    built_in_funcs["last"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto condition_series = ctx.getArgAsSeries(0);
+            int start_offset = static_cast<int>(ctx.getArgAsNumeric(1));
+            int end_offset = static_cast<int>(ctx.getArgAsNumeric(2));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
 
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
+            if(start_offset == 0) start_offset = current_bar;
+            if(end_offset == 0) end_offset = 1;
+
+            bool all_true_in_range = true;
+            for (int i = end_offset; i >= start_offset; --i) {
+                int bar_to_check = current_bar - i;
+                if (bar_to_check < 0) { all_true_in_range = false; break; }
+                double cond_val = condition_series->getCurrent(bar_to_check);
+                if (std::isnan(cond_val) || cond_val == 0.0) { all_true_in_range = false; break; }
+            }
+            result_series->setCurrent(current_bar, static_cast<double>(all_true_in_range));
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
+        },
+        .min_args = 3,
+        .max_args = 3
+    };
 
-        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar]))
-        {
+    built_in_funcs["longcross"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            Value val1 = ctx.getArg(0);
+            Value val2 = ctx.getArg(1);
+            
+            auto& vm = ctx.getVM();
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+
+            double dval1 = vm.getNumericValue(val1);
+            double dval2 = vm.getNumericValue(val2);
+
+            auto *p1 = std::get_if<std::shared_ptr<Series>>(&val1);
+            double prev_dval1 = (p1 && *p1) ? (*p1)->getCurrent(current_bar - 1) : dval1;
+            auto *p2 = std::get_if<std::shared_ptr<Series>>(&val2);
+            double prev_dval2 = (p2 && *p2) ? (*p2)->getCurrent(current_bar - 1) : dval2;
+            
+            bool long_cross = false;
+            if (!std::isnan(dval1) && !std::isnan(dval2) && !std::isnan(prev_dval1) && !std::isnan(prev_dval2)) {
+                long_cross = (dval1 > dval2) && (prev_dval1 <= prev_dval2);
+            }
+            result_series->setCurrent(current_bar, static_cast<double>(long_cross));
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+
+    built_in_funcs["nday"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 2, .max_args = 2 }; // placeholder
+    
+    built_in_funcs["not"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            double result = std::isnan(dval) ? NAN : static_cast<double>(dval == 0.0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), result);
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
+    };
+    
+    built_in_funcs["upnday"] = { .function = [](FunctionContext &ctx) { return ctx.getResultSeries(); }, .min_args = 2, .max_args = 2 }; // placeholder
+
+    built_in_funcs["lv"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
             double lowest_val = NAN;
             bool first = true;
-            for (int i = 0; i < length && current_bar - i >= 0; ++i)
-            {
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
                 double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val))
-                {
-                    if (first)
-                    {
-                        lowest_val = val;
-                        first = false;
-                    }
-                    else
-                    {
-                        lowest_val = std::min(lowest_val, val);
-                    }
+                if (!std::isnan(val)) {
+                    if (first) { lowest_val = val; first = false; }
+                    else { lowest_val = std::min(lowest_val, val); }
                 }
             }
             result_series->setCurrent(current_bar, lowest_val);
-        }
-        return result_series;
-    };
-    built_in_funcs["hv"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        auto *p = std::get_if<std::shared_ptr<Series>>(&source_val);
-        if (!p)
-        {
             return result_series;
-        }
-        auto source_series = *p;
-        int current_bar = vm.getCurrentBarIndex();
-        int length = static_cast<int>(vm.getNumericValue(length_val));
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
 
-        if (current_bar >= result_series->data.size() || std::isnan(result_series->data[current_bar]))
-        {
+    built_in_funcs["hv"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto source_series = ctx.getArgAsSeries(0);
+            int length = static_cast<int>(ctx.getArgAsNumeric(1));
+            
+            auto result_series = ctx.getResultSeries();
+            int current_bar = ctx.getCurrentBarIndex();
+            
             double highest_val = NAN;
             bool first = true;
-            for (int i = 0; i < length && current_bar - i >= 0; ++i)
-            {
+            for (int i = 0; i < length && current_bar - i >= 0; ++i) {
                 double val = source_series->getCurrent(current_bar - i);
-                if (!std::isnan(val))
-                {
-                    if (first)
-                    {
-                        highest_val = val;
-                        first = false;
-                    }
-                    else
-                    {
-                        highest_val = std::max(highest_val, val);
-                    }
+                if (!std::isnan(val)) {
+                    if (first) { highest_val = val; first = false; }
+                    else { highest_val = std::max(highest_val, val); }
                 }
             }
             result_series->setCurrent(current_bar, highest_val);
-        }
-        return result_series;
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
-    built_in_funcs["isnull"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value val = vm.pop();
-        double dval = vm.getNumericValue(val);
-        if (std::isnan(dval))
-        {
-            result_series->setCurrent(current_bar, 1.0); // Hithink/TDX中，NaN被认为是空值，返回1.0
-        }
-        else
-        {
-            result_series->setCurrent(current_bar, 0.0); // 非NaN返回0.0
-        }
-        return result_series;
+    
+    built_in_funcs["isnull"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            double dval = ctx.getArgAsNumeric(0);
+            ctx.getResultSeries()->setCurrent(ctx.getCurrentBarIndex(), static_cast<double>(std::isnan(dval)));
+            return ctx.getResultSeries();
+        },
+        .min_args = 1,
+        .max_args = 1
     };
 
 }

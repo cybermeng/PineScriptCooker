@@ -112,7 +112,16 @@ void PineCompiler::visit(CallExpr& expr) {
         arg->accept(*this);
     }
 
-    // 2. 处理调用者 (callee)
+    // 2. 新增: 将参数数量压入栈。
+    //    VM 在执行函数调用前，会先从栈顶弹出此值以确定参数个数。
+    //    栈的状态将是：[...arg1, arg2, N]
+    int argCount = expr.arguments.size();
+    // 将参数数量作为一个新的常量（类型为数值）添加到常量池。
+    // 假设 Value 可以从 double 隐式构造。
+    int argCountConstIndex = addConstant(static_cast<double>(argCount));
+    emitByteWithOperand(OpCode::PUSH_CONST, argCountConstIndex);
+
+    // 3. 处理调用者 (callee)
     if (auto* var = dynamic_cast<VariableExpr*>(expr.callee.get())) {
         // Simple function call like plot(...)
         std::string funcName = var->name.lexeme;

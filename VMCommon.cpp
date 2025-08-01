@@ -6,6 +6,31 @@
 #include <cstdint> // For uint32_t
 #include <iostream> // For debug output
 
+double Series::getCurrent(int bar_index)
+{
+    if (bar_index >= 0 && bar_index < data.size())
+    {
+        return data[bar_index];
+    }
+    // 如果索引超出范围或数据未加载，返回 NaN
+    return NAN;
+}
+
+// ... Series::setCurrent 保持不变 ...
+void Series::setCurrent(int bar_index, double value)
+{
+    if (bar_index >= data.size())
+    {
+        data.resize(bar_index + 1, NAN);
+    }
+    data[bar_index] = value;
+}
+
+void Series::setName(const std::string &name)
+{
+    this->name = name;
+}
+
 typedef uint32_t _checksum_t;
 
 /**

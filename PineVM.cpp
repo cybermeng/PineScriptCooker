@@ -9,30 +9,33 @@
 #include <optional>  // For std::optional in txtToBytecode
 #include <cstdint>   // for uint64_t
 
-double Series::getCurrent(int bar_index)
-{
-    if (bar_index >= 0 && bar_index < data.size())
-    {
-        return data[bar_index];
-    }
-    // 如果索引超出范围或数据未加载，返回 NaN
-    return NAN;
+
+// --- FunctionContext 方法实现 ---
+
+double FunctionContext::getArgAsNumeric(size_t index) const {
+    return vm_.getNumericValue(getArg(index));
 }
 
-// ... Series::setCurrent 保持不变 ...
-void Series::setCurrent(int bar_index, double value)
-{
-    if (bar_index >= data.size())
-    {
-        data.resize(bar_index + 1, NAN);
+std::shared_ptr<Series> FunctionContext::getArgAsSeries(size_t index) const {
+    const Value& val = getArg(index);
+    if (auto* p = std::get_if<std::shared_ptr<Series>>(&val)) {
+        return *p;
     }
-    data[bar_index] = value;
+    throw std::runtime_error("Argument " + std::to_string(index) + " is not a Series.");
 }
 
-void Series::setName(const std::string &name)
-{
-    this->name = name;
+std::string FunctionContext::getArgAsString(size_t index) const {
+    const Value& val = getArg(index);
+    if (auto* p = std::get_if<std::string>(&val)) {
+        return *p;
+    }
+    throw std::runtime_error("Argument " + std::to_string(index) + " is not a String.");
 }
+
+int FunctionContext::getCurrentBarIndex() const {
+    return vm_.getCurrentBarIndex();
+}
+
 
 PineVM::PineVM()
     : total_bars(0), bar_index(0), ip(nullptr)
@@ -409,29 +412,66 @@ void PineVM::runCurrentBar()
         case OpCode::CALL_BUILTIN_FUNC:
         {
             const std::string &func_name = std::get<std::string>(bytecode.constant_pool[ip->operand]);
-            if (built_in_funcs.count(func_name))
+            auto it = built_in_funcs.find(func_name);
+            if (it == built_in_funcs.end()) {
+                 throw std::runtime_error("Undefined built-in function: " + func_name);
+            }
+            const auto& builtin_info = it->second;
+
+            // 1. 弹出由编译器压入的 "实际参数数量"。
+            //    这是新的调用约定：argN, ..., arg1, arg0, arg_count
+            Value arg_count_val = pop();
+            int actual_args = static_cast<int>(getNumericValue(arg_count_val));
+
+            // 2. 验证实际参数数量是否在函数声明的范围内。
+            if (actual_args < builtin_info.min_args || actual_args > builtin_info.max_args) {
+                std::string expected;
+                if (builtin_info.min_args == builtin_info.max_args) {
+                    expected = std::to_string(builtin_info.min_args);
+                } else {
+                    expected = "between " + std::to_string(builtin_info.min_args) + 
+                               " and " + std::to_string(builtin_info.max_args);
+                }
+                throw std::runtime_error("Invalid number of arguments for '" + func_name + "'. "
+                                         "Expected " + expected + " arguments, but got " 
+                                         + std::to_string(actual_args) + ".");
+            }
+
+            // 3. 检查堆栈深度是否足够。
+            //    (现在栈上应该有 `actual_args` 个参数)
+            if (stack.size() < actual_args) {
+                throw std::runtime_error("Stack underflow during call to '" + func_name + "'. "
+                                         "Not enough values on stack for " + std::to_string(actual_args) + " arguments.");
+            }
+
+            // 4. 弹出结果序列和所有实际参数。
+            // 基于函数和序号创建唯一的缓存键，以支持状态保持
+            std::string cache_key = "__call__" + func_name + "__" + std::to_string(ip->operand);
+            std::shared_ptr<Series> result_series;
+            if (builtin_func_cache.count(cache_key))
             {
-                // 基于函数和序号创建唯一的缓存键，以支持状态保持
-                std::string cache_key = "__call__" + func_name + "__" + std::to_string(ip->operand);
-                std::shared_ptr<Series> result_series;
-                if (builtin_func_cache.count(cache_key))
-                {
-                    result_series = builtin_func_cache.at(cache_key);
-                }
-                else
-                {
-                    result_series = std::make_shared<Series>();
-                    result_series->name = cache_key;
-                    builtin_func_cache[cache_key] = result_series;
-                }
-                push(result_series);
-                Value result = built_in_funcs.at(func_name)(*this);
-                push(result);
+                result_series = builtin_func_cache.at(cache_key);
             }
             else
             {
-                throw std::runtime_error("Undefined built-in function: " + func_name);
+                result_series = std::make_shared<Series>();
+                result_series->name = cache_key;
+                builtin_func_cache[cache_key] = result_series;
             }
+
+            std::vector<Value> args;
+            args.reserve(actual_args);
+            for (int i = 0; i < actual_args; ++i) {
+                args.push_back(pop());
+            }
+            std::reverse(args.begin(), args.end()); // 恢复参数顺序
+
+            // 5. 创建上下文并调用函数。
+            FunctionContext context(*this, result_series, std::move(args));
+            Value result = builtin_info.function(context);
+            
+            // 6. 将最终结果压栈。
+            push(result);
             break;
         }
         default:
@@ -668,145 +708,198 @@ std::string PineVM::getPlottedResultsAsString(int precision) const {
 
 void PineVM::registerBuiltins()
 { 
-    built_in_funcs["input.int"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        vm.pop();
-        Value defval = vm.pop();
-        result_series->setCurrent(current_bar, std::get<double>(defval));
-        return result_series;
-    };
-    built_in_funcs["plot"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value color = vm.pop();
-        Value val = vm.pop();
-        auto it = vm.exports.find(result_series->name);
-        if (it == vm.exports.end())
-        {
-            vm.exports[result_series->name] = {result_series->name, std::get<std::string>(color)};
-        }
-        auto* plot_series = std::get_if<std::shared_ptr<Series>>(&val);
-        if(plot_series)
-        {
-            result_series->setCurrent(current_bar, (*plot_series)->getCurrent(current_bar));
-        }
-        return result_series;
-    };
-    built_in_funcs["ta.sma"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        // ta.sma 的实现
-        // 确保有足够的历史数据来计算SMA
-        if (current_bar < length - 1)
-        {
-            result_series->setCurrent(current_bar, NAN);
-        }
-        else
-        {
-            double sum = 0.0;
-            bool has_nan = false;
-            for (int i = 0; i < length; ++i)
-            {
-                double val = source_series->getCurrent(current_bar - i);
-                if (std::isnan(val))
-                {
-                    has_nan = true;
-                    break;
-                }
-                sum += val;
+    // `input` 函数，可以接受1个或2个参数
+    built_in_funcs["input.int"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // 参数1: defval (必须)
+            double defval = ctx.getArgAsNumeric(0);
+            
+            // 参数2: title (可选)
+            std::string title;
+            if (ctx.argCount() > 1) {
+                title = ctx.getArgAsString(1);
+            } else {
+                title = "Default Title"; // 为可选参数提供默认值
             }
 
-            if (has_nan)
-            {
+            // 这里可以处理 title，例如用于日志或元数据
+            // std::cout << "Input with title: " << title << std::endl;
+            
+            int current_bar = ctx.getCurrentBarIndex();
+            std::shared_ptr<Series> result_series = ctx.getResultSeries();
+            result_series->setCurrent(current_bar, defval);
+            return result_series;
+        },
+        .min_args = 1, // 至少需要1个参数
+        .max_args = 2  // 最多接受2个参数
+    };
+     built_in_funcs["indicator"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            // indicator 函数不进行实际计算，只用于元数据。
+            // 它通常用于设置脚本的名称、叠加等属性。
+            // 在VM中，我们只返回一个monostate或一个默认值，不影响执行流。
+            // 参数1: title (必须)
+            std::string title = ctx.getArgAsString(0);
+            
+            // 参数2: overlay (可选)
+            bool overlay = true; // 默认值
+            if (ctx.argCount() > 1) {
+                overlay = ctx.getArgAsNumeric(1) != 0.0; // 0.0 为 false, 非0为 true
+            }
+
+            // 在这里可以处理 title 和 overlay，例如存储在 VM 状态中
+            // vm_.setScriptTitle(title);
+            // vm_.setScriptOverlay(overlay);
+
+            // indicator 函数通常不返回一个可用于后续计算的值
+            // 所以我们返回一个 monostate 或者一个表示成功的布尔值
+            // 这里返回一个 monostate，表示“无值”
+            return std::monostate{};
+            
+        },
+        .min_args = 1,
+        .max_args = 2
+    };
+   
+    // `plot` 函数，我们也可以让 color 可选
+    built_in_funcs["plot"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto plot_series = ctx.getArgAsSeries(0);
+            
+            std::string color;
+            if (ctx.argCount() > 1) {
+                color = ctx.getArgAsString(1);
+            } else {
+                color = "blue"; // 默认颜色
+            }
+
+            int current_bar = ctx.getCurrentBarIndex();
+            std::shared_ptr<Series> result_series = ctx.getResultSeries();
+            PineVM& vm = ctx.getVM();
+
+            auto it = vm.exports.find(result_series->name);
+            if (it == vm.exports.end()) {
+                vm.exports[result_series->name] = {result_series->name, color};
+            }
+            result_series->setCurrent(current_bar, plot_series->getCurrent(current_bar));
+            return result_series;
+        },
+        .min_args = 1,
+        .max_args = 2
+    };
+    built_in_funcs["ta.sma"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto series = ctx.getArgAsSeries(0);
+            double length = ctx.getArgAsNumeric(1);
+            int current_bar = ctx.getCurrentBarIndex();
+            std::shared_ptr<Series> result_series = ctx.getResultSeries();
+
+            if (current_bar < length - 1) {
+                result_series->setCurrent(current_bar, NAN);
+                return result_series;
+            }
+
+            double sum = 0.0;
+            int count = 0;
+            for (int i = 0; i < length; ++i) {
+                double val = series->getCurrent(current_bar - i);
+                if (!std::isnan(val)) {
+                    sum += val;
+                    count++;
+                }
+            }
+            if (count > 0) {
+                result_series->setCurrent(current_bar, sum / count);
+            } else {
                 result_series->setCurrent(current_bar, NAN);
             }
-            else
-            {
-                result_series->setCurrent(current_bar, sum / length);
-            }
-        }
-        return result_series;
-    };
-    built_in_funcs["ta.rsi"] = [](PineVM &vm) -> Value
-    {
-        std::shared_ptr<Series> result_series = std::get<std::shared_ptr<Series>>(vm.pop());
-        int current_bar = vm.getCurrentBarIndex();
-        Value length_val = vm.pop();
-        Value source_val = vm.pop();
-
-        int length = static_cast<int>(vm.getNumericValue(length_val));
-        auto source_series = std::get<std::shared_ptr<Series>>(source_val);
-
-        // RSI 的计算需要前一天的收盘价来计算涨跌幅
-        // 因此，我们需要至少两天的历史数据才能开始计算 RSI
-        if (current_bar == 0)
-        {
-            result_series->setCurrent(current_bar, NAN);
             return result_series;
-        }
-
-        // 计算前 length 周期内的平均涨幅 (avg_gain) 和平均跌幅 (avg_loss)
-        double avg_gain = 0.0;
-        double avg_loss = 0.0;
-        int valid_count = 0;
-
-        for (int i = 0; i <= current_bar; ++i)
-        {
-            if (i == 0)
-            { // 第一根K线没有前一日数据，跳过
-                continue;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+    built_in_funcs["ta.ema"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto series = ctx.getArgAsSeries(0);
+            double length = ctx.getArgAsNumeric(1);
+            int current_bar = ctx.getCurrentBarIndex();
+            std::shared_ptr<Series> result_series = ctx.getResultSeries();
+            
+            if (current_bar == 0) {
+                result_series->setCurrent(current_bar, series->getCurrent(current_bar));
+                return result_series;
             }
 
-            double current_close = source_series->getCurrent(current_bar - i);
-            double prev_close = source_series->getCurrent(current_bar - i + 1);
+            double alpha = 2.0 / (length + 1.0);
+            double current_value = series->getCurrent(current_bar);
+            double prev_ema = result_series->getCurrent(current_bar - 1);
 
-            if (std::isnan(current_close) || std::isnan(prev_close))
-            {
-                continue;
+            if (std::isnan(current_value) || std::isnan(prev_ema)) {
+                // If either current value or previous EMA is NaN, the result is NaN
+                // Or, if it's the first bar and current_value is NaN, it should be NaN
+                result_series->setCurrent(current_bar, NAN);
+            } else {
+                double ema = (current_value - prev_ema) * alpha + prev_ema;
+                result_series->setCurrent(current_bar, ema);
+            }
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
+    };
+    built_in_funcs["ta.rsi"] = {
+        .function = [](FunctionContext &ctx) -> Value {
+            auto series = ctx.getArgAsSeries(0);
+            double length = ctx.getArgAsNumeric(1);
+            int current_bar = ctx.getCurrentBarIndex();
+            std::shared_ptr<Series> result_series = ctx.getResultSeries();
+            PineVM& vm = ctx.getVM();
+
+            if (current_bar == 0) {
+                result_series->setCurrent(current_bar, NAN);
+                return result_series;
             }
 
-            double change = current_close - prev_close;
-            if (change > 0)
-            {
-                avg_gain += change;
-            }
-            else
-            {
-                avg_loss += std::abs(change);
-            }
-            valid_count++;
+            // 获取前一个 bar 的增益和损失
+            double prev_gain = vm.builtin_func_cache["__call__ta.rsi__gain"]->getCurrent(current_bar - 1);
+            double prev_loss = vm.builtin_func_cache["__call__ta.rsi__loss"]->getCurrent(current_bar - 1);
 
-            if (valid_count >= length)
-            {
-                break; // 收集到足够的数据
+            // 计算当前 bar 的价格变化
+            double current_price = series->getCurrent(current_bar);
+            double prev_price = series->getCurrent(current_bar - 1);
+
+            if (std::isnan(current_price) || std::isnan(prev_price)) {
+                result_series->setCurrent(current_bar, NAN);
+                return result_series;
             }
-        }
 
-        if (valid_count < length)
-        {
-            result_series->setCurrent(current_bar, NAN); // 数据不足
-        }
-        else
-        {
-            // 第一次计算RSI，使用简单平均
-            avg_gain /= length;
-            avg_loss /= length;
+            double change = current_price - prev_price;
+            double gain = change > 0 ? change : 0;
+            double loss = change < 0 ? -change : 0;
 
-            double rs = (avg_loss == 0) ? (avg_gain / 1e-10) : (avg_gain / avg_loss); // 避免除以零
-            double rsi = 100.0 - (100.0 / (1.0 + rs));
+            double avg_gain, avg_loss;
+
+            if (current_bar < length) {
+                // 初始阶段，简单累加
+                avg_gain = prev_gain + gain;
+                avg_loss = prev_loss + loss;
+            } else {
+                // 使用平滑平均 (类似 EMA)
+                avg_gain = (prev_gain * (length - 1) + gain) / length;
+                avg_loss = (prev_loss * (length - 1) + loss) / length;
+            }
+            // 缓存增益和损失，供下一次迭代使用
+            vm.builtin_func_cache["__call__ta.rsi__gain"]->setCurrent(current_bar, avg_gain);
+            vm.builtin_func_cache["__call__ta.rsi__loss"]->setCurrent(current_bar, avg_loss);
+
+            double rs = (avg_loss == 0) ? (avg_gain / 0.0000000001) : (avg_gain / avg_loss); // 避免除以零
+            double rsi = 100 - (100 / (1 + rs));
+
             result_series->setCurrent(current_bar, rsi);
-        }
-        return result_series;
+            return result_series;
+        },
+        .min_args = 2,
+        .max_args = 2
     };
     //
     registerBuiltinsHithink();

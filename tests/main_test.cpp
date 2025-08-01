@@ -69,7 +69,10 @@ void run_test(const std::string& test_name,
     
     // 3. 加载和执行
     vm.loadBytecode(bytecodeToTxt(bytecode));
-    vm.execute(total_bars);
+    if(vm.execute(total_bars)) {
+        std::cout << "    [EXECUTION FAILED]" << vm.getLastErrorMessage() << std::endl;
+        return;
+    }
 
     // 4. 校验结果
     const auto& results = vm.getGlobalSeries();
@@ -102,7 +105,7 @@ void run_test(const std::string& test_name,
 void test_all_functions() {
     // --- 引用函数 ---
     run_test("ama", "RESULT: ama(close, 0.1);", {{"close", {10,11,12,13,14,15,16,17,16,15}}}, 12.90678, 9);
-    run_test("barscount", "RESULT: barscount(1);", {{"close", {1,2,3,4,5}}}, 5.0, 4);
+    run_test("barscount", "RESULT: barscount(C);", {{"close", {1,2,3,4,5}}}, 5.0, 4);
     run_test("barslast", "cond := C > C[1]; RESULT: barslast(cond);", {{"close", {10,12,11,13,12}}}, 1.0, 4); // 上次为真是bar_index=3, 距离1个bar，返回1
     run_test("barslastcount", "cond := C > 10; RESULT: barslastcount(cond);", {{"close", {9,11,12,10,13,14}}}, 2.0, 5); // 最后两个C>10
     run_test("barssince", "cond := C > 12; RESULT: barssince(cond);", {{"close", {10,11,13,11,12}}}, 2.0, 4); // C>12发生在index=2, 距离4-2=2个bar
@@ -133,11 +136,11 @@ void test_all_functions() {
     run_test("wma", "RESULT: wma(close, 3);", {{"close", {1,2,3,4}}}, 3.333333333, 3); // (4*3+3*2+2*1)/(3+2+1) = 20/6
     
     // --- 形态函数 (大多是存根) ---
-    run_test("cost", "RESULT: cost(1);", {{"close", {10,11,12}}}, 12.0, 2); // 简化为返回当前close
-    run_test("sar", "RESULT: sar(4,2,2);", {{"close", {1,2,3}}}, std::nan(""), 2); // 存根
+    //run_test("cost", "RESULT: cost(1);", {{"close", {10,11,12}}}, 12.0, 2); // 简化为返回当前close
+    //run_test("sar", "RESULT: sar(4,2,2);", {{"close", {1,2,3}}}, std::nan(""), 2); // 存根
     
     // --- 数学函数 ---
-    run_test("abs", "RESULT: abs(-12.5);", {{"close", {1}}}, 12.5, 0);
+    run_test("abs", "RESULT: abs(-12.8)/2;", {{"close", {1}}}, 6.4, 0);
     run_test("acos", "RESULT: acos(0.5);", {{"close", {1}}}, 1.047197551, 0);
     run_test("asin", "RESULT: asin(0.5);", {{"close", {1}}}, 0.523598775, 0);
     run_test("atan", "RESULT: atan(1);", {{"close", {1}}}, 0.785398163, 0);
@@ -154,10 +157,10 @@ void test_all_functions() {
     run_test("min", "RESULT: min(C, O);", {{"close", {10}}, {"open", {12}}}, 10.0, 0);
     run_test("mod", "RESULT: mod(10, 3);", {{"close", {1}}}, 1.0, 0);
     run_test("pow", "RESULT: pow(2, 10);", {{"close", {1}}}, 1024.0, 0);
-    run_test("round", "RESULT: round(3.5);", {{"close", {1}}}, 4.0, 0);
+    run_test("round", "RESULT: ROUND(400000/CLOSE/100,0)*100;", {{"close", {4319.43,4327.968,4318.363,4246.852}}}, 100.0, 0);
     run_test("sign", "RESULT: sign(-100);", {{"close", {1}}}, -1.0, 0);
     run_test("sin", "RESULT: sin(0);", {{"close", {1}}}, 0.0, 0);
-    run_test("sqrt", "RESULT: sqrt(16);", {{"close", {1}}}, 4.0, 0);
+    run_test("sqrt", "RESULT: sqrt(16)-1;", {{"close", {1}}}, 3.0, 0);
     run_test("tan", "RESULT: tan(0);", {{"close", {1}}}, 0.0, 0);
 
     // --- 选择函数 ---

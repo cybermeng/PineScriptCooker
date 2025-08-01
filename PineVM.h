@@ -12,6 +12,48 @@
 #include <cmath> // for std::isnan, NAN
 #include "VMCommon.h"
 
+class PineVM; 
+
+//-----------------------------------------------------------------------------
+// FunctionContext 类 (The Function Call Context)
+//-----------------------------------------------------------------------------
+/**
+ * @class FunctionContext
+ * @brief 为内置函数调用提供一个安全、隔离的执行上下文。
+ *        它负责管理参数传递，防止函数直接操作VM主堆栈，从而实现堆栈保护。
+ */
+class FunctionContext {
+public:
+    FunctionContext(PineVM& vm, std::shared_ptr<Series> result_series, std::vector<Value>&& args)
+        : vm_(vm), result_series_(result_series), args_(std::move(args)) {}
+
+    // --- 安全的参数访问接口 ---
+    size_t argCount() const { return args_.size(); }
+    
+    const Value& getArg(size_t index) const {
+        if (index >= args_.size()) {
+            throw std::runtime_error("Argument index out of bounds: requested " + std::to_string(index) 
+                                     + ", but only " + std::to_string(args_.size()) + " provided.");
+        }
+        return args_[index];
+    }
+    
+    // --- 便利的类型转换接口 ---
+    double getArgAsNumeric(size_t index) const;
+    std::shared_ptr<Series> getArgAsSeries(size_t index) const;
+    std::string getArgAsString(size_t index) const;
+
+    // --- 访问VM核心状态的接口 ---
+    int getCurrentBarIndex() const;
+    std::shared_ptr<Series> getResultSeries() const { return result_series_; }
+    PineVM& getVM() { return vm_; }
+
+private:
+    PineVM& vm_;
+    std::shared_ptr<Series> result_series_; // 函数应该写入结果的序列
+    std::vector<Value> args_;               // 本次调用的参数列表 (已从主堆栈弹出)
+};
+
 //-----------------------------------------------------------------------------
 // PineVM 类 (The Virtual Machine Class)
 //-----------------------------------------------------------------------------
@@ -91,9 +133,11 @@ public:
         }
         return nullptr;
     }
-private:
-    using BuiltinFunction = std::function<Value(PineVM&)>;
 
+    double getNumericValue(const Value& val);
+    bool getBoolValue(const Value& val);
+
+private:
     // --- 内部状态 ---
     Bytecode bytecode;
 
@@ -108,9 +152,19 @@ private:
     int total_bars; // 当前已知的总K线数
     int bar_index;  // 下一个要计算的K线索引
 
-    // --- 内置环境 ---
+    using BuiltinFunction = std::function<Value(FunctionContext&)>;
+
+    /**
+     * @brief 存储内置函数的信息，包括其可接受的参数数量范围。
+     */
+    struct BuiltinInfo {
+        BuiltinFunction function;
+        int min_args; // 函数期望的最少参数数量
+        int max_args; // 函数期望的最多参数数量
+                      // 对于固定参数函数, min_args == max_args   
+                      };
     std::map<std::string, Value> built_in_vars;
-    std::map<std::string, BuiltinFunction> built_in_funcs;
+    std::map<std::string, BuiltinInfo> built_in_funcs;
     std::map<std::string, std::shared_ptr<Series>> builtin_func_cache;
 
     // --- 私有辅助函数 ---
@@ -119,8 +173,6 @@ private:
     void push(Value val);
     void pushNumbericValue(double val, int operand);
     Value& storeGlobal(int operand, const Value& val);
-    double getNumericValue(const Value& val);
-    bool getBoolValue(const Value& val);
     void writePlottedResultsToStream(std::ostream& stream, int precision = 3) const;
     void printSeriesSummary(const Series& series, std::function<void(double)> print_value) const;
     std::shared_ptr<Series> findTimeSeries() const;

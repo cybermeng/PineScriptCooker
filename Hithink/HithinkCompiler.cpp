@@ -92,19 +92,32 @@ void HithinkCompiler::visit(HithinkSubscriptExpression& node) {
 }
 
 void HithinkCompiler::visit(HithinkFunctionCallExpression& node) {
+    // Step 1: Compile all arguments and push them onto the stack.
     for (const auto& arg : node.arguments) {
         arg->accept(*this);
     }
 
+    // Step 2: Push the number of arguments onto the stack. The VM will pop this
+    // value to determine how many arguments to retrieve for the call.
+    int argCount = node.arguments.size();
+    int argCountConstIndex = addConstant(static_cast<double>(argCount));
+    emitByteWithOperand(OpCode::PUSH_CONST, argCountConstIndex);
+
+    // Step 3: Prepare the function name and emit the call instruction.
     std::string funcName = node.name.lexeme;
+    // Normalize the function name (e.g., to lowercase for case-insensitivity)
     std::transform(funcName.begin(), funcName.end(), funcName.begin(),
                    [](unsigned char c){ return std::tolower(c); });
+    
+    // Preserve original mapping logic for compatibility.
     if (builtin_mappings.count(funcName)) {
         funcName = builtin_mappings.at(funcName);
     }
 
-    int constIndex = addConstant(funcName);
-    emitByteWithOperand(OpCode::CALL_BUILTIN_FUNC, constIndex);
+    // Add the function name string to the constant pool.
+    int funcNameConstIndex = addConstant(funcName);
+    // Emit the call instruction. Its operand is the index of the function's name.
+    emitByteWithOperand(OpCode::CALL_BUILTIN_FUNC, funcNameConstIndex);
 }
 
 void HithinkCompiler::visit(HithinkLiteralExpression& node) {
