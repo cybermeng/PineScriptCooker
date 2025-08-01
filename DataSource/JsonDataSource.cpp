@@ -56,7 +56,8 @@ void JsonDataSource::initialize() {
             CAST("8" AS DOUBLE) AS high,
             CAST("9" AS DOUBLE) AS low,
             CAST("11" AS DOUBLE) AS close,
-            CAST("13" AS DOUBLE) AS volume
+            CAST("13" AS DOUBLE) AS volume,
+            CAST("19" AS DOUBLE) AS amount
         FROM read_json_auto(')" + file_path + R"(', format='newline_delimited')
     )";
 
@@ -73,7 +74,7 @@ void JsonDataSource::loadData(PineVM& vm) {
     duckdb_result result;
     // Because initialize() created a clean table, this query is simple and standard.
     // It reads from the 'market_data' table which now has standard column names and types.
-    std::string query = "SELECT epoch(time), strftime(time, '%Y%m%d'), open, high, low, close, volume FROM market_data ORDER BY time ASC";
+    std::string query = "SELECT epoch(time), strftime(time, '%Y%m%d'), open, high, low, close, volume, amount FROM market_data ORDER BY time ASC";
     
     if (duckdb_query(con, query.c_str(), &result) != DuckDBSuccess) {
         std::string error_msg = "Failed to query market_data table: " + std::string(duckdb_result_error(&result));
@@ -88,6 +89,7 @@ void JsonDataSource::loadData(PineVM& vm) {
     vm.registerSeries("low", std::make_shared<Series>());
     vm.registerSeries("close", std::make_shared<Series>());
     vm.registerSeries("volume", std::make_shared<Series>());
+    vm.registerSeries("amount", std::make_shared<Series>());
 
     auto* time_series = vm.getSeries("time");
     auto* date_series = vm.getSeries("date");
@@ -96,8 +98,9 @@ void JsonDataSource::loadData(PineVM& vm) {
     auto* low_series = vm.getSeries("low");
     auto* close_series = vm.getSeries("close");
     auto* volume_series = vm.getSeries("volume");
+    auto* amount_series = vm.getSeries("amount");
 
-    if (!time_series || !date_series || !open_series || !high_series || !low_series || !close_series || !volume_series) {
+    if (!time_series || !date_series || !open_series || !high_series || !low_series || !close_series || !volume_series || !amount_series) {
         duckdb_destroy_result(&result);
         throw std::runtime_error("One or more required series (open, high, low, close, volume) not found in PineVM.");
     }
@@ -111,6 +114,7 @@ void JsonDataSource::loadData(PineVM& vm) {
         low_series->data.push_back(duckdb_value_double(&result, 4, r));
         close_series->data.push_back(duckdb_value_double(&result, 5, r));
         volume_series->data.push_back(duckdb_value_double(&result, 6, r));
+        amount_series->data.push_back(duckdb_value_double(&result, 7, r));
     }
 
     duckdb_destroy_result(&result);

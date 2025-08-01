@@ -10,6 +10,7 @@ const std::unordered_map<std::string, std::string> HithinkCompiler::builtin_mapp
     {"HIGH", "high"},   {"H", "high"},
     {"LOW", "low"},     {"L", "low"},
     {"VOL", "volume"},  {"V", "volume"},
+    {"AMOUNT", "amount"},
     {"DATE", "date"},
     {"TIME", "time"}
 };
